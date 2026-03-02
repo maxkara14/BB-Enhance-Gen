@@ -1,0 +1,80 @@
+/* Выносим панель кнопок ровно по центру над полем ввода */
+#bb-enhance-toolbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.bb-eg-btn {
+    background: linear-gradient(135deg, rgba(30, 20, 20, 0.9), rgba(15, 10, 10, 0.9));
+    border: 1px solid #3f2c2c;
+    border-left: 2px solid #b91c1c;
+    color: #d4af37;
+    padding: 0 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Georgia', sans-serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    height: 32px; /* Жестко фиксируем высоту, чтобы они не растягивались */
+    white-space: nowrap;
+}
+
+.bb-eg-btn:hover {
+    border-color: #d4af37;
+    background: rgba(40, 25, 25, 0.9);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+}
+
+.bb-eg-btn:active {
+    transform: translateY(0);
+}
+
+.bb-eg-btn.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
+    animation: bb-eg-pulse 1.5s infinite;
+    border-left-color: #d4af37;
+    color: #fff;
+}
+
+@keyframes bb-eg-pulse { 
+    0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); } 
+    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.6); } 
+    100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); } 
+}
+
+/* Стили для панели настроек во вкладке расширений */
+.bb-eg-settings-panel {
+    background: rgba(20, 15, 15, 0.5);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.bb-eg-settings-panel label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #e5e7eb;
+    cursor: pointer;
+}
