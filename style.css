@@ -78,3 +78,130 @@
     color: #e5e7eb;
     cursor: pointer;
 }
+
+/* --- ВСПЛЫВАЮЩЕЕ МЕНЮ РЕЖИССЕРА --- */
+.bb-eg-director-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.bb-eg-popup {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: rgba(15, 10, 10, 0.95);
+    border: 1px solid #3f2c2c;
+    border-top: 2px solid #b91c1c;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(185, 28, 28, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999;
+    min-width: 200px;
+    backdrop-filter: blur(5px);
+}
+
+/* Анимация появления */
+.bb-eg-popup.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Золотой хвостик (стрелочка) вниз */
+.bb-eg-popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #3f2c2c transparent transparent transparent;
+}
+
+.bb-eg-popup-header {
+    color: #d4af37;
+    font-size: 11px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: bold;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
+}
+
+.bb-eg-vibe-btn {
+    background: rgba(30, 20, 20, 0.6);
+    border: 1px solid transparent;
+    color: #e5e7eb;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Georgia', sans-serif;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bb-eg-vibe-btn:hover {
+    background: rgba(185, 28, 28, 0.2);
+    border-color: #b91c1c;
+    color: #fff;
+    transform: translateX(3px);
+}
+
+/* Кнопки выбора цели (Для меня / Для бота) */
+.bb-eg-target-grid {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.bb-eg-target-btn {
+    flex: 1;
+    background: #110a0a;
+    border: 1px solid #3f2c2c;
+    color: #d4af37;
+    padding: 8px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.bb-eg-target-btn i { font-size: 16px; margin-bottom: 2px; }
+.bb-eg-target-btn:hover { background: #d4af37; color: #000; border-color: #d4af37; }
+
+.bb-eg-back-btn {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    margin-bottom: 6px;
+    width: fit-content;
+}
+
+.bb-eg-back-btn:hover { color: #d4af37; }
