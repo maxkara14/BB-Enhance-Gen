@@ -1,20 +1,37 @@
 (function () {
     const MODULE_NAME = "BB-Enhance-Gen";
 
+    // --- ПРОМПТЫ ДЛЯ МЕНЯ (Генерация в поле ввода) ---
     const TEMPLATES = {
         enhance: `[CONTEXT REMINDER]\nCharacter: {{user}} ({{persona}})\nCurrent scene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast message in chat: """{{lastMessage}}"""\n\n[TASK]\nYou are a master author. Take the user's brief draft below and EXPAND it significantly into a rich, immersive, and highly detailed literary masterpiece.\n\nYour goals:\n1. Expand actions with deep sensory details (sight, sound, smell, texture).\n2. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n3. Enhance and rewrite {{user}}'s spoken dialogue. Feel free to rephrase, expand, or stylize their words to make them sound more natural, expressive, and perfectly aligned with their personality ({{persona}}).\n4. Embellish the surrounding environment and atmosphere.\n5. You MUST make the text substantially longer and more descriptive than the draft.\n\n⚠️ CRITICAL RULES:\n1. ONLY expand the current moment. DO NOT advance the plot or decide what happens next.\n2. DO NOT speak, act, or react for other characters.\n3. ABSOLUTELY NO HTML formatting, no colored text, no UI blocks. Use standard text and markdown (* for italics).\n4. Output ONLY the raw expanded story text.\n\nDraft to enhance: """{{input}}"""`,
         
-        // НОВЫЙ ЖЕСТКИЙ ПРОМПТ ДЛЯ ИМПРУВА
         improve: `[TEXT EDITING TASK]\nYou are a strict text editor. Your ONLY job is to rephrase and polish the user's draft to make it sound more literary and grammatically correct.\n\nContext for tone: Character is {{user}} ({{persona}}). Previous message in chat: """{{lastMessage}}"""\n\n⚠️ CRITICAL RULES:\n1. PARAPHRASE ONLY. You are editing, NOT roleplaying.\n2. DO NOT add ANY new actions, thoughts, or dialogue that are not explicitly mentioned in the draft.\n3. DO NOT answer the previous message. DO NOT advance the plot or time even by a second.\n4. Keep the output roughly the EXACT SAME LENGTH as the original draft.\n5. ABSOLUTELY NO HTML formatting, no UI blocks. Output ONLY the rewritten text.\n\nDraft to rewrite: """{{input}}"""`,
         
-        random: `[NARRATIVE DIRECTION: PLOT TWIST]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an unexpected narrative complication to drive character development.\n\nRequirements:\n1. Introduce a dramatic disruption (e.g., an unexpected arrival, a sudden environmental shift, a bizarre discovery).\n2. Describe {{user}}'s visceral sensory and emotional reaction.\n3. Create tension that forces characters to react immediately.\n4. Keep the narrative flow natural. DO NOT resolve the situation yet.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
+        dir_disaster: `[NARRATIVE DIRECTION: DISASTER]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION or BAD EVENT.\n\nRequirements:\n1. Create a sharp conflict, physical danger, bad news, or a painful memory triggered by the environment.\n2. Use the current location and objects explicitly.\n3. Keep it natural but highly tense. DO NOT resolve the situation yet.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_blessing: `[NARRATIVE DIRECTION: BLESSING]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce a BLESSING or GOOD EVENT.\n\nRequirements:\n1. Create an unexpected stroke of luck, a moment of deep comfort, help from an unexpected source, or a pleasant discovery.\n2. Use the current location and objects explicitly to ground the scene.\n3. Make the atmosphere feel relieving or heartwarming.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_tension: `[NARRATIVE DIRECTION: ROMANTIC TENSION]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n\nRequirements:\n1. Create a micro-interaction: a lingering touch, intense eye contact, a sudden awkward pause, or a breathtaking revelation.\n2. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity to others.\n3. Keep it subtle but electric.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_absurd: `[NARRATIVE DIRECTION: ABSURD COMEDY]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n\nRequirements:\n1. Create a ridiculous misunderstanding, a clumsy mistake (someone tripping, dropping something), or an awkwardly funny situational irony.\n2. Contrast the seriousness of the characters with the silliness of the event.\n3. Make it fit a comedy-drama style naturally.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
+    };
+
+    // --- СКРЫТЫЕ ПРИКАЗЫ ДЛЯ БОТА (Внедряются прямо в память чата) ---
+    const BOT_CUES = {
+        dir_disaster: `\n\n[Director's Cue: In your next response, introduce a DRAMATIC DISRUPTION or BAD EVENT (e.g., sharp conflict, physical danger, bad news, or painful memory). Do not resolve it yet.]`,
+        dir_blessing: `\n\n[Director's Cue: In your next response, introduce a BLESSING or GOOD EVENT (e.g., unexpected luck, deep comfort, or a pleasant discovery).]`,
+        dir_tension: `\n\n[Director's Cue: In your next response, focus heavily on ROMANTIC TENSION or DEEP EMOTION (e.g., a lingering touch, intense eye contact, sudden awkward pause).]`,
+        dir_absurd: `\n\n[Director's Cue: In your next response, introduce an ABSURD or COMEDIC EVENT (e.g., a ridiculous misunderstanding, a clumsy mistake).]`
     };
 
     const DEFAULT_SETTINGS = {
         btnEnhance: true,
         btnImprove: true,
-        btnRandom: true
+        btnDirector: true
     };
+
+    let activeDirectorVibe = null;
+    let isPopupOpen = false;
 
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
@@ -29,6 +46,7 @@
         updateToolbarVisibility();
     }
 
+    // --- ГЕНЕРАЦИЯ ДЛЯ МЕНЯ (В поле ввода) ---
     async function handleGeneration(type, btnElement) {
         const ta = /** @type {HTMLTextAreaElement} */ (document.getElementById('send_textarea'));
         if (!ta) return;
@@ -43,12 +61,12 @@
 
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `⏳ <span>Думаю...</span>`;
+        btnElement.innerHTML = `⏳ <span>Генерация...</span>`;
 
         try {
             let promptRaw = TEMPLATES[type].replace('{{input}}', inputText);
-            
             let finalPrompt = promptRaw;
+            
             // @ts-ignore
             if (typeof window.substituteParams === 'function') {
                 // @ts-ignore
@@ -60,24 +78,19 @@
             }
 
             const ctx = SillyTavern.getContext();
-            
             let result = await ctx.generateQuietPrompt(finalPrompt);
 
             if (result) {
                 let cleanResult = String(result);
-                
                 cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
                 cleanResult = cleanResult.replace(/<think>/gi, '');
                 cleanResult = cleanResult.replace(/<\/think>/gi, '');
-                
                 cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
                 cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, '');
-                
                 cleanResult = cleanResult.replace(/<span[^>]*>/gi, '');
                 cleanResult = cleanResult.replace(/<\/span>/gi, '');
                 cleanResult = cleanResult.replace(/<font[^>]*>/gi, '');
                 cleanResult = cleanResult.replace(/<\/font>/gi, '');
-                
                 cleanResult = cleanResult.trim();
                 
                 if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
@@ -88,38 +101,184 @@
                     ta.value = cleanResult.trim();
                     ta.dispatchEvent(new Event('input', { bubbles: true })); 
                     // @ts-ignore
-                    toastr.success('Готово!', 'BB Enhance');
+                    toastr.success('Готово!', 'BB Director');
                 } else {
                     // @ts-ignore
-                    toastr.warning('После очистки текста от тегов ничего не осталось.', 'BB Enhance');
+                    toastr.warning('Пустой текст после фильтров.', 'BB Director');
                 }
             } else {
                 // @ts-ignore
-                toastr.warning('Нейросеть вернула пустой ответ.', 'BB Enhance');
+                toastr.warning('Нейросеть вернула пустой ответ.', 'BB Director');
             }
-
         } catch (err) {
-            console.error("[BB Enhance Error]:", err);
+            console.error("[BB Director Error]:", err);
             // @ts-ignore
-            toastr.error('Ошибка: ' + err.message, 'BB Enhance');
+            toastr.error('Ошибка: ' + err.message, 'BB Director');
         } finally {
             btnElement.classList.remove('loading');
             btnElement.innerHTML = oldHtml;
         }
     }
 
-    function createButton(label, type) {
-        const btn = document.createElement('button');
-        btn.className = 'bb-eg-btn';
-        btn.id = `bb-eg-btn-${type}`;
-        btn.innerHTML = label;
-        btn.onclick = (e) => {
-            e.preventDefault();
-            handleGeneration(type, btn);
-        };
-        return btn;
+    // --- ГЕНЕРАЦИЯ ДЛЯ БОТА (Хирургический реролл) ---
+    async function handleBotGeneration(type) {
+        const ctx = SillyTavern.getContext();
+        const chat = ctx.chat;
+        
+        if (!chat || chat.length === 0) {
+            // @ts-ignore
+            toastr.warning('Чат пуст!', 'BB Director');
+            return;
+        }
+
+        // 1. Находим последнее сообщение юзера в чате
+        let lastUserIndex = -1;
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i].is_user) {
+                lastUserIndex = i;
+                break;
+            }
+        }
+
+        if (lastUserIndex === -1) {
+            // @ts-ignore
+            toastr.warning('Не найдено сообщение от вас для внедрения события.', 'BB Director');
+            return;
+        }
+
+        const originalText = chat[lastUserIndex].mes;
+        const cue = BOT_CUES[type];
+
+        // 2. Незаметно внедряем скрытый приказ
+        chat[lastUserIndex].mes = originalText + cue;
+        // @ts-ignore
+        toastr.info('🎬 Режиссер дает указание актеру...', 'BB Director');
+
+        const isLastMsgBot = !chat[chat.length - 1].is_user;
+
+        // 3. Заставляем Таверну сгенерировать ответ
+        if (isLastMsgBot) {
+            // Если последнее сообщение от бота — программно нажимаем свайп
+            const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+            // @ts-ignore
+            if (swipeRightBtn) {
+                // @ts-ignore
+                swipeRightBtn.click();
+            } else {
+                const sendBtn = document.getElementById('send_but');
+                if (sendBtn) sendBtn.click();
+            }
+        } else {
+            // Если последнее сообщение от нас — просто жмем Отправить
+            const sendBtn = document.getElementById('send_but');
+            if (sendBtn) sendBtn.click();
+        }
+
+        // 4. Заметаем следы! Ждем 2.5 секунды (пока запрос уйдет) и стираем приказ
+        setTimeout(() => {
+            if (chat[lastUserIndex]) {
+                chat[lastUserIndex].mes = originalText;
+            }
+        }, 2500);
     }
 
+    // --- ЛОГИКА МЕНЮ РЕЖИССЕРА ---
+    function renderPopupVibes() {
+        return `
+            <div class="bb-eg-popup-header">Выберите событие</div>
+            <button class="bb-eg-vibe-btn" data-vibe="dir_disaster">💥 Disaster (Опасность)</button>
+            <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
+            <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
+            <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
+        `;
+    }
+
+    function renderPopupTargets() {
+        return `
+            <button class="bb-eg-back-btn"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+            <div class="bb-eg-popup-header">Куда направить?</div>
+            <div class="bb-eg-target-grid">
+                <button class="bb-eg-target-btn" data-target="me">
+                    <i class="fa-solid fa-user"></i>
+                    Мне (Текст)
+                </button>
+                <button class="bb-eg-target-btn" data-target="bot">
+                    <i class="fa-solid fa-robot"></i>
+                    Боту (Реролл)
+                </button>
+            </div>
+        `;
+    }
+
+    function buildDirectorPopup() {
+        const wrap = document.createElement('div');
+        wrap.className = 'bb-eg-director-wrap';
+        wrap.id = 'bb-eg-director-wrap';
+
+        const mainBtn = document.createElement('button');
+        mainBtn.className = 'bb-eg-btn';
+        mainBtn.id = 'bb-eg-btn-director';
+        mainBtn.innerHTML = '🎬 Event Director';
+        
+        const popup = document.createElement('div');
+        popup.className = 'bb-eg-popup';
+        popup.id = 'bb-eg-popup';
+        popup.innerHTML = renderPopupVibes();
+
+        mainBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isPopupOpen = !isPopupOpen;
+            if (isPopupOpen) {
+                popup.innerHTML = renderPopupVibes();
+                popup.classList.add('show');
+            } else {
+                popup.classList.remove('show');
+            }
+        };
+
+        popup.onclick = (e) => {
+            e.stopPropagation();
+            // @ts-ignore
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            if (target.classList.contains('bb-eg-vibe-btn')) {
+                activeDirectorVibe = target.getAttribute('data-vibe');
+                popup.innerHTML = renderPopupTargets();
+            } 
+            else if (target.classList.contains('bb-eg-back-btn')) {
+                popup.innerHTML = renderPopupVibes();
+            }
+            else if (target.classList.contains('bb-eg-target-btn')) {
+                const targetType = target.getAttribute('data-target');
+                popup.classList.remove('show');
+                isPopupOpen = false;
+
+                if (targetType === 'me') {
+                    handleGeneration(activeDirectorVibe, mainBtn);
+                } else if (targetType === 'bot') {
+                    handleBotGeneration(activeDirectorVibe);
+                }
+            }
+        };
+
+        wrap.appendChild(mainBtn);
+        wrap.appendChild(popup);
+        return wrap;
+    }
+
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('bb-eg-director-wrap');
+        const popup = document.getElementById('bb-eg-popup');
+        // @ts-ignore
+        if (isPopupOpen && wrap && !wrap.contains(e.target)) {
+            isPopupOpen = false;
+            popup.classList.remove('show');
+        }
+    });
+
+    // --- ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА ---
     function updateToolbarVisibility() {
         const s = getSettings();
         const btnE = document.getElementById('bb-eg-btn-enhance');
@@ -128,12 +287,12 @@
         const btnI = document.getElementById('bb-eg-btn-improve');
         if (btnI) btnI.style.display = s.btnImprove ? 'flex' : 'none';
         
-        const btnR = document.getElementById('bb-eg-btn-random');
-        if (btnR) btnR.style.display = s.btnRandom ? 'flex' : 'none';
+        const wrapD = document.getElementById('bb-eg-director-wrap');
+        if (wrapD) wrapD.style.display = s.btnDirector ? 'inline-block' : 'none';
         
         const toolbar = document.getElementById('bb-enhance-toolbar');
         if (toolbar) {
-            toolbar.style.display = (s.btnEnhance || s.btnImprove || s.btnRandom) ? 'flex' : 'none';
+            toolbar.style.display = (s.btnEnhance || s.btnImprove || s.btnDirector) ? 'flex' : 'none';
         }
     }
 
@@ -143,9 +302,21 @@
         const toolbar = document.createElement('div');
         toolbar.id = 'bb-enhance-toolbar';
 
-        toolbar.appendChild(createButton('✨ Enhance', 'enhance'));
-        toolbar.appendChild(createButton('🔮 Improve', 'improve'));
-        toolbar.appendChild(createButton('🎲 Random Event', 'random'));
+        const btnE = document.createElement('button');
+        btnE.className = 'bb-eg-btn';
+        btnE.id = 'bb-eg-btn-enhance';
+        btnE.innerHTML = '✨ Enhance';
+        btnE.onclick = (e) => { e.preventDefault(); handleGeneration('enhance', btnE); };
+        toolbar.appendChild(btnE);
+
+        const btnI = document.createElement('button');
+        btnI.className = 'bb-eg-btn';
+        btnI.id = 'bb-eg-btn-improve';
+        btnI.innerHTML = '🔮 Improve';
+        btnI.onclick = (e) => { e.preventDefault(); handleGeneration('improve', btnI); };
+        toolbar.appendChild(btnI);
+
+        toolbar.appendChild(buildDirectorPopup());
 
         const sendForm = document.getElementById('send_form');
         if (sendForm && sendForm.parentNode) {
@@ -162,7 +333,7 @@
         const html = `
             <div id="bb-eg-settings-container" class="inline-drawer">
                 <div class="inline-drawer-toggle inline-drawer-header">
-                    <b>✨ BB Enhance Generation</b>
+                    <b>🎬 BB Event Director & Enhance</b>
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
                 <div class="inline-drawer-content">
@@ -176,8 +347,8 @@
                             Показать кнопку [🔮 Improve]
                         </label>
                         <label>
-                            <input type="checkbox" id="bb-eg-cfg-random" ${s.btnRandom ? 'checked' : ''}>
-                            Показать кнопку [🎲 Random Event]
+                            <input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}>
+                            Показать кнопку [🎬 Event Director]
                         </label>
                     </div>
                 </div>
@@ -190,18 +361,15 @@
 
             document.getElementById('bb-eg-cfg-enhance').addEventListener('change', (e) => {
                 // @ts-ignore
-                getSettings().btnEnhance = e.target.checked;
-                saveSettings();
+                getSettings().btnEnhance = e.target.checked; saveSettings();
             });
             document.getElementById('bb-eg-cfg-improve').addEventListener('change', (e) => {
                 // @ts-ignore
-                getSettings().btnImprove = e.target.checked;
-                saveSettings();
+                getSettings().btnImprove = e.target.checked; saveSettings();
             });
-            document.getElementById('bb-eg-cfg-random').addEventListener('change', (e) => {
+            document.getElementById('bb-eg-cfg-director').addEventListener('change', (e) => {
                 // @ts-ignore
-                getSettings().btnRandom = e.target.checked;
-                saveSettings();
+                getSettings().btnDirector = e.target.checked; saveSettings();
             });
         }
     }
@@ -217,7 +385,7 @@
             injectToolbar();
             injectSettingsPanel();
         } catch (e) {
-            console.error("[BB Enhance] Ошибка запуска:", e);
+            console.error("[BB Director] Ошибка запуска:", e);
         }
     });
 
