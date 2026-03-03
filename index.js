@@ -83,45 +83,47 @@
             let result = await ctx.generateQuietPrompt(finalPrompt);
 
             if (result) {
-                let cleanResult = String(result);
+                let originalResult = String(result).trim();
+                let cleanResult = originalResult;
                 
-                // --- ПЫЛЕСОС 5.0 (УНИВЕРСАЛЬНЫЙ) ---
+                // --- ПЫЛЕСОС 7.0: БРОНЕБОЙНЫЙ С ФОЛБЭКОМ ---
                 
-                // 1. Уничтожаем тяжелые блоки вместе с текстом (мысли, UI-окна, OOC)
-                cleanResult = cleanResult.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '');
+                // 1. Вырезаем технический мусор. ТЕПЕРЬ удаляет <think> ТОЛЬКО если есть закрывающий тег! 
+                // Это предотвратит удаление всего текста, если ST забыл закрыть тег.
+                cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
                 cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
-                cleanResult = cleanResult.replace(/\[(?:OOC|System|Note|Author|Meta)[^\]]*\]/gi, '');
 
-                // 2. Снимаем оболочку (технические теги), но сохраняем текст внутри!
+                // 2. Ювелирно срезаем ТОЛЬКО названия тегов Сцен и Мыслей. HTML-цвета не трогаем вообще!
+                cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
+                cleanResult = cleanResult.replace(/※\/SCENE※/gi, '');
                 
-                // Удаляем любые HTML/XML теги (например <span color="red">, <scene>, </scene>)
-                cleanResult = cleanResult.replace(/<[/]?[a-zA-Z]+[^>]*>/g, '');
-                
-                // Удаляем популярные квадратные теги из ЗАГЛАВНЫХ букв (например [SCENE], [/THOUGHT], [STATUS: 100/100])
-                // При этом не трогаем обычный текст в скобках вроде [Она улыбнулась]
-                cleanResult = cleanResult.replace(/\[\/?([A-Z_]+)(\s*:[^\]]*)?\]/g, '');
+                cleanResult = cleanResult.replace(/⟦[A-Za-zА-Яа-яЁё\s_]+:[^⟧]*⟧/gi, '');
+                cleanResult = cleanResult.replace(/⟦\/[A-Za-zА-Яа-яЁё\s_]+⟧/gi, '');
 
-                // Твои кастомные теги (оставляем для 100% надежности)
-                cleanResult = cleanResult.replace(/※[^※]*※/g, ''); 
-                cleanResult = cleanResult.replace(/⟦[^⟧]*⟧/g, '');
-
-                // Чистим мусорные переносы строк, которые могли остаться после удаления тегов
-                cleanResult = cleanResult.replace(/^\s*[\r\n]/gm, '');
                 cleanResult = cleanResult.trim();
                 
                 // Снимаем кавычки, если ИИ обернул ими весь текст
                 if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
-                    cleanResult = cleanResult.slice(1, -1);
+                    cleanResult = cleanResult.slice(1, -1).trim();
                 }
                 
-                if (cleanResult.trim().length > 0) {
-                    ta.value = cleanResult.trim();
+                // --- ПРЕДОХРАНИТЕЛЬ ---
+                if (cleanResult.length > 0) {
+                    ta.value = cleanResult;
                     ta.dispatchEvent(new Event('input', { bubbles: true })); 
                     // @ts-ignore
                     toastr.success('Готово!', 'BB Director');
-                } else {
+                } 
+                else if (originalResult.length > 0) {
+                    // Если пылесос по какой-то причине съел ВЕСЬ текст, мы просто возвращаем оригинальный текст!
+                    ta.value = originalResult;
+                    ta.dispatchEvent(new Event('input', { bubbles: true })); 
                     // @ts-ignore
-                    toastr.warning('Пустой текст после фильтров.', 'BB Director');
+                    toastr.warning('Фильтр удалил всё. Возвращен сырой текст!', 'BB Director');
+                } 
+                else {
+                    // @ts-ignore
+                    toastr.warning('Нейросеть вернула пустой ответ.', 'BB Director');
                 }
             } else {
                 // @ts-ignore
@@ -201,7 +203,7 @@
             <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
-            <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">⏩ Time Skip (Промотка)</button>
+            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(212, 175, 55, 0.3); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
         `;
     }
 
