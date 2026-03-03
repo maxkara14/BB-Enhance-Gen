@@ -205,3 +205,86 @@
 }
 
 .bb-eg-back-btn:hover { color: #d4af37; }
+
+/* =========================================
+   🎲 3D FATE CRYSTAL (ЧИСТЫЙ CSS)
+========================================= */
+.bb-dice-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 99999; backdrop-filter: blur(5px);
+    transition: opacity 0.8s ease;
+}
+
+.bb-dice-box {
+    background: linear-gradient(to bottom, #1e1313, #160f0f);
+    border: 2px solid #b91c1c; border-radius: 12px;
+    padding: 40px; text-align: center;
+    box-shadow: 0 0 40px rgba(185, 28, 28, 0.4), inset 0 0 20px rgba(0,0,0,0.8);
+    min-width: 350px; max-width: 500px;
+    font-family: 'Georgia', serif;
+    position: relative;
+    overflow: hidden;
+}
+
+.bb-dice-title { color: #d4af37; font-size: 15px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; text-shadow: 0 0 8px rgba(212,175,55,0.5);}
+.bb-dice-question { color: #e5e7eb; font-size: 19px; margin-bottom: 24px; font-style: italic; line-height: 1.4; text-shadow: 0 2px 4px rgba(0,0,0,0.8);}
+.bb-dice-dc { color: #fca5a5; font-size: 15px; letter-spacing: 2px; border-bottom: 1px solid #3f2c2c; padding-bottom: 16px; margin-bottom: 30px; }
+
+/* --- 3D Сцена с Кубиком --- */
+.bb-dice-scene {
+    width: 100px; height: 100px;
+    margin: 0 auto 40px auto;
+    perspective: 800px; /* Глубина 3D */
+}
+
+.bb-dice-cube {
+    width: 100%; height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rollCube 0.5s linear infinite;
+    transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Остановка кубика: поворачиваем лицом к экрану и чуть увеличиваем */
+.bb-dice-cube.stopped {
+    animation: none;
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.3);
+}
+
+/* Грани кубика */
+.bb-cube-face {
+    position: absolute; width: 100px; height: 100px;
+    background: rgba(20, 10, 10, 0.95);
+    border: 2px solid #b91c1c;
+    border-radius: 12px;
+    box-shadow: inset 0 0 20px rgba(185, 28, 28, 0.5);
+    display: flex; justify-content: center; align-items: center;
+    font-size: 45px; color: #d4af37; font-weight: bold;
+    font-family: 'Courier New', Courier, monospace;
+    transition: all 0.4s ease;
+}
+
+/* Располагаем 6 граней в пространстве */
+.bb-face-front  { transform: rotateY(  0deg) translateZ(50px); }
+.bb-face-right  { transform: rotateY( 90deg) translateZ(50px); }
+.bb-face-back   { transform: rotateY(180deg) translateZ(50px); }
+.bb-face-left   { transform: rotateY(-90deg) translateZ(50px); }
+.bb-face-top    { transform: rotateX( 90deg) translateZ(50px); }
+.bb-face-bottom { transform: rotateX(-90deg) translateZ(50px); }
+
+/* Хаотичная анимация вращения и подпрыгивания */
+@keyframes rollCube {
+    0%   { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0); }
+    25%  { transform: rotateX(90deg) rotateY(180deg) rotateZ(45deg) translateY(-25px); }
+    50%  { transform: rotateX(180deg) rotateY(360deg) rotateZ(90deg) translateY(0); }
+    75%  { transform: rotateX(270deg) rotateY(540deg) rotateZ(135deg) translateY(-15px); }
+    100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(180deg) translateY(0); }
+}
+
+.bb-dice-outcome { 
+    font-size: 28px; font-weight: bold; letter-spacing: 2px; 
+    text-transform: uppercase; transition: opacity 0.5s ease; 
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8); 
+}
