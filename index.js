@@ -13,15 +13,17 @@
         
         dir_tension: `[NARRATIVE DIRECTION: ROMANTIC TENSION]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n\nRequirements:\n1. Create a micro-interaction: a lingering touch, intense eye contact, a sudden awkward pause, or a breathtaking revelation.\n2. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity to others.\n3. Keep it subtle but electric.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
         
-        dir_absurd: `[NARRATIVE DIRECTION: ABSURD COMEDY]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n\nRequirements:\n1. Create a ridiculous misunderstanding, a clumsy mistake (someone tripping, dropping something), or an awkwardly funny situational irony.\n2. Contrast the seriousness of the characters with the silliness of the event.\n3. Make it fit a comedy-drama style naturally.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
+        dir_absurd: `[NARRATIVE DIRECTION: ABSURD COMEDY]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n\nRequirements:\n1. Create a ridiculous misunderstanding, a clumsy mistake (someone tripping, dropping something), or an awkwardly funny situational irony.\n2. Contrast the seriousness of the characters with the silliness of the event.\n3. Make it fit a comedy-drama style naturally.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+
+        dir_timeskip: `[NARRATIVE DIRECTION: TIME SKIP]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n\nRequirements:\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT or meaningful interaction.\n2. Briefly summarize what happened during the skipped time (e.g., travel, resting, routine).\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event or conversation to keep the story moving.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
     };
 
-    // --- СКРЫТЫЕ ПРИКАЗЫ ДЛЯ БОТА (Внедряются прямо в память чата) ---
     const BOT_CUES = {
         dir_disaster: `\n\n[Director's Cue: In your next response, introduce a DRAMATIC DISRUPTION or BAD EVENT (e.g., sharp conflict, physical danger, bad news, or painful memory). Do not resolve it yet.]`,
         dir_blessing: `\n\n[Director's Cue: In your next response, introduce a BLESSING or GOOD EVENT (e.g., unexpected luck, deep comfort, or a pleasant discovery).]`,
         dir_tension: `\n\n[Director's Cue: In your next response, focus heavily on ROMANTIC TENSION or DEEP EMOTION (e.g., a lingering touch, intense eye contact, sudden awkward pause).]`,
-        dir_absurd: `\n\n[Director's Cue: In your next response, introduce an ABSURD or COMEDIC EVENT (e.g., a ridiculous misunderstanding, a clumsy mistake).]`
+        dir_absurd: `\n\n[Director's Cue: In your next response, introduce an ABSURD or COMEDIC EVENT (e.g., a ridiculous misunderstanding, a clumsy mistake).]`,
+        dir_timeskip: `\n\n[Director's Cue: In your next response, execute a logical TIME SKIP. Jump forward in time to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene.]`
     };
 
     const DEFAULT_SETTINGS = {
@@ -82,17 +84,32 @@
 
             if (result) {
                 let cleanResult = String(result);
-                cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                cleanResult = cleanResult.replace(/<think>/gi, '');
-                cleanResult = cleanResult.replace(/<\/think>/gi, '');
+                
+                // --- ПЫЛЕСОС 5.0 (УНИВЕРСАЛЬНЫЙ) ---
+                
+                // 1. Уничтожаем тяжелые блоки вместе с текстом (мысли, UI-окна, OOC)
+                cleanResult = cleanResult.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '');
                 cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
-                cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, '');
-                cleanResult = cleanResult.replace(/<span[^>]*>/gi, '');
-                cleanResult = cleanResult.replace(/<\/span>/gi, '');
-                cleanResult = cleanResult.replace(/<font[^>]*>/gi, '');
-                cleanResult = cleanResult.replace(/<\/font>/gi, '');
+                cleanResult = cleanResult.replace(/\[(?:OOC|System|Note|Author|Meta)[^\]]*\]/gi, '');
+
+                // 2. Снимаем оболочку (технические теги), но сохраняем текст внутри!
+                
+                // Удаляем любые HTML/XML теги (например <span color="red">, <scene>, </scene>)
+                cleanResult = cleanResult.replace(/<[/]?[a-zA-Z]+[^>]*>/g, '');
+                
+                // Удаляем популярные квадратные теги из ЗАГЛАВНЫХ букв (например [SCENE], [/THOUGHT], [STATUS: 100/100])
+                // При этом не трогаем обычный текст в скобках вроде [Она улыбнулась]
+                cleanResult = cleanResult.replace(/\[\/?([A-Z_]+)(\s*:[^\]]*)?\]/g, '');
+
+                // Твои кастомные теги (оставляем для 100% надежности)
+                cleanResult = cleanResult.replace(/※[^※]*※/g, ''); 
+                cleanResult = cleanResult.replace(/⟦[^⟧]*⟧/g, '');
+
+                // Чистим мусорные переносы строк, которые могли остаться после удаления тегов
+                cleanResult = cleanResult.replace(/^\s*[\r\n]/gm, '');
                 cleanResult = cleanResult.trim();
                 
+                // Снимаем кавычки, если ИИ обернул ими весь текст
                 if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
                     cleanResult = cleanResult.slice(1, -1);
                 }
@@ -131,7 +148,6 @@
             return;
         }
 
-        // 1. Находим последнее сообщение юзера в чате
         let lastUserIndex = -1;
         for (let i = chat.length - 1; i >= 0; i--) {
             if (chat[i].is_user) {
@@ -149,16 +165,13 @@
         const originalText = chat[lastUserIndex].mes;
         const cue = BOT_CUES[type];
 
-        // 2. Незаметно внедряем скрытый приказ
         chat[lastUserIndex].mes = originalText + cue;
         // @ts-ignore
         toastr.info('🎬 Режиссер дает указание актеру...', 'BB Director');
 
         const isLastMsgBot = !chat[chat.length - 1].is_user;
 
-        // 3. Заставляем Таверну сгенерировать ответ
         if (isLastMsgBot) {
-            // Если последнее сообщение от бота — программно нажимаем свайп
             const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
             // @ts-ignore
             if (swipeRightBtn) {
@@ -169,12 +182,10 @@
                 if (sendBtn) sendBtn.click();
             }
         } else {
-            // Если последнее сообщение от нас — просто жмем Отправить
             const sendBtn = document.getElementById('send_but');
             if (sendBtn) sendBtn.click();
         }
 
-        // 4. Заметаем следы! Ждем 2.5 секунды (пока запрос уйдет) и стираем приказ
         setTimeout(() => {
             if (chat[lastUserIndex]) {
                 chat[lastUserIndex].mes = originalText;
@@ -190,6 +201,7 @@
             <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
+            <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">⏩ Time Skip (Промотка)</button>
         `;
     }
 
