@@ -4,7 +4,17 @@
     const TEMPLATES = {
         enhance: `[CONTEXT REMINDER]\nCharacter: {{user}} ({{persona}})\nCurrent scene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast message in chat: """{{lastMessage}}"""\n\n[TASK]\nYou are a master author. Take the user's brief draft below and EXPAND it significantly into a rich, immersive, and highly detailed literary masterpiece.\n\nYour goals:\n1. Expand actions with deep sensory details (sight, sound, smell, texture).\n2. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n3. Enhance and rewrite {{user}}'s spoken dialogue. Feel free to rephrase, expand, or stylize their words to make them sound more natural, expressive, and perfectly aligned with their personality ({{persona}}).\n4. Embellish the surrounding environment and atmosphere.\n5. You MUST make the text substantially longer and more descriptive than the draft.\n\n⚠️ CRITICAL RULES:\n1. ONLY expand the current moment. DO NOT advance the plot or decide what happens next.\n2. DO NOT speak, act, or react for other characters.\n3. ABSOLUTELY NO HTML formatting, no colored text, no UI blocks. Use standard text and markdown (* for italics).\n4. Output ONLY the raw expanded story text.\n\nDraft to enhance: """{{input}}"""`,
         
-        improve: `[TEXT EDITING TASK]\nYou are a strict text editor. Your ONLY job is to rephrase and polish the user's draft to make it sound more literary and grammatically correct.\n\nContext for tone: Character is {{user}} ({{persona}}). Previous message in chat: """{{lastMessage}}"""\n\n⚠️ CRITICAL RULES:\n1. PARAPHRASE ONLY. You are editing, NOT roleplaying.\n2. DO NOT add ANY new actions, thoughts, or dialogue that are not explicitly mentioned in the draft.\n3. DO NOT answer the previous message. DO NOT advance the plot or time even by a second.\n4. Keep the output roughly the EXACT SAME LENGTH as the original draft.\n5. ABSOLUTELY NO HTML formatting, no UI blocks. Output ONLY the rewritten text.\n\nDraft to rewrite: """{{input}}"""`
+        improve: `[TEXT EDITING TASK]\nYou are a strict text editor. Your ONLY job is to rephrase and polish the user's draft to make it sound more literary and grammatically correct.\n\nContext for tone: Character is {{user}} ({{persona}}). Previous message in chat: """{{lastMessage}}"""\n\n⚠️ CRITICAL RULES:\n1. PARAPHRASE ONLY. You are editing, NOT roleplaying.\n2. DO NOT add ANY new actions, thoughts, or dialogue that are not explicitly mentioned in the draft.\n3. DO NOT answer the previous message. DO NOT advance the plot or time even by a second.\n4. Keep the output roughly the EXACT SAME LENGTH as the original draft.\n5. ABSOLUTELY NO HTML formatting, no UI blocks. Output ONLY the rewritten text.\n\nDraft to rewrite: """{{input}}"""`,
+
+        dir_disaster: `[NARRATIVE DIRECTION: DISASTER]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION or BAD EVENT.\n\nRequirements:\n1. Create a sharp conflict, physical danger, bad news, or a painful memory triggered by the environment.\n2. Use the current location and objects explicitly.\n3. Keep it natural but highly tense. DO NOT resolve the situation yet.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_blessing: `[NARRATIVE DIRECTION: BLESSING]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce a BLESSING or GOOD EVENT.\n\nRequirements:\n1. Create an unexpected stroke of luck, a moment of deep comfort, help from an unexpected source, or a pleasant discovery.\n2. Use the current location and objects explicitly to ground the scene.\n3. Make the atmosphere feel relieving or heartwarming.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_tension: `[NARRATIVE DIRECTION: ROMANTIC TENSION]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n\nRequirements:\n1. Create a micro-interaction: a lingering touch, intense eye contact, a sudden awkward pause, or a breathtaking revelation.\n2. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity to others.\n3. Keep it subtle but electric.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        dir_absurd: `[NARRATIVE DIRECTION: ABSURD COMEDY]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n\nRequirements:\n1. Create a ridiculous misunderstanding, a clumsy mistake (someone tripping, dropping something), or an awkwardly funny situational irony.\n2. Contrast the seriousness of the characters with the silliness of the event.\n3. Make it fit a comedy-drama style naturally.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+
+        dir_timeskip: `[NARRATIVE DIRECTION: TIME SKIP]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n\nRequirements:\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT or meaningful interaction.\n2. Briefly summarize what happened during the skipped time (e.g., travel, resting, routine).\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event or conversation to keep the story moving.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
     };
 
     const BOT_CUES = {
@@ -104,7 +114,7 @@
         }
     }
 
-// --- КИНОШНАЯ МОДАЛКА ДЛЯ КУБИКА (Версия 4.0: Настоящий хаотичный 3D-Куб) ---
+    // --- КИНОШНАЯ МОДАЛКА ДЛЯ КУБИКА ---
     function showDiceModal(question, dc, finalRoll, outcomeText, outcomeColor) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
@@ -112,7 +122,6 @@
             overlay.className = 'bb-dice-overlay';
             overlay.style.opacity = '0'; 
             
-            // Вставляем 3D-сцену с 6 гранями куба
             overlay.innerHTML = `
                 <div class="bb-dice-box">
                     <div class="bb-dice-title">🎲 Проверка Навыка</div>
@@ -148,7 +157,6 @@
 
             function rollTick() {
                 if (ticks < maxTicks) {
-                    // Пока кубик крутится, цифры мелькают на всех гранях
                     // @ts-ignore
                     mainFace.innerText = String(Math.floor(Math.random() * 20) + 1);
                     randFaces.forEach(face => {
@@ -159,15 +167,13 @@
                     ticks++;
                     
                     if (ticks > 25) {
-                        currentDelay += 20; // Имитируем трение — кубик замедляется
+                        currentDelay += 20;
                     }
                     
                     setTimeout(rollTick, currentDelay);
                 } else {
-                    // --- ФИНАЛЬНЫЙ РЕЗУЛЬТАТ И ОСТАНОВКА ---
-                    cubeEl.classList.add('stopped'); // Кубик замирает лицевой гранью к нам
+                    cubeEl.classList.add('stopped'); 
                     
-                    // Красим главную грань в цвет результата и даем неоновое свечение
                     mainFace.innerText = String(finalRoll);
                     mainFace.style.color = outcomeColor;
                     mainFace.style.textShadow = `0 0 20px ${outcomeColor}, 0 0 10px #fff`;
@@ -176,7 +182,6 @@
                     mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`;
                     mainFace.style.background = "rgba(10, 5, 5, 0.95)";
                     
-                    // Заголовок результата (УСПЕХ/ПРОВАЛ)
                     outcomeEl.innerText = outcomeText;
                     outcomeEl.style.color = outcomeColor;
                     outcomeEl.style.opacity = '1';
@@ -224,7 +229,7 @@
         try {
             const prompt = `[TASK]\nRead the user's last action in the roleplay: """${lastUserMessage}"""\nFormulate a single, short dramatic question describing the skill check they are attempting (e.g., "Сможет ли Рин незаметно украсть письмо?", "Удастся ли запугать хулигана?").\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
             
-            // @ts-ignore (Глушим ошибку GenerateQuietPromptParams)
+            // @ts-ignore 
             let actionQuestion = await ctx.generateQuietPrompt(prompt);
             actionQuestion = String(actionQuestion).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
             if(actionQuestion.startsWith('"')) actionQuestion = actionQuestion.slice(1, -1);
