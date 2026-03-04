@@ -24,7 +24,6 @@
         dir_absurd: `\n\n[Director's Cue: In your next response, introduce an ABSURD or COMEDIC EVENT (e.g., a ridiculous misunderstanding, a clumsy mistake).]`,
         dir_timeskip: `\n\n[Director's Cue: In your next response, execute a logical TIME SKIP. Jump forward in time to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene.]`,
         
-        // --- ENGLISH PROMPTS FOR DICE CUES ---
         roll_crit_success: `\n\n[SYSTEM: DICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly and inconceivably. Describe an absolute triumph with an unexpected bonus. The opponent is completely shocked or defeated.]`,
         roll_success: `\n\n[SYSTEM: DICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked out perfectly, and the opponents believed it, got scared, or lost.]`,
         roll_failure: `\n\n[SYSTEM: DICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco: the plan collapsed, a weapon slipped, the voice trembled, or the lie was obvious. The opponent triumphs or gets angry.]`,
@@ -77,37 +76,47 @@
             const ctx = SillyTavern.getContext();
             let result = await ctx.generateQuietPrompt(finalPrompt);
 
-            if (result) {
-                let originalResult = String(result).trim();
-                let cleanResult = originalResult;
-                
-                cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
-                cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
-                cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
-                cleanResult = cleanResult.replace(/※\/SCENE※/gi, '');
-                cleanResult = cleanResult.replace(/⟦[A-Za-zА-Яа-яЁё\s_]+:[^⟧]*⟧/gi, '');
-                cleanResult = cleanResult.replace(/⟦\/[A-Za-zА-Яа-яЁё\s_]+⟧/gi, '');
-
-                cleanResult = cleanResult.trim();
-                if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) cleanResult = cleanResult.slice(1, -1).trim();
-                
-                if (cleanResult.length > 0) {
-                    ta.value = cleanResult; ta.dispatchEvent(new Event('input', { bubbles: true })); 
-                    // @ts-ignore
-                    toastr.success('Готово!', 'BB Director');
-                } else if (originalResult.length > 0) {
-                    ta.value = originalResult; ta.dispatchEvent(new Event('input', { bubbles: true })); 
-                    // @ts-ignore
-                    toastr.warning('Фильтр удалил всё. Возвращен сырой текст!', 'BB Director');
-                } else {
-                    // @ts-ignore
-                    toastr.warning('Нейросеть вернула пустой ответ.', 'BB Director');
-                }
+            // СТРОГАЯ ПРОВЕРКА НА ОШИБКИ API
+            const resultStr = String(result).trim();
+            if (result === undefined || result === null || resultStr === '' || resultStr === 'undefined' || resultStr === 'null') {
+                // @ts-ignore
+                toastr.error('Ошибка генерации: API не подключено или вернуло пустой ответ.', 'BB Enhance');
+                return;
             }
+
+            let cleanResult = resultStr;
+            
+            cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
+            cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
+            cleanResult = cleanResult.replace(/※\/SCENE※/gi, '');
+            cleanResult = cleanResult.replace(/⟦[A-Za-zА-Яа-яЁё\s_]+:[^⟧]*⟧/gi, '');
+            cleanResult = cleanResult.replace(/⟦\/[A-Za-zА-Яа-яЁё\s_]+⟧/gi, '');
+
+            cleanResult = cleanResult.trim();
+            if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) cleanResult = cleanResult.slice(1, -1).trim();
+            
+            if (cleanResult.length > 0) {
+                ta.value = cleanResult; ta.dispatchEvent(new Event('input', { bubbles: true })); 
+                // @ts-ignore
+                toastr.success('Готово!', 'BB Director');
+            } else if (resultStr.length > 0) {
+                ta.value = resultStr; ta.dispatchEvent(new Event('input', { bubbles: true })); 
+                // @ts-ignore
+                toastr.warning('Фильтр удалил всё. Возвращен сырой текст!', 'BB Director');
+            } else {
+                // @ts-ignore
+                toastr.warning('Нейросеть вернула пустой ответ.', 'BB Director');
+            }
+            
         } catch (err) {
             console.error(err);
+            let errMsg = err.message || String(err);
+            if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
+                errMsg = 'API недоступно (Network Error / Failed to fetch). Убедитесь, что прокси или сервер запущены.';
+            }
             // @ts-ignore
-            toastr.error('Ошибка: ' + err.message, 'BB Director');
+            toastr.error('Техническая ошибка: ' + errMsg, 'BB Enhance');
         } finally {
             btnElement.classList.remove('loading');
             btnElement.innerHTML = oldHtml;
@@ -174,6 +183,7 @@
                 } else {
                     cubeEl.classList.add('stopped'); 
                     
+                    // @ts-ignore
                     mainFace.innerText = String(finalRoll);
                     mainFace.style.color = outcomeColor;
                     mainFace.style.textShadow = `0 0 20px ${outcomeColor}, 0 0 10px #fff`;
@@ -182,6 +192,7 @@
                     mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`;
                     mainFace.style.background = "rgba(10, 5, 5, 0.95)";
                     
+                    // @ts-ignore
                     outcomeEl.innerText = outcomeText;
                     outcomeEl.style.color = outcomeColor;
                     outcomeEl.style.opacity = '1';
@@ -231,7 +242,18 @@
             
             // @ts-ignore 
             let actionQuestion = await ctx.generateQuietPrompt(prompt);
-            actionQuestion = String(actionQuestion).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            
+            // СТРОГАЯ ПРОВЕРКА АПИ ДЛЯ КУБИКА
+            const qStr = String(actionQuestion).trim();
+            if (actionQuestion === undefined || actionQuestion === null || qStr === '' || qStr === 'undefined' || qStr === 'null') {
+                btnElement.classList.remove('loading');
+                btnElement.innerHTML = oldHtml;
+                // @ts-ignore
+                toastr.error('Ошибка API: Невозможно получить данные для кубика.', 'BB Dice');
+                return;
+            }
+
+            actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
             if(actionQuestion.startsWith('"')) actionQuestion = actionQuestion.slice(1, -1);
             if(!actionQuestion || actionQuestion.length > 100) actionQuestion = "Удастся ли задуманное действие?";
 
@@ -270,10 +292,14 @@
 
         } catch (err) {
             console.error(err);
+            let errMsg = err.message || String(err);
+            if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
+                errMsg = 'API недоступно (Network Error / Failed to fetch). Убедитесь, что прокси или сервер запущены.';
+            }
             btnElement.classList.remove('loading');
             btnElement.innerHTML = oldHtml;
             // @ts-ignore
-            toastr.error('Ошибка кубика: ' + err.message, 'BB Dice');
+            toastr.error('Техническая ошибка: ' + errMsg, 'BB Dice');
         }
     }
 
@@ -406,7 +432,6 @@
 
         toolbar.appendChild(buildDirectorPopup());
 
-        // --- ДОБАВЛЯЕМ КНОПКУ КУБИКА ---
         const btnDice = document.createElement('button');
         btnDice.className = 'bb-eg-btn';
         btnDice.id = 'bb-eg-btn-dice';
