@@ -8,13 +8,20 @@
     align-items: flex-start;
     margin-bottom: 5px;
     box-sizing: border-box;
+    position: relative;
+    z-index: 101;
 }
 
 #bb-eg-toggle-btn {
-    /* Честное темное стекло без привязки к переменным темы */
-    background: rgba(10, 5, 5, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(15, 10, 10, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    
+    /* ФИКС ДЛЯ МОБИЛОК: Аппаратное ускорение блюра */
+    transform: translateZ(0);
+    -webkit-transform: translate3d(0, 0, 0);
+    will-change: transform, backdrop-filter;
+    
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 2px solid #b91c1c; 
     color: #9ca3af;
@@ -24,29 +31,29 @@
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 2px;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     margin-bottom: 6px;
     user-select: none;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
 #bb-eg-toggle-btn:hover {
     color: #fff;
-    background: rgba(30, 15, 15, 0.7);
+    background: rgba(30, 15, 15, 0.6);
     border-left-color: #ef4444;
 }
 
 #bb-eg-toggle-btn.active {
     color: #d4af37;
     border-left-color: #d4af37;
-    background: rgba(20, 15, 10, 0.8);
-    border-color: rgba(212, 175, 55, 0.3);
+    background: rgba(20, 15, 10, 0.7);
+    border-color: rgba(212, 175, 55, 0.2);
 }
 
 /* =========================================
-   СЕТКА КНОПОК (ЕДИНЫЙ ФОН ПАНЕЛИ)
+   СЕТКА КНОПОК (СТЕКЛЯННАЯ ПАНЕЛЬ)
 ========================================= */
 #bb-enhance-toolbar {
     display: grid;
@@ -59,12 +66,21 @@
     margin-bottom: 0;
     padding: 0 10px; 
     
-    /* Единая красивая плашка с блюром */
-    background: rgba(15, 10, 10, 0.45);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 8px;
+    /* Возвращаем благородное стекло */
+    background: rgba(15, 10, 10, 0.4);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    
+    /* ФИКС ДЛЯ МОБИЛОК: Устраняет черные артефакты при скролле */
+    transform: translateZ(0);
+    -webkit-transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, backdrop-filter, opacity, max-height;
+    
+    border-radius: 6px;
     box-sizing: border-box;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
     
     transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease, border 0.3s ease;
 }
@@ -75,17 +91,17 @@
     margin-bottom: 5px;
     padding: 10px; 
     border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(185, 28, 28, 0.3);
     overflow: visible;
 }
 
 /* =========================================
-   СТРОГОЕ СТЕКЛО (ДИЗАЙН КНОПОК)
+   СТРОГИЕ КНОПКИ (БЕЗ ДВОЙНОГО БЛЮРА)
 ========================================= */
 .bb-eg-btn {
-    /* УБРАЛИ backdrop-filter, чтобы не было багов двойного размытия на телефонах */
-    background: rgba(255, 255, 255, 0.05); 
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(185, 28, 28, 0.6); 
+    background: rgba(255, 255, 255, 0.03); 
+    border: 1px solid rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(185, 28, 28, 0.5); 
     color: #d1d5db;
     padding: 0 10px;
     border-radius: 4px; 
@@ -100,7 +116,7 @@
     justify-content: center;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 4px rgba(0,0,0,0.2);
     height: 32px;
     white-space: nowrap;
     width: 100%;
@@ -108,11 +124,11 @@
 }
 
 .bb-eg-btn:hover {
-    border-color: rgba(212, 175, 55, 0.3);
+    border-color: rgba(212, 175, 55, 0.2);
     border-bottom: 2px solid #d4af37; 
     color: #d4af37;
-    background: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.4), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
     transform: translateY(-2px);
 }
 
@@ -129,7 +145,7 @@
 
 @keyframes bb-eg-pulse { 
     0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
-    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); background: rgba(255, 255, 255, 0.15); } 
+    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); background: rgba(255, 255, 255, 0.1); } 
     100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
 }
 
@@ -146,8 +162,9 @@
     left: 50%;
     transform: translateX(-50%) translateY(10px);
     background: rgba(10, 5, 5, 0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    transform: translateX(-50%) translateY(10px) translateZ(0); /* ФИКС */
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top: 2px solid #b91c1c;
     border-radius: 6px;
@@ -161,7 +178,7 @@
 
 .bb-eg-popup.show {
     opacity: 1; pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) translateZ(0);
 }
 
 .bb-eg-popup-header {
