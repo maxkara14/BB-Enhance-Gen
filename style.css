@@ -7,22 +7,24 @@
     flex-direction: column;
     align-items: flex-start;
     margin-bottom: 5px;
+    box-sizing: border-box;
 }
 
 #bb-eg-toggle-btn {
-    background: rgba(10, 5, 5, 0.4);
+    /* Используем системный цвет темы, чтобы кнопка сливалась с интерфейсом */
+    background: var(--SmartThemeChatTintColor, rgba(20, 15, 15, 0.85));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: 2px solid #b91c1c; /* Тот самый зуб */
-    color: #9ca3af;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    border-left: 2px solid #b91c1c; 
+    color: var(--SmartThemeBodyColor, #9ca3af);
     padding: 4px 12px;
     font-size: 10px;
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     margin-bottom: 6px;
@@ -32,7 +34,7 @@
 
 #bb-eg-toggle-btn:hover {
     color: #fff;
-    background: rgba(30, 15, 15, 0.6);
+    background: var(--SmartThemeButtonHoverColor, rgba(30, 15, 15, 0.95));
     border-left-color: #ef4444;
     box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
 }
@@ -40,13 +42,13 @@
 #bb-eg-toggle-btn.active {
     color: #d4af37;
     border-left-color: #d4af37;
-    background: rgba(20, 15, 10, 0.7);
-    border-color: rgba(212, 175, 55, 0.2);
+    background: var(--SmartThemeChatTintColor, rgba(20, 15, 10, 0.95));
+    border-color: rgba(212, 175, 55, 0.3);
     box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
 }
 
 /* =========================================
-   СЕТКА КНОПОК (АДАПТИВНАЯ)
+   СЕТКА КНОПОК (АДАПТИВНАЯ + ЕДИНЫЙ ФОН ПАНЕЛИ)
 ========================================= */
 #bb-enhance-toolbar {
     display: grid;
@@ -57,13 +59,24 @@
     opacity: 0;
     overflow: hidden;
     margin-bottom: 0;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+    padding: 0 10px; /* Прячем отступы, когда закрыто */
+    
+    /* НОВЫЙ ЕДИНЫЙ ФОН ПАНЕЛИ, ПЕРЕКРЫВАЮЩИЙ ЗАДНИК */
+    background: var(--SmartThemeChatTintColor, rgba(15, 10, 10, 0.85));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 8px;
+    box-sizing: border-box;
+    
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease, border 0.3s ease;
 }
 
 #bb-enhance-toolbar.expanded {
-    max-height: 200px;
+    max-height: 250px;
     opacity: 1;
     margin-bottom: 5px;
+    padding: 10px; /* Показываем отступы при раскрытии */
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.05));
     overflow: visible;
 }
 
