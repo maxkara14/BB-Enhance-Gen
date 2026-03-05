@@ -16,7 +16,6 @@
 
         dir_timeskip: `[NARRATIVE DIRECTION: TIME SKIP]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n\nRequirements:\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT or meaningful interaction.\n2. Briefly summarize what happened during the skipped time (e.g., travel, resting, routine).\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event or conversation to keep the story moving.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
         
-        // НОВЫЙ ПРОМПТ ДЛЯ СКАНЕРА ПУТЕЙ (FAST TRAVEL)
         ft_analyzer: `[SYSTEM INSTRUCTION: FAST TRAVEL SYSTEM]
 Analyze the current roleplay context, character locations, and the latest events.
 Your task is to determine if the user ({{user}}) can currently leave their location and suggest 3 logical destinations.
@@ -51,7 +50,6 @@ Format required:
         roll_failure: `\n\n[SYSTEM: DICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco: the plan collapsed, a weapon slipped, the voice trembled, or the lie was obvious. The opponent triumphs or gets angry.]`,
         roll_crit_failure: `\n\n[SYSTEM: DICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe and humiliation. Describe the worst possible outcome, a ridiculous mistake, or a painful blow. The situation just got 10 times worse.]`,
 
-        // НОВЫЕ КЬЮ ДЛЯ БОТА ПОСЛЕ ВЫБОРА FAST TRAVEL
         ft_travel_specific: `\n\n[System Notification: The user has decided to use Fast Travel to go to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, establish the new location, and initiate an event or dialogue there.]`,
         ft_travel_surprise: `\n\n[System Notification: The user has decided to wander off randomly (Fast Travel: Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location.]`
     };
@@ -61,7 +59,8 @@ Format required:
         btnImprove: true,
         btnDirector: true,
         btnDice: true,
-        btnFastTravel: true
+        btnFastTravel: true,
+        isPanelExpanded: false // По умолчанию панель скрыта для экономии места
     };
 
     let activeDirectorVibe = null;
@@ -70,6 +69,12 @@ Format required:
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
         if (!extensionSettings[MODULE_NAME]) extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
+        
+        // Миграция старых настроек
+        if (typeof extensionSettings[MODULE_NAME].isPanelExpanded === 'undefined') {
+            extensionSettings[MODULE_NAME].isPanelExpanded = DEFAULT_SETTINGS.isPanelExpanded;
+        }
+        
         return extensionSettings[MODULE_NAME];
     }
 
@@ -326,7 +331,6 @@ Format required:
         setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 2500);
     }
 
-    // --- ЛОГИКА МЕНЮ РЕЖИССЕРА ---
     function renderPopupVibes() {
         return `
             <div class="bb-eg-popup-header">Выберите событие</div>
@@ -334,7 +338,7 @@ Format required:
             <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
-            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(212, 175, 55, 0.3); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
+            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed var(--SmartThemeBorderColor, #444); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
         `;
     }
     function renderPopupTargets() {
@@ -391,9 +395,7 @@ Format required:
         }
     });
 
-    // =========================================
-    // 🚀 FAST TRAVEL SYSTEM
-    // =========================================
+    // --- FAST TRAVEL ---
     async function handleFastTravel(btnElement) {
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
@@ -488,7 +490,6 @@ Format required:
         const closeBtn = overlay.querySelector('#bb-ft-close');
         if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
-        // Инъекция перехода
         const executeTravel = (loc, hook, time) => {
             closeModal();
             const ctx = SillyTavern.getContext();
@@ -523,7 +524,6 @@ Format required:
             setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 3000);
         };
 
-        // Обработчики кликов по карточкам
         const cards = overlay.querySelectorAll('.bb-ft-card');
         cards.forEach(card => {
             card.addEventListener('click', () => {
@@ -540,23 +540,31 @@ Format required:
         }
     }
 
-
     // --- ИНЖЕКТЫ ---
     function updateToolbarVisibility() {
         const s = getSettings();
         const btnE = document.getElementById('bb-eg-btn-enhance'); if (btnE) btnE.style.display = s.btnEnhance ? 'flex' : 'none';
         const btnI = document.getElementById('bb-eg-btn-improve'); if (btnI) btnI.style.display = s.btnImprove ? 'flex' : 'none';
-        const wrapD = document.getElementById('bb-eg-director-wrap'); if (wrapD) wrapD.style.display = s.btnDirector ? 'block' : 'none'; // Изменено на block для Grid
+        const wrapD = document.getElementById('bb-eg-director-wrap'); if (wrapD) wrapD.style.display = s.btnDirector ? 'block' : 'none';
         const btnDice = document.getElementById('bb-eg-btn-dice'); if (btnDice) btnDice.style.display = s.btnDice ? 'flex' : 'none';
         const btnFT = document.getElementById('bb-eg-btn-ft'); if (btnFT) btnFT.style.display = s.btnFastTravel ? 'flex' : 'none';
         
-        const toolbar = document.getElementById('bb-enhance-toolbar');
-        // Изменено на grid
-        if (toolbar) toolbar.style.display = (s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel) ? 'grid' : 'none';
+        const wrapper = document.getElementById('bb-enhance-wrapper');
+        const hasAny = s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel;
+        if (wrapper) wrapper.style.display = hasAny ? 'flex' : 'none';
     }
 
     function injectToolbar() {
-        if (document.getElementById('bb-enhance-toolbar')) return;
+        if (document.getElementById('bb-enhance-wrapper')) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'bb-enhance-wrapper';
+
+        // КНОПКА-ЯЗЫЧОК [EG]
+        const toggleBtn = document.createElement('div');
+        toggleBtn.id = 'bb-eg-toggle-btn';
+        toggleBtn.innerHTML = '[EG]';
+        toggleBtn.title = 'BB Enhance Panel (Скрыть / Показать)';
 
         const toolbar = document.createElement('div');
         toolbar.id = 'bb-enhance-toolbar';
@@ -576,14 +584,37 @@ Format required:
         btnDice.onclick = (e) => { e.preventDefault(); handleSkillCheck(btnDice); };
         toolbar.appendChild(btnDice);
 
-        // КНОПКА FAST TRAVEL
         const btnFT = document.createElement('button');
         btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '<i class="fa-solid fa-map-location-dot"></i> Fast Travel';
         btnFT.onclick = (e) => { e.preventDefault(); handleFastTravel(btnFT); };
         toolbar.appendChild(btnFT);
 
+        wrapper.appendChild(toggleBtn);
+        wrapper.appendChild(toolbar);
+
         const sendForm = document.getElementById('send_form');
-        if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(toolbar, sendForm);
+        if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm);
+
+        // ЛОГИКА СКРЫТИЯ/РАСКРЫТИЯ ПАНЕЛИ
+        const s = getSettings();
+        if (s.isPanelExpanded) {
+            toolbar.classList.add('expanded');
+            toggleBtn.classList.add('active');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            const currentSettings = getSettings();
+            currentSettings.isPanelExpanded = !currentSettings.isPanelExpanded;
+            saveSettings(); // Сохраняем выбор
+
+            if (currentSettings.isPanelExpanded) {
+                toolbar.classList.add('expanded');
+                toggleBtn.classList.add('active');
+            } else {
+                toolbar.classList.remove('expanded');
+                toggleBtn.classList.remove('active');
+            }
+        });
 
         updateToolbarVisibility();
     }
