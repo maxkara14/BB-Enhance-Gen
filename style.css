@@ -10,11 +10,9 @@
 }
 
 #bb-eg-toggle-btn {
-    background: rgba(10, 5, 5, 0.4);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(20, 20, 20, 0.85); /* Нейтральный графитовый фон */
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: 2px solid #b91c1c; /* Тот самый зуб */
+    border-left: 2px solid rgba(255, 255, 255, 0.3); /* Серебряный зуб в состоянии покоя */
     color: #9ca3af;
     padding: 4px 12px;
     font-size: 10px;
@@ -32,21 +30,19 @@
 
 #bb-eg-toggle-btn:hover {
     color: #fff;
-    background: rgba(30, 15, 15, 0.6);
-    border-left-color: #ef4444;
-    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
+    background: rgba(35, 35, 35, 0.95);
+    border-left-color: #d4af37; /* Золото при наведении */
 }
 
 #bb-eg-toggle-btn.active {
     color: #d4af37;
     border-left-color: #d4af37;
-    background: rgba(20, 15, 10, 0.7);
-    border-color: rgba(212, 175, 55, 0.2);
-    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
+    background: rgba(25, 25, 25, 0.95);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* =========================================
-   СЕТКА КНОПОК (АДАПТИВНАЯ)
+   СЕТКА КНОПОК (АДАПТИВНАЯ, НЕВИДИМАЯ)
 ========================================= */
 #bb-enhance-toolbar {
     display: grid;
@@ -66,16 +62,14 @@
     margin-bottom: 5px;
     overflow: visible;
 }
+
 /* =========================================
-   СТРОГОЕ СТЕКЛО (ДИЗАЙН КНОПОК)
+   СТРОГИЕ ПЛАВАЮЩИЕ КНОПКИ (ГРАФИТ)
 ========================================= */
 .bb-eg-btn {
-    background: rgba(15, 10, 10, 0.35);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(20, 20, 20, 0.85); /* Глубокий нейтральный цвет */
     border: 1px solid rgba(255, 255, 255, 0.05);
-    /* ФИКС: Сразу ставим 2px, чтобы не было прыжка геометрии при наведении */
-    border-bottom: 2px solid rgba(185, 28, 28, 0.6); 
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15); /* Нейтральная светлая рамка снизу */
     color: #d1d5db;
     padding: 0 10px;
     border-radius: 4px;
@@ -98,11 +92,11 @@
 }
 
 .bb-eg-btn:hover {
-    border-color: rgba(212, 175, 55, 0.3);
-    border-bottom: 2px solid #d4af37; /* Меняется только цвет, толщина та же */
-    color: #d4af37;
-    background: rgba(25, 15, 15, 0.6);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid #d4af37; /* Элегантное золото только при ховере */
+    color: #fff; /* Белый текст, чтобы было ярко и свежо */
+    background: rgba(35, 35, 35, 0.95);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(255, 255, 255, 0.03);
     transform: translateY(-2px);
 }
 
@@ -113,13 +107,13 @@
     cursor: not-allowed;
     pointer-events: none;
     animation: bb-eg-pulse 1.5s infinite;
-    color: #fff;
+    color: #d4af37;
     border-bottom-color: #d4af37;
 }
 
 @keyframes bb-eg-pulse { 
     0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
-    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); background: rgba(30, 20, 10, 0.5); } 
+    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); background: rgba(40, 40, 40, 0.9); } 
     100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
 }
 
@@ -135,15 +129,13 @@
     bottom: calc(100% + 12px);
     left: 50%;
     transform: translateX(-50%) translateY(10px);
-    background: rgba(10, 5, 5, 0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(20, 20, 20, 0.95); /* Нейтральный фон */
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-top: 2px solid #b91c1c;
+    border-top: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
     padding: 12px;
     display: flex; flex-direction: column; gap: 6px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.8), 0 0 20px rgba(185, 28, 28, 0.15);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
     opacity: 0; pointer-events: none;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 9999; min-width: 100%; width: max-content;
@@ -171,8 +163,8 @@
 }
 
 .bb-eg-vibe-btn:hover {
-    background: rgba(185, 28, 28, 0.15);
-    border-color: rgba(185, 28, 28, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
     color: #fff; transform: translateX(4px);
 }
 
@@ -185,7 +177,7 @@
     text-transform: uppercase; letter-spacing: 1px; font-weight: bold;
 }
 .bb-eg-target-btn i { font-size: 18px; margin-bottom: 2px; }
-.bb-eg-target-btn:hover { color: #d4af37; border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
+.bb-eg-target-btn:hover { color: #fff; border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
 
 .bb-eg-back-btn {
     background: transparent; border: none; color: #6b7280;
@@ -193,18 +185,7 @@
     letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
     padding: 0; margin-bottom: 10px; width: fit-content; transition: color 0.2s;
 }
-.bb-eg-back-btn:hover { color: #d4af37; }
-
-/* Настройки в меню расширений */
-.bb-eg-settings-panel {
-    background: rgba(20, 15, 15, 0.5); border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 8px; padding: 12px; margin-top: 8px;
-    display: flex; flex-direction: column; gap: 8px;
-}
-.bb-eg-settings-panel label {
-    display: flex; align-items: center; gap: 8px; font-size: 13px;
-    color: #e5e7eb; cursor: pointer;
-}
+.bb-eg-back-btn:hover { color: #fff; }
 
 /* =========================================
    🎲 3D FATE CRYSTAL 
