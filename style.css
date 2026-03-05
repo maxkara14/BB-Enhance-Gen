@@ -1,13 +1,10 @@
 /* Выносим панель кнопок ровно по центру над полем ввода */
 #bb-enhance-toolbar {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
     width: 100%;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
+    margin-bottom: 10px;
 }
 
 .bb-eg-btn {
@@ -15,7 +12,7 @@
     border: 1px solid #3f2c2c;
     border-left: 2px solid #b91c1c;
     color: #d4af37;
-    padding: 0 16px;
+    padding: 0 10px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 12px;
@@ -25,11 +22,14 @@
     letter-spacing: 1px;
     transition: all 0.2s ease;
     display: flex;
+    justify-content: center; /* Центрируем текст и иконку внутри */
     align-items: center;
     gap: 6px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    height: 32px; /* Жестко фиксируем высоту, чтобы они не растягивались */
+    height: 32px;
     white-space: nowrap;
+    width: 100%; /* Растягиваем на всю ширину ячейки сетки */
+    box-sizing: border-box;
 }
 
 .bb-eg-btn:hover {
@@ -82,7 +82,8 @@
 /* --- ВСПЛЫВАЮЩЕЕ МЕНЮ РЕЖИССЕРА --- */
 .bb-eg-director-wrap {
     position: relative;
-    display: inline-block;
+    display: block; /* Изменили для корректной работы в Grid */
+    width: 100%;
 }
 
 .bb-eg-popup {
@@ -103,7 +104,8 @@
     pointer-events: none;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 9999;
-    min-width: 200px;
+    min-width: 100%; /* Не уже родительской кнопки */
+    width: max-content;
     backdrop-filter: blur(5px);
 }
 
@@ -288,3 +290,114 @@
     text-transform: uppercase; transition: opacity 0.5s ease; 
     text-shadow: 0 2px 4px rgba(0,0,0,0.8); 
 }
+
+/* =========================================
+   🚀 BB-FAST-TRAVEL (HUD)
+========================================= */
+.bb-ft-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(5, 2, 2, 0.85); backdrop-filter: blur(8px);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 99999; opacity: 0; transition: opacity 0.4s ease;
+    font-family: 'Georgia', serif;
+}
+
+.bb-ft-modal {
+    background: linear-gradient(135deg, rgba(20, 10, 10, 0.95), rgba(10, 5, 5, 0.95));
+    border: 2px solid #3f2c2c; border-radius: 12px;
+    padding: 30px; width: 600px; max-width: 90%;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(185, 28, 28, 0.1);
+    position: relative;
+    border-top: 3px solid #d4af37;
+}
+
+.bb-ft-modal.denied {
+    border-top-color: #ef4444;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 40px rgba(239, 68, 68, 0.2);
+    animation: bb-ft-glitch 0.3s ease-in-out;
+}
+
+@keyframes bb-ft-glitch {
+    0% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
+    100% { transform: translateX(0); }
+}
+
+.bb-ft-title {
+    color: #d4af37; font-size: 14px; text-transform: uppercase; letter-spacing: 3px;
+    margin-bottom: 20px; text-align: center; font-weight: bold;
+}
+.bb-ft-modal.denied .bb-ft-title { color: #ef4444; }
+
+.bb-ft-reason {
+    color: #e5e7eb; font-size: 16px; text-align: center; line-height: 1.5;
+    margin-bottom: 20px; font-style: italic; border-left: 2px solid #ef4444;
+    background: rgba(239, 68, 68, 0.1); padding: 10px 15px; border-radius: 0 8px 8px 0;
+}
+
+.bb-ft-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+
+.bb-ft-card {
+    background: rgba(30, 20, 20, 0.6); border: 1px solid #3f2c2c;
+    border-radius: 8px; padding: 15px 20px; cursor: pointer;
+    transition: all 0.2s ease; display: flex; flex-direction: column; gap: 8px;
+    position: relative; overflow: hidden;
+}
+.bb-ft-card::before {
+    content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
+    background: #d4af37; transform: scaleY(0); transition: transform 0.2s ease;
+}
+.bb-ft-card:hover {
+    background: rgba(40, 25, 25, 0.9); border-color: #d4af37;
+    transform: translateX(4px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.bb-ft-card:hover::before { transform: scaleY(1); }
+
+/* Выравнивание заголовка и плашки с временем (С переносом) */
+.bb-ft-card-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    gap: 12px;
+    flex-wrap: wrap; 
+}
+.bb-ft-dest { 
+    color: #fff; 
+    font-size: 18px; 
+    font-weight: bold; 
+    text-shadow: 0 1px 2px #000; 
+    flex: 1; 
+    line-height: 1.2;
+}
+.bb-ft-time { 
+    color: #fca5a5; 
+    font-size: 11px; 
+    font-family: -apple-system, sans-serif; 
+    font-weight: bold; 
+    letter-spacing: 1px; 
+    background: rgba(0, 0, 0, 0.4); 
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(252, 165, 165, 0.2);
+    line-height: 1.3;
+    text-align: right;
+}
+.bb-ft-hook { color: #9ca3af; font-size: 14px; font-style: italic; line-height: 1.4; }
+
+.bb-ft-surprise {
+    width: 100%; background: transparent; border: 1px dashed #d4af37;
+    color: #d4af37; padding: 12px; border-radius: 8px; cursor: pointer;
+    font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase;
+    letter-spacing: 2px; transition: all 0.2s ease;
+}
+.bb-ft-surprise:hover { background: rgba(212, 175, 55, 0.1); color: #fff; box-shadow: 0 0 15px rgba(212,175,55,0.3); }
+
+.bb-ft-close {
+    width: 100%; background: #3f2c2c; border: none; color: #fff;
+    padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px;
+    font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
+}
+.bb-ft-close:hover { background: #ef4444; }
