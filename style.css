@@ -11,13 +11,13 @@
 }
 
 #bb-eg-toggle-btn {
-    /* Используем системный цвет темы, чтобы кнопка сливалась с интерфейсом */
-    background: var(--SmartThemeChatTintColor, rgba(20, 15, 15, 0.85));
+    /* Честное темное стекло без привязки к переменным темы */
+    background: rgba(10, 5, 5, 0.5);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-left: 2px solid #b91c1c; 
-    color: var(--SmartThemeBodyColor, #9ca3af);
+    color: #9ca3af;
     padding: 4px 12px;
     font-size: 10px;
     font-family: 'Courier New', Courier, monospace;
@@ -34,21 +34,19 @@
 
 #bb-eg-toggle-btn:hover {
     color: #fff;
-    background: var(--SmartThemeButtonHoverColor, rgba(30, 15, 15, 0.95));
+    background: rgba(30, 15, 15, 0.7);
     border-left-color: #ef4444;
-    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
 }
 
 #bb-eg-toggle-btn.active {
     color: #d4af37;
     border-left-color: #d4af37;
-    background: var(--SmartThemeChatTintColor, rgba(20, 15, 10, 0.95));
+    background: rgba(20, 15, 10, 0.8);
     border-color: rgba(212, 175, 55, 0.3);
-    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
 }
 
 /* =========================================
-   СЕТКА КНОПОК (АДАПТИВНАЯ + ЕДИНЫЙ ФОН ПАНЕЛИ)
+   СЕТКА КНОПОК (ЕДИНЫЙ ФОН ПАНЕЛИ)
 ========================================= */
 #bb-enhance-toolbar {
     display: grid;
@@ -59,10 +57,10 @@
     opacity: 0;
     overflow: hidden;
     margin-bottom: 0;
-    padding: 0 10px; /* Прячем отступы, когда закрыто */
+    padding: 0 10px; 
     
-    /* НОВЫЙ ЕДИНЫЙ ФОН ПАНЕЛИ, ПЕРЕКРЫВАЮЩИЙ ЗАДНИК */
-    background: var(--SmartThemeChatTintColor, rgba(15, 10, 10, 0.85));
+    /* Единая красивая плашка с блюром */
+    background: rgba(15, 10, 10, 0.45);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: 8px;
@@ -75,8 +73,8 @@
     max-height: 250px;
     opacity: 1;
     margin-bottom: 5px;
-    padding: 10px; /* Показываем отступы при раскрытии */
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.05));
+    padding: 10px; 
+    border: 1px solid rgba(255, 255, 255, 0.08);
     overflow: visible;
 }
 
@@ -84,14 +82,13 @@
    СТРОГОЕ СТЕКЛО (ДИЗАЙН КНОПОК)
 ========================================= */
 .bb-eg-btn {
-    background: rgba(15, 10, 10, 0.35);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(185, 28, 28, 0.6); /* Красная подсветка снизу */
+    /* УБРАЛИ backdrop-filter, чтобы не было багов двойного размытия на телефонах */
+    background: rgba(255, 255, 255, 0.05); 
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(185, 28, 28, 0.6); 
     color: #d1d5db;
     padding: 0 10px;
-    border-radius: 4px; /* Более строгие углы */
+    border-radius: 4px; 
     cursor: pointer;
     font-size: 11px;
     font-family: 'Georgia', serif;
@@ -103,7 +100,7 @@
     justify-content: center;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     height: 32px;
     white-space: nowrap;
     width: 100%;
@@ -112,10 +109,10 @@
 
 .bb-eg-btn:hover {
     border-color: rgba(212, 175, 55, 0.3);
-    border-bottom: 2px solid #d4af37; /* Золотой акцент при наведении */
+    border-bottom: 2px solid #d4af37; 
     color: #d4af37;
-    background: rgba(25, 15, 15, 0.6);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
     transform: translateY(-2px);
 }
 
@@ -132,7 +129,7 @@
 
 @keyframes bb-eg-pulse { 
     0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
-    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); background: rgba(30, 20, 10, 0.5); } 
+    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); background: rgba(255, 255, 255, 0.15); } 
     100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
 }
 
