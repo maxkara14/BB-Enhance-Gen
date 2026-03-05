@@ -1,89 +1,133 @@
-/* Выносим панель кнопок ровно по центру над полем ввода */
-#bb-enhance-toolbar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 8px;
+/* =========================================
+   ОБЕРТКА ПАНЕЛИ И КНОПКА СКРЫТИЯ [EG]
+========================================= */
+#bb-enhance-wrapper {
     width: 100%;
-    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 5px;
 }
 
-.bb-eg-btn {
-    background: linear-gradient(135deg, rgba(30, 20, 20, 0.9), rgba(15, 10, 10, 0.9));
-    border: 1px solid #3f2c2c;
-    border-left: 2px solid #b91c1c;
-    color: #d4af37;
-    padding: 0 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    font-family: 'Georgia', sans-serif;
+#bb-eg-toggle-btn {
+    background: rgba(10, 5, 5, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 2px solid #b91c1c; /* Тот самый зуб */
+    color: #9ca3af;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.2s ease;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    margin-bottom: 6px;
+    user-select: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+#bb-eg-toggle-btn:hover {
+    color: #fff;
+    background: rgba(30, 15, 15, 0.6);
+    border-left-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);
+}
+
+#bb-eg-toggle-btn.active {
+    color: #d4af37;
+    border-left-color: #d4af37;
+    background: rgba(20, 15, 10, 0.7);
+    border-color: rgba(212, 175, 55, 0.2);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
+}
+
+/* =========================================
+   СЕТКА КНОПОК (АДАПТИВНАЯ)
+========================================= */
+#bb-enhance-toolbar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+}
+
+#bb-enhance-toolbar.expanded {
+    max-height: 200px;
+    opacity: 1;
+    margin-bottom: 5px;
+    overflow: visible;
+}
+
+/* =========================================
+   СТРОГОЕ СТЕКЛО (ДИЗАЙН КНОПОК)
+========================================= */
+.bb-eg-btn {
+    background: rgba(15, 10, 10, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(185, 28, 28, 0.6); /* Красная подсветка снизу */
+    color: #d1d5db;
+    padding: 0 10px;
+    border-radius: 4px; /* Более строгие углы */
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    transition: all 0.3s ease;
     display: flex;
-    justify-content: center; /* Центрируем текст и иконку внутри */
+    justify-content: center;
     align-items: center;
-    gap: 6px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    gap: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     height: 32px;
     white-space: nowrap;
-    width: 100%; /* Растягиваем на всю ширину ячейки сетки */
+    width: 100%;
     box-sizing: border-box;
 }
 
 .bb-eg-btn:hover {
-    border-color: #d4af37;
-    background: rgba(40, 25, 25, 0.9);
-    color: #fff;
-    box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+    border-color: rgba(212, 175, 55, 0.3);
+    border-bottom: 2px solid #d4af37; /* Золотой акцент при наведении */
+    color: #d4af37;
+    background: rgba(25, 15, 15, 0.6);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
     transform: translateY(-2px);
 }
 
-.bb-eg-btn:active {
-    transform: translateY(0);
-}
+.bb-eg-btn:active { transform: translateY(0); }
 
 .bb-eg-btn.loading {
     opacity: 0.7;
     cursor: not-allowed;
     pointer-events: none;
     animation: bb-eg-pulse 1.5s infinite;
-    border-left-color: #d4af37;
     color: #fff;
+    border-bottom-color: #d4af37;
 }
 
 @keyframes bb-eg-pulse { 
-    0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); } 
-    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.6); } 
-    100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); } 
+    0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
+    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); background: rgba(30, 20, 10, 0.5); } 
+    100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
 }
 
-/* Стили для панели настроек во вкладке расширений */
-.bb-eg-settings-panel {
-    background: rgba(20, 15, 15, 0.5);
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.bb-eg-settings-panel label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #e5e7eb;
-    cursor: pointer;
-}
-
-/* --- ВСПЛЫВАЮЩЕЕ МЕНЮ РЕЖИССЕРА --- */
+/* =========================================
+   ВСПЛЫВАЮЩЕЕ МЕНЮ РЕЖИССЕРА
+========================================= */
 .bb-eg-director-wrap {
-    position: relative;
-    display: block; /* Изменили для корректной работы в Grid */
-    width: 100%;
+    position: relative; display: block; width: 100%;
 }
 
 .bb-eg-popup {
@@ -91,313 +135,118 @@
     bottom: calc(100% + 12px);
     left: 50%;
     transform: translateX(-50%) translateY(10px);
-    background: rgba(15, 10, 10, 0.95);
-    border: 1px solid #3f2c2c;
+    background: rgba(10, 5, 5, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-top: 2px solid #b91c1c;
-    border-radius: 8px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(185, 28, 28, 0.2);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 9999;
-    min-width: 100%; /* Не уже родительской кнопки */
-    width: max-content;
-    backdrop-filter: blur(5px);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.8), 0 0 20px rgba(185, 28, 28, 0.15);
+    opacity: 0; pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999; min-width: 100%; width: max-content;
 }
 
-/* Анимация появления */
 .bb-eg-popup.show {
-    opacity: 1;
-    pointer-events: auto;
+    opacity: 1; pointer-events: auto;
     transform: translateX(-50%) translateY(0);
 }
 
-/* Золотой хвостик (стрелочка) вниз */
-.bb-eg-popup::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -6px;
-    border-width: 6px;
-    border-style: solid;
-    border-color: #3f2c2c transparent transparent transparent;
-}
-
 .bb-eg-popup-header {
-    color: #d4af37;
-    font-size: 11px;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: bold;
-    padding-bottom: 6px;
-    margin-bottom: 4px;
-    border-bottom: 1px dashed rgba(212, 175, 55, 0.3);
+    color: #9ca3af;
+    font-size: 10px; text-align: center; text-transform: uppercase;
+    letter-spacing: 2px; font-weight: bold; padding-bottom: 6px;
+    margin-bottom: 4px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .bb-eg-vibe-btn {
-    background: rgba(30, 20, 20, 0.6);
+    background: transparent;
     border: 1px solid transparent;
-    color: #e5e7eb;
-    text-align: left;
-    padding: 8px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: 'Georgia', sans-serif;
-    font-size: 13px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    color: #d1d5db;
+    text-align: left; padding: 8px 12px; border-radius: 4px;
+    cursor: pointer; font-size: 13px; font-family: 'Georgia', serif;
+    transition: all 0.2s ease; display: flex; align-items: center; gap: 10px;
 }
 
 .bb-eg-vibe-btn:hover {
-    background: rgba(185, 28, 28, 0.2);
-    border-color: #b91c1c;
-    color: #fff;
-    transform: translateX(3px);
+    background: rgba(185, 28, 28, 0.15);
+    border-color: rgba(185, 28, 28, 0.3);
+    color: #fff; transform: translateX(4px);
 }
 
-/* Кнопки выбора цели (Для меня / Для бота) */
-.bb-eg-target-grid {
-    display: flex;
-    gap: 6px;
-    margin-top: 4px;
-}
-
+.bb-eg-target-grid { display: flex; gap: 8px; margin-top: 6px; }
 .bb-eg-target-btn {
-    flex: 1;
-    background: #110a0a;
-    border: 1px solid #3f2c2c;
-    color: #d4af37;
-    padding: 8px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    text-align: center;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255, 255, 255, 0.05);
+    color: #9ca3af; padding: 10px 4px; border-radius: 4px;
+    cursor: pointer; font-size: 11px; text-align: center; transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    text-transform: uppercase; letter-spacing: 1px; font-weight: bold;
 }
-
-.bb-eg-target-btn i { font-size: 16px; margin-bottom: 2px; }
-.bb-eg-target-btn:hover { background: #d4af37; color: #000; border-color: #d4af37; }
+.bb-eg-target-btn i { font-size: 18px; margin-bottom: 2px; }
+.bb-eg-target-btn:hover { color: #d4af37; border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
 
 .bb-eg-back-btn {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0;
-    margin-bottom: 6px;
-    width: fit-content;
+    background: transparent; border: none; color: #6b7280;
+    cursor: pointer; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
+    padding: 0; margin-bottom: 10px; width: fit-content; transition: color 0.2s;
 }
-
 .bb-eg-back-btn:hover { color: #d4af37; }
 
+/* Настройки в меню расширений */
+.bb-eg-settings-panel {
+    background: rgba(20, 15, 15, 0.5); border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px; padding: 12px; margin-top: 8px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.bb-eg-settings-panel label {
+    display: flex; align-items: center; gap: 8px; font-size: 13px;
+    color: #e5e7eb; cursor: pointer;
+}
+
 /* =========================================
-   🎲 3D FATE CRYSTAL (ЧИСТЫЙ CSS)
+   🎲 3D FATE CRYSTAL 
 ========================================= */
-.bb-dice-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 99999; backdrop-filter: blur(5px);
-    transition: opacity 0.8s ease;
-}
-
-.bb-dice-box {
-    background: linear-gradient(to bottom, #1e1313, #160f0f);
-    border: 2px solid #b91c1c; border-radius: 12px;
-    padding: 40px; text-align: center;
-    box-shadow: 0 0 40px rgba(185, 28, 28, 0.4), inset 0 0 20px rgba(0,0,0,0.8);
-    min-width: 350px; max-width: 500px;
-    font-family: 'Georgia', serif;
-    position: relative;
-    overflow: hidden;
-}
-
+.bb-dice-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 99999; backdrop-filter: blur(5px); transition: opacity 0.8s ease; }
+.bb-dice-box { background: linear-gradient(to bottom, #1e1313, #160f0f); border: 2px solid #b91c1c; border-radius: 12px; padding: 40px; text-align: center; box-shadow: 0 0 40px rgba(185, 28, 28, 0.4), inset 0 0 20px rgba(0,0,0,0.8); min-width: 350px; max-width: 500px; font-family: 'Georgia', serif; position: relative; overflow: hidden; }
 .bb-dice-title { color: #d4af37; font-size: 15px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; text-shadow: 0 0 8px rgba(212,175,55,0.5);}
 .bb-dice-question { color: #e5e7eb; font-size: 19px; margin-bottom: 24px; font-style: italic; line-height: 1.4; text-shadow: 0 2px 4px rgba(0,0,0,0.8);}
 .bb-dice-dc { color: #fca5a5; font-size: 15px; letter-spacing: 2px; border-bottom: 1px solid #3f2c2c; padding-bottom: 16px; margin-bottom: 30px; }
-
-/* --- 3D Сцена с Кубиком --- */
-.bb-dice-scene {
-    width: 100px; height: 100px;
-    margin: 0 auto 40px auto;
-    perspective: 800px; /* Глубина 3D */
-}
-
-.bb-dice-cube {
-    width: 100%; height: 100%;
-    position: relative;
-    transform-style: preserve-3d;
-    animation: rollCube 0.5s linear infinite;
-    transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* Остановка кубика: поворачиваем лицом к экрану и чуть увеличиваем */
-.bb-dice-cube.stopped {
-    animation: none;
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.3);
-}
-
-/* Грани кубика */
-.bb-cube-face {
-    position: absolute; width: 100px; height: 100px;
-    background: rgba(20, 10, 10, 0.95);
-    border: 2px solid #b91c1c;
-    border-radius: 12px;
-    box-shadow: inset 0 0 20px rgba(185, 28, 28, 0.5);
-    display: flex; justify-content: center; align-items: center;
-    font-size: 45px; color: #d4af37; font-weight: bold;
-    font-family: 'Courier New', Courier, monospace;
-    transition: all 0.4s ease;
-}
-
-/* Располагаем 6 граней в пространстве */
+.bb-dice-scene { width: 100px; height: 100px; margin: 0 auto 40px auto; perspective: 800px; }
+.bb-dice-cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; animation: rollCube 0.5s linear infinite; transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.bb-dice-cube.stopped { animation: none; transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1.3); }
+.bb-cube-face { position: absolute; width: 100px; height: 100px; background: rgba(20, 10, 10, 0.95); border: 2px solid #b91c1c; border-radius: 12px; box-shadow: inset 0 0 20px rgba(185, 28, 28, 0.5); display: flex; justify-content: center; align-items: center; font-size: 45px; color: #d4af37; font-weight: bold; font-family: 'Courier New', Courier, monospace; transition: all 0.4s ease; }
 .bb-face-front  { transform: rotateY(  0deg) translateZ(50px); }
 .bb-face-right  { transform: rotateY( 90deg) translateZ(50px); }
 .bb-face-back   { transform: rotateY(180deg) translateZ(50px); }
 .bb-face-left   { transform: rotateY(-90deg) translateZ(50px); }
 .bb-face-top    { transform: rotateX( 90deg) translateZ(50px); }
 .bb-face-bottom { transform: rotateX(-90deg) translateZ(50px); }
-
-/* Хаотичная анимация вращения и подпрыгивания */
-@keyframes rollCube {
-    0%   { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0); }
-    25%  { transform: rotateX(90deg) rotateY(180deg) rotateZ(45deg) translateY(-25px); }
-    50%  { transform: rotateX(180deg) rotateY(360deg) rotateZ(90deg) translateY(0); }
-    75%  { transform: rotateX(270deg) rotateY(540deg) rotateZ(135deg) translateY(-15px); }
-    100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(180deg) translateY(0); }
-}
-
-.bb-dice-outcome { 
-    font-size: 28px; font-weight: bold; letter-spacing: 2px; 
-    text-transform: uppercase; transition: opacity 0.5s ease; 
-    text-shadow: 0 2px 4px rgba(0,0,0,0.8); 
-}
+@keyframes rollCube { 0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0); } 25% { transform: rotateX(90deg) rotateY(180deg) rotateZ(45deg) translateY(-25px); } 50% { transform: rotateX(180deg) rotateY(360deg) rotateZ(90deg) translateY(0); } 75% { transform: rotateX(270deg) rotateY(540deg) rotateZ(135deg) translateY(-15px); } 100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(180deg) translateY(0); } }
+.bb-dice-outcome { font-size: 28px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; transition: opacity 0.5s ease; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
 
 /* =========================================
    🚀 BB-FAST-TRAVEL (HUD)
 ========================================= */
-.bb-ft-overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(5, 2, 2, 0.85); backdrop-filter: blur(8px);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 99999; opacity: 0; transition: opacity 0.4s ease;
-    font-family: 'Georgia', serif;
-}
-
-.bb-ft-modal {
-    background: linear-gradient(135deg, rgba(20, 10, 10, 0.95), rgba(10, 5, 5, 0.95));
-    border: 2px solid #3f2c2c; border-radius: 12px;
-    padding: 30px; width: 600px; max-width: 90%;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(185, 28, 28, 0.1);
-    position: relative;
-    border-top: 3px solid #d4af37;
-}
-
-.bb-ft-modal.denied {
-    border-top-color: #ef4444;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 40px rgba(239, 68, 68, 0.2);
-    animation: bb-ft-glitch 0.3s ease-in-out;
-}
-
-@keyframes bb-ft-glitch {
-    0% { transform: translateX(0); }
-    20% { transform: translateX(-5px); }
-    40% { transform: translateX(5px); }
-    60% { transform: translateX(-2px); }
-    80% { transform: translateX(2px); }
-    100% { transform: translateX(0); }
-}
-
-.bb-ft-title {
-    color: #d4af37; font-size: 14px; text-transform: uppercase; letter-spacing: 3px;
-    margin-bottom: 20px; text-align: center; font-weight: bold;
-}
+.bb-ft-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(5, 2, 2, 0.85); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; opacity: 0; transition: opacity 0.4s ease; font-family: 'Georgia', serif; }
+.bb-ft-modal { background: linear-gradient(135deg, rgba(20, 10, 10, 0.95), rgba(10, 5, 5, 0.95)); border: 2px solid #3f2c2c; border-radius: 12px; padding: 30px; width: 600px; max-width: 90%; box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(185, 28, 28, 0.1); position: relative; border-top: 3px solid #d4af37; }
+.bb-ft-modal.denied { border-top-color: #ef4444; box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 40px rgba(239, 68, 68, 0.2); animation: bb-ft-glitch 0.3s ease-in-out; }
+@keyframes bb-ft-glitch { 0% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } 100% { transform: translateX(0); } }
+.bb-ft-title { color: #d4af37; font-size: 14px; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 20px; text-align: center; font-weight: bold; }
 .bb-ft-modal.denied .bb-ft-title { color: #ef4444; }
-
-.bb-ft-reason {
-    color: #e5e7eb; font-size: 16px; text-align: center; line-height: 1.5;
-    margin-bottom: 20px; font-style: italic; border-left: 2px solid #ef4444;
-    background: rgba(239, 68, 68, 0.1); padding: 10px 15px; border-radius: 0 8px 8px 0;
-}
-
+.bb-ft-reason { color: #e5e7eb; font-size: 16px; text-align: center; line-height: 1.5; margin-bottom: 20px; font-style: italic; border-left: 2px solid #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px 15px; border-radius: 0 8px 8px 0; }
 .bb-ft-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-
-.bb-ft-card {
-    background: rgba(30, 20, 20, 0.6); border: 1px solid #3f2c2c;
-    border-radius: 8px; padding: 15px 20px; cursor: pointer;
-    transition: all 0.2s ease; display: flex; flex-direction: column; gap: 8px;
-    position: relative; overflow: hidden;
-}
-.bb-ft-card::before {
-    content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%;
-    background: #d4af37; transform: scaleY(0); transition: transform 0.2s ease;
-}
-.bb-ft-card:hover {
-    background: rgba(40, 25, 25, 0.9); border-color: #d4af37;
-    transform: translateX(4px); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-}
+.bb-ft-card { background: rgba(30, 20, 20, 0.6); border: 1px solid #3f2c2c; border-radius: 8px; padding: 15px 20px; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; gap: 8px; position: relative; overflow: hidden; }
+.bb-ft-card::before { content: ''; position: absolute; left: 0; top: 0; width: 3px; height: 100%; background: #d4af37; transform: scaleY(0); transition: transform 0.2s ease; }
+.bb-ft-card:hover { background: rgba(40, 25, 25, 0.9); border-color: #d4af37; transform: translateX(4px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 .bb-ft-card:hover::before { transform: scaleY(1); }
-
-/* Выравнивание заголовка и плашки с временем (С переносом) */
-.bb-ft-card-header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: flex-start; 
-    gap: 12px;
-    flex-wrap: wrap; 
-}
-.bb-ft-dest { 
-    color: #fff; 
-    font-size: 18px; 
-    font-weight: bold; 
-    text-shadow: 0 1px 2px #000; 
-    flex: 1; 
-    line-height: 1.2;
-}
-.bb-ft-time { 
-    color: #fca5a5; 
-    font-size: 11px; 
-    font-family: -apple-system, sans-serif; 
-    font-weight: bold; 
-    letter-spacing: 1px; 
-    background: rgba(0, 0, 0, 0.4); 
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(252, 165, 165, 0.2);
-    line-height: 1.3;
-    text-align: right;
-}
+.bb-ft-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.bb-ft-dest { color: #fff; font-size: 18px; font-weight: bold; text-shadow: 0 1px 2px #000; flex: 1; line-height: 1.2; }
+.bb-ft-time { color: #fca5a5; font-size: 11px; font-family: -apple-system, sans-serif; font-weight: bold; letter-spacing: 1px; background: rgba(0, 0, 0, 0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(252, 165, 165, 0.2); line-height: 1.3; text-align: right; }
 .bb-ft-hook { color: #9ca3af; font-size: 14px; font-style: italic; line-height: 1.4; }
-
-.bb-ft-surprise {
-    width: 100%; background: transparent; border: 1px dashed #d4af37;
-    color: #d4af37; padding: 12px; border-radius: 8px; cursor: pointer;
-    font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase;
-    letter-spacing: 2px; transition: all 0.2s ease;
-}
+.bb-ft-surprise { width: 100%; background: transparent; border: 1px dashed #d4af37; color: #d4af37; padding: 12px; border-radius: 8px; cursor: pointer; font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; transition: all 0.2s ease; }
 .bb-ft-surprise:hover { background: rgba(212, 175, 55, 0.1); color: #fff; box-shadow: 0 0 15px rgba(212,175,55,0.3); }
-
-.bb-ft-close {
-    width: 100%; background: #3f2c2c; border: none; color: #fff;
-    padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px;
-    font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;
-}
+.bb-ft-close { width: 100%; background: #3f2c2c; border: none; color: #fff; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
 .bb-ft-close:hover { background: #ef4444; }
