@@ -14,7 +14,29 @@
         
         dir_absurd: `[NARRATIVE DIRECTION: ABSURD COMEDY]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n\nRequirements:\n1. Create a ridiculous misunderstanding, a clumsy mistake (someone tripping, dropping something), or an awkwardly funny situational irony.\n2. Contrast the seriousness of the characters with the silliness of the event.\n3. Make it fit a comedy-drama style naturally.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
 
-        dir_timeskip: `[NARRATIVE DIRECTION: TIME SKIP]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n\nRequirements:\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT or meaningful interaction.\n2. Briefly summarize what happened during the skipped time (e.g., travel, resting, routine).\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event or conversation to keep the story moving.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`
+        dir_timeskip: `[NARRATIVE DIRECTION: TIME SKIP]\nAuthor's Context:\nProtagonist: {{user}} ({{persona}})\nWorld/Scene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n\n[WRITING PROMPT]\nWrite the next segment of this fictional story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n\nRequirements:\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT or meaningful interaction.\n2. Briefly summarize what happened during the skipped time (e.g., travel, resting, routine).\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event or conversation to keep the story moving.\n\n⚠️ CRITICAL RULES:\nDO NOT generate ANY system UI blocks, radio interfaces, time infos, or tags like ::OS_START:: or <info>. Output ONLY the pure story text without meta-commentary.`,
+        
+        // НОВЫЙ ПРОМПТ ДЛЯ СКАНЕРА ПУТЕЙ (FAST TRAVEL)
+        ft_analyzer: `[SYSTEM INSTRUCTION: FAST TRAVEL SYSTEM]
+Analyze the current roleplay context, character locations, and the latest events.
+Your task is to determine if the user ({{user}}) can currently leave their location and suggest 3 logical destinations.
+
+Context constraints:
+Recent chat: """{{lastMessage}}"""
+
+Rules:
+1. If the user is in the middle of a battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).
+2. If the user is relatively free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and character motivations.
+3. Output STRICTLY as a raw JSON object. Do not include markdown formatting like \`\`\`json or any other text.
+
+Format required:
+{
+  "can_travel": true,
+  "lock_reason": "",
+  "destinations": [
+    { "name": "Название локации (Russian)", "hook": "Причина пойти туда / мотив", "time_cost": "Примерное время в пути (напр. 15 мин)" }
+  ]
+}`
     };
 
     const BOT_CUES = {
@@ -27,14 +49,19 @@
         roll_crit_success: `\n\n[SYSTEM: DICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly and inconceivably. Describe an absolute triumph with an unexpected bonus. The opponent is completely shocked or defeated.]`,
         roll_success: `\n\n[SYSTEM: DICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked out perfectly, and the opponents believed it, got scared, or lost.]`,
         roll_failure: `\n\n[SYSTEM: DICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco: the plan collapsed, a weapon slipped, the voice trembled, or the lie was obvious. The opponent triumphs or gets angry.]`,
-        roll_crit_failure: `\n\n[SYSTEM: DICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe and humiliation. Describe the worst possible outcome, a ridiculous mistake, or a painful blow. The situation just got 10 times worse.]`
+        roll_crit_failure: `\n\n[SYSTEM: DICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe and humiliation. Describe the worst possible outcome, a ridiculous mistake, or a painful blow. The situation just got 10 times worse.]`,
+
+        // НОВЫЕ КЬЮ ДЛЯ БОТА ПОСЛЕ ВЫБОРА FAST TRAVEL
+        ft_travel_specific: `\n\n[System Notification: The user has decided to use Fast Travel to go to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, establish the new location, and initiate an event or dialogue there.]`,
+        ft_travel_surprise: `\n\n[System Notification: The user has decided to wander off randomly (Fast Travel: Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location.]`
     };
 
     const DEFAULT_SETTINGS = {
         btnEnhance: true,
         btnImprove: true,
         btnDirector: true,
-        btnDice: true
+        btnDice: true,
+        btnFastTravel: true
     };
 
     let activeDirectorVibe = null;
@@ -76,7 +103,6 @@
             const ctx = SillyTavern.getContext();
             let result = await ctx.generateQuietPrompt(finalPrompt);
 
-            // СТРОГАЯ ПРОВЕРКА НА ОШИБКИ API
             const resultStr = String(result).trim();
             if (result === undefined || result === null || resultStr === '' || resultStr === 'undefined' || resultStr === 'null') {
                 // @ts-ignore
@@ -85,7 +111,6 @@
             }
 
             let cleanResult = resultStr;
-            
             cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
             cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
             cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
@@ -113,7 +138,7 @@
             console.error(err);
             let errMsg = err.message || String(err);
             if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
-                errMsg = 'API недоступно (Network Error / Failed to fetch). Убедитесь, что прокси или сервер запущены.';
+                errMsg = 'API недоступно (Network Error / Failed to fetch).';
             }
             // @ts-ignore
             toastr.error('Техническая ошибка: ' + errMsg, 'BB Enhance');
@@ -123,7 +148,7 @@
         }
     }
 
-    // --- КИНОШНАЯ МОДАЛКА ДЛЯ КУБИКА ---
+    // --- КУБИК ---
     function showDiceModal(question, dc, finalRoll, outcomeText, outcomeColor) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
@@ -136,7 +161,6 @@
                     <div class="bb-dice-title">🎲 Проверка Навыка</div>
                     <div class="bb-dice-question">«${question}»</div>
                     <div class="bb-dice-dc">СЛОЖНОСТЬ: <span style="color:#d4af37">${dc}</span></div>
-                    
                     <div class="bb-dice-scene">
                         <div id="bb-dice-cube" class="bb-dice-cube">
                             <div class="bb-cube-face bb-face-front" id="bb-face-main">?</div>
@@ -147,12 +171,10 @@
                             <div class="bb-cube-face bb-face-bottom bb-rand-face">?</div>
                         </div>
                     </div>
-
                     <div id="bb-dice-outcome" class="bb-dice-outcome" style="opacity: 0;">${outcomeText}</div>
                 </div>
             `;
             document.body.appendChild(overlay);
-
             requestAnimationFrame(() => overlay.style.opacity = '1');
 
             const cubeEl = document.getElementById('bb-dice-cube');
@@ -160,9 +182,7 @@
             const randFaces = document.querySelectorAll('.bb-rand-face');
             const outcomeEl = document.getElementById('bb-dice-outcome');
             
-            let ticks = 0;
-            const maxTicks = 40; 
-            let currentDelay = 30; 
+            let ticks = 0; const maxTicks = 40; let currentDelay = 30; 
 
             function rollTick() {
                 if (ticks < maxTicks) {
@@ -172,17 +192,11 @@
                         // @ts-ignore
                         face.innerText = String(Math.floor(Math.random() * 20) + 1);
                     });
-
                     ticks++;
-                    
-                    if (ticks > 25) {
-                        currentDelay += 20;
-                    }
-                    
+                    if (ticks > 25) currentDelay += 20;
                     setTimeout(rollTick, currentDelay);
                 } else {
                     cubeEl.classList.add('stopped'); 
-                    
                     // @ts-ignore
                     mainFace.innerText = String(finalRoll);
                     mainFace.style.color = outcomeColor;
@@ -191,7 +205,6 @@
                     mainFace.style.borderColor = outcomeColor;
                     mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`;
                     mainFace.style.background = "rgba(10, 5, 5, 0.95)";
-                    
                     // @ts-ignore
                     outcomeEl.innerText = outcomeText;
                     outcomeEl.style.color = outcomeColor;
@@ -199,19 +212,14 @@
                     
                     setTimeout(() => {
                         overlay.style.opacity = '0'; 
-                        setTimeout(() => {
-                            overlay.remove();
-                            resolve();
-                        }, 800);
+                        setTimeout(() => { overlay.remove(); resolve(); }, 800);
                     }, 4500); 
                 }
             }
-            
             setTimeout(rollTick, 600); 
         });
     }
 
-    // --- ЛОГИКА БРОСКА КУБИКА ---
     async function handleSkillCheck(btnElement) {
         const ctx = SillyTavern.getContext();
         const chat = ctx.chat;
@@ -238,19 +246,13 @@
         btnElement.innerHTML = `⏳ <span>Бросок...</span>`;
 
         try {
-            const prompt = `[TASK]\nRead the user's last action in the roleplay: """${lastUserMessage}"""\nFormulate a single, short dramatic question describing the skill check they are attempting (e.g., "Сможет ли Рин незаметно украсть письмо?", "Удастся ли запугать хулигана?").\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
+            const prompt = `[TASK]\nRead the user's last action in the roleplay: """${lastUserMessage}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
             
             // @ts-ignore 
             let actionQuestion = await ctx.generateQuietPrompt(prompt);
-            
-            // СТРОГАЯ ПРОВЕРКА АПИ ДЛЯ КУБИКА
             const qStr = String(actionQuestion).trim();
             if (actionQuestion === undefined || actionQuestion === null || qStr === '' || qStr === 'undefined' || qStr === 'null') {
-                btnElement.classList.remove('loading');
-                btnElement.innerHTML = oldHtml;
-                // @ts-ignore
-                toastr.error('Ошибка API: Невозможно получить данные для кубика.', 'BB Dice');
-                return;
+                throw new Error("Пустой ответ API");
             }
 
             actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -264,7 +266,6 @@
             const roll = Math.floor(Math.random() * 20) + 1; 
             
             let outcomeType = ''; let outcomeText = ''; let outcomeColor = '';
-            
             if (roll === 20) { outcomeType = 'roll_crit_success'; outcomeText = 'КРИТИЧЕСКИЙ УСПЕХ'; outcomeColor = '#d4af37'; }
             else if (roll === 1) { outcomeType = 'roll_crit_failure'; outcomeText = 'КРИТИЧЕСКИЙ ПРОВАЛ'; outcomeColor = '#dc2626'; }
             else if (roll >= dc) { outcomeType = 'roll_success'; outcomeText = 'УСПЕХ'; outcomeColor = '#16a34a'; }
@@ -282,24 +283,16 @@
                 // @ts-ignore
                 if (swipeRightBtn) swipeRightBtn.click();
                 else document.getElementById('send_but')?.click();
-            } else {
-                document.getElementById('send_but')?.click();
-            }
+            } else { document.getElementById('send_but')?.click(); }
 
-            setTimeout(() => {
-                if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText;
-            }, 3000);
+            setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 3000);
 
         } catch (err) {
             console.error(err);
-            let errMsg = err.message || String(err);
-            if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
-                errMsg = 'API недоступно (Network Error / Failed to fetch). Убедитесь, что прокси или сервер запущены.';
-            }
             btnElement.classList.remove('loading');
             btnElement.innerHTML = oldHtml;
             // @ts-ignore
-            toastr.error('Техническая ошибка: ' + errMsg, 'BB Dice');
+            toastr.error('Техническая ошибка: API недоступно.', 'BB Dice');
         }
     }
 
@@ -313,7 +306,6 @@
         for (let i = chat.length - 1; i >= 0; i--) {
             if (chat[i].is_user) { lastUserIndex = i; break; }
         }
-
         if (lastUserIndex === -1) {
             // @ts-ignore
             toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
@@ -329,9 +321,7 @@
             // @ts-ignore
             if (swipeRightBtn) swipeRightBtn.click();
             else document.getElementById('send_but')?.click();
-        } else {
-            document.getElementById('send_but')?.click();
-        }
+        } else { document.getElementById('send_but')?.click(); }
 
         setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 2500);
     }
@@ -358,13 +348,9 @@
         `;
     }
     function buildDirectorPopup() {
-        const wrap = document.createElement('div');
-        wrap.className = 'bb-eg-director-wrap'; wrap.id = 'bb-eg-director-wrap';
-        const mainBtn = document.createElement('button');
-        mainBtn.className = 'bb-eg-btn'; mainBtn.id = 'bb-eg-btn-director';
-        mainBtn.innerHTML = '🎬 Event Director';
-        const popup = document.createElement('div');
-        popup.className = 'bb-eg-popup'; popup.id = 'bb-eg-popup';
+        const wrap = document.createElement('div'); wrap.className = 'bb-eg-director-wrap'; wrap.id = 'bb-eg-director-wrap';
+        const mainBtn = document.createElement('button'); mainBtn.className = 'bb-eg-btn'; mainBtn.id = 'bb-eg-btn-director'; mainBtn.innerHTML = '🎬 Event Director';
+        const popup = document.createElement('div'); popup.className = 'bb-eg-popup'; popup.id = 'bb-eg-popup';
         popup.innerHTML = renderPopupVibes();
 
         mainBtn.onclick = (e) => {
@@ -405,15 +391,168 @@
         }
     });
 
+    // =========================================
+    // 🚀 FAST TRAVEL SYSTEM
+    // =========================================
+    async function handleFastTravel(btnElement) {
+        btnElement.classList.add('loading');
+        const oldHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `⏳ <span>Сканирование...</span>`;
+
+        try {
+            let finalPrompt = TEMPLATES.ft_analyzer;
+            // @ts-ignore
+            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(TEMPLATES.ft_analyzer);
+            // @ts-ignore
+            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(TEMPLATES.ft_analyzer);
+
+            const ctx = SillyTavern.getContext();
+            // @ts-ignore
+            let result = await ctx.generateQuietPrompt(finalPrompt);
+
+            const resultStr = String(result).trim();
+            const jsonMatch = resultStr.match(/\{[\s\S]*\}/);
+            
+            if (!jsonMatch) {
+                console.error("Fast Travel Raw Output:", resultStr);
+                throw new Error("Нейросеть не смогла сгенерировать варианты перемещения.");
+            }
+
+            const data = JSON.parse(jsonMatch[0]);
+            showFastTravelModal(data);
+
+        } catch (err) {
+            console.error(err);
+            // @ts-ignore
+            toastr.error('Ошибка Fast Travel: ' + (err.message || "Сбой API"), 'BB Fast Travel');
+        } finally {
+            btnElement.classList.remove('loading');
+            btnElement.innerHTML = oldHtml;
+        }
+    }
+
+    function showFastTravelModal(data) {
+        const overlay = document.createElement('div');
+        overlay.className = 'bb-ft-overlay';
+        
+        let contentHtml = '';
+
+        if (data.can_travel === false) {
+            contentHtml = `
+                <div class="bb-ft-modal denied">
+                    <div class="bb-ft-title">🚫 ДОСТУП ЗАКРЫТ</div>
+                    <div class="bb-ft-reason">«${data.lock_reason || 'Вы не можете покинуть это место прямо сейчас.'}»</div>
+                    <button class="bb-ft-close" id="bb-ft-close">Понятно</button>
+                </div>
+            `;
+        } else {
+            let cardsHtml = '';
+            if (data.destinations && Array.isArray(data.destinations)) {
+                data.destinations.forEach(dest => {
+                    const safeName = (dest.name || '').replace(/"/g, '&quot;');
+                    const safeHook = (dest.hook || '').replace(/"/g, '&quot;');
+                    const safeTime = (dest.time_cost || '').replace(/"/g, '&quot;');
+                    
+                    cardsHtml += `
+                        <div class="bb-ft-card" data-loc="${safeName}" data-hook="${safeHook}" data-time="${safeTime}">
+                            <div class="bb-ft-card-header">
+                                <span class="bb-ft-dest">${safeName}</span>
+                                <span class="bb-ft-time"><i class="fa-regular fa-clock"></i> ${safeTime}</span>
+                            </div>
+                            <div class="bb-ft-hook">${safeHook}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            contentHtml = `
+                <div class="bb-ft-modal">
+                    <div class="bb-ft-title">📍 БЫСТРОЕ ПЕРЕМЕЩЕНИЕ</div>
+                    <div class="bb-ft-grid">${cardsHtml}</div>
+                    <button class="bb-ft-surprise" id="bb-ft-btn-surprise"><i class="fa-solid fa-bolt"></i> Случайное событие (Surprise me)</button>
+                    <button class="bb-ft-close" id="bb-ft-close" style="margin-top: 15px; background: transparent; color: #9ca3af; border: 1px solid #3f2c2c;">Отмена</button>
+                </div>
+            `;
+        }
+
+        overlay.innerHTML = contentHtml;
+        document.body.appendChild(overlay);
+
+        requestAnimationFrame(() => overlay.style.opacity = '1');
+
+        const closeModal = () => {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 400);
+        };
+
+        const closeBtn = overlay.querySelector('#bb-ft-close');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+        // Инъекция перехода
+        const executeTravel = (loc, hook, time) => {
+            closeModal();
+            const ctx = SillyTavern.getContext();
+            const chat = ctx.chat;
+            if (!chat || chat.length === 0) return;
+
+            let lastUserIndex = -1;
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user) { lastUserIndex = i; break; }
+            }
+            if (lastUserIndex === -1) return;
+
+            const originalText = chat[lastUserIndex].mes;
+            let cue = '';
+            
+            if (loc && hook) {
+                cue = BOT_CUES.ft_travel_specific.replace('{{loc}}', loc).replace('{{hook}}', hook).replace('{{time}}', time || 'неизвестно');
+            } else {
+                cue = BOT_CUES.ft_travel_surprise;
+            }
+
+            chat[lastUserIndex].mes = originalText + cue;
+
+            const isLastMsgBot = !chat[chat.length - 1].is_user;
+            if (isLastMsgBot) {
+                const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+                // @ts-ignore
+                if (swipeRightBtn) swipeRightBtn.click();
+                else document.getElementById('send_but')?.click();
+            } else { document.getElementById('send_but')?.click(); }
+
+            setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 3000);
+        };
+
+        // Обработчики кликов по карточкам
+        const cards = overlay.querySelectorAll('.bb-ft-card');
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const loc = card.getAttribute('data-loc');
+                const hook = card.getAttribute('data-hook');
+                const time = card.getAttribute('data-time');
+                executeTravel(loc, hook, time);
+            });
+        });
+
+        const surpriseBtn = overlay.querySelector('#bb-ft-btn-surprise');
+        if (surpriseBtn) {
+            surpriseBtn.addEventListener('click', () => executeTravel(null, null, null));
+        }
+    }
+
+
+    // --- ИНЖЕКТЫ ---
     function updateToolbarVisibility() {
         const s = getSettings();
         const btnE = document.getElementById('bb-eg-btn-enhance'); if (btnE) btnE.style.display = s.btnEnhance ? 'flex' : 'none';
         const btnI = document.getElementById('bb-eg-btn-improve'); if (btnI) btnI.style.display = s.btnImprove ? 'flex' : 'none';
-        const wrapD = document.getElementById('bb-eg-director-wrap'); if (wrapD) wrapD.style.display = s.btnDirector ? 'inline-block' : 'none';
+        const wrapD = document.getElementById('bb-eg-director-wrap'); if (wrapD) wrapD.style.display = s.btnDirector ? 'block' : 'none'; // Изменено на block для Grid
         const btnDice = document.getElementById('bb-eg-btn-dice'); if (btnDice) btnDice.style.display = s.btnDice ? 'flex' : 'none';
+        const btnFT = document.getElementById('bb-eg-btn-ft'); if (btnFT) btnFT.style.display = s.btnFastTravel ? 'flex' : 'none';
         
         const toolbar = document.getElementById('bb-enhance-toolbar');
-        if (toolbar) toolbar.style.display = (s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice) ? 'flex' : 'none';
+        // Изменено на grid
+        if (toolbar) toolbar.style.display = (s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel) ? 'grid' : 'none';
     }
 
     function injectToolbar() {
@@ -433,11 +572,15 @@
         toolbar.appendChild(buildDirectorPopup());
 
         const btnDice = document.createElement('button');
-        btnDice.className = 'bb-eg-btn';
-        btnDice.id = 'bb-eg-btn-dice';
-        btnDice.innerHTML = '🎲 Action Roll';
+        btnDice.className = 'bb-eg-btn'; btnDice.id = 'bb-eg-btn-dice'; btnDice.innerHTML = '🎲 Action Roll';
         btnDice.onclick = (e) => { e.preventDefault(); handleSkillCheck(btnDice); };
         toolbar.appendChild(btnDice);
+
+        // КНОПКА FAST TRAVEL
+        const btnFT = document.createElement('button');
+        btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '<i class="fa-solid fa-map-location-dot"></i> Fast Travel';
+        btnFT.onclick = (e) => { e.preventDefault(); handleFastTravel(btnFT); };
+        toolbar.appendChild(btnFT);
 
         const sendForm = document.getElementById('send_form');
         if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(toolbar, sendForm);
@@ -461,6 +604,7 @@
                         <label><input type="checkbox" id="bb-eg-cfg-improve" ${s.btnImprove ? 'checked' : ''}> Показать [🔮 Improve]</label>
                         <label><input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}> Показать [🎬 Event Director]</label>
                         <label><input type="checkbox" id="bb-eg-cfg-dice" ${s.btnDice ? 'checked' : ''}> Показать [🎲 Action Roll]</label>
+                        <label><input type="checkbox" id="bb-eg-cfg-ft" ${s.btnFastTravel ? 'checked' : ''}> Показать [📍 Fast Travel]</label>
                     </div>
                 </div>
             </div>
@@ -484,6 +628,10 @@
             document.getElementById('bb-eg-cfg-dice').addEventListener('change', (e) => { 
                 // @ts-ignore
                 getSettings().btnDice = e.target.checked; saveSettings(); 
+            });
+            document.getElementById('bb-eg-cfg-ft').addEventListener('change', (e) => { 
+                // @ts-ignore
+                getSettings().btnFastTravel = e.target.checked; saveSettings(); 
             });
         }
     }
