@@ -71,6 +71,9 @@ Format required:
         if (!extensionSettings[MODULE_NAME]) extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
         
         // Миграция старых настроек
+        if (typeof extensionSettings[MODULE_NAME].btnFastTravel === 'undefined') {
+            extensionSettings[MODULE_NAME].btnFastTravel = DEFAULT_SETTINGS.btnFastTravel;
+        }
         if (typeof extensionSettings[MODULE_NAME].isPanelExpanded === 'undefined') {
             extensionSettings[MODULE_NAME].isPanelExpanded = DEFAULT_SETTINGS.isPanelExpanded;
         }
