@@ -66,7 +66,6 @@
     margin-bottom: 5px;
     overflow: visible;
 }
-
 /* =========================================
    СТРОГОЕ СТЕКЛО (ДИЗАЙН КНОПОК)
 ========================================= */
@@ -75,10 +74,11 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(185, 28, 28, 0.6); /* Красная подсветка снизу */
+    /* ФИКС: Сразу ставим 2px, чтобы не было прыжка геометрии при наведении */
+    border-bottom: 2px solid rgba(185, 28, 28, 0.6); 
     color: #d1d5db;
     padding: 0 10px;
-    border-radius: 4px; /* Более строгие углы */
+    border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
     font-family: 'Georgia', serif;
@@ -99,7 +99,7 @@
 
 .bb-eg-btn:hover {
     border-color: rgba(212, 175, 55, 0.3);
-    border-bottom: 2px solid #d4af37; /* Золотой акцент при наведении */
+    border-bottom: 2px solid #d4af37; /* Меняется только цвет, толщина та же */
     color: #d4af37;
     background: rgba(25, 15, 15, 0.6);
     box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(212, 175, 55, 0.05);
