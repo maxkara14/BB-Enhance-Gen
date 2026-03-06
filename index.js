@@ -59,8 +59,7 @@ Format required:
         btnImprove: true,
         btnDirector: true,
         btnDice: true,
-        btnFastTravel: true,
-        isPanelExpanded: false // По умолчанию панель скрыта для экономии места
+        btnFastTravel: true
     };
 
     let activeDirectorVibe = null;
@@ -69,15 +68,9 @@ Format required:
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
         if (!extensionSettings[MODULE_NAME]) extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
-        
-        // Миграция старых настроек
         if (typeof extensionSettings[MODULE_NAME].btnFastTravel === 'undefined') {
             extensionSettings[MODULE_NAME].btnFastTravel = DEFAULT_SETTINGS.btnFastTravel;
         }
-        if (typeof extensionSettings[MODULE_NAME].isPanelExpanded === 'undefined') {
-            extensionSettings[MODULE_NAME].isPanelExpanded = DEFAULT_SETTINGS.isPanelExpanded;
-        }
-        
         return extensionSettings[MODULE_NAME];
     }
 
@@ -86,7 +79,6 @@ Format required:
         updateToolbarVisibility();
     }
 
-    // --- ГЕНЕРАЦИЯ ДЛЯ МЕНЯ ---
     async function handleGeneration(type, btnElement) {
         const ta = /** @type {HTMLTextAreaElement} */ (document.getElementById('send_textarea'));
         if (!ta) return;
@@ -98,7 +90,7 @@ Format required:
 
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `⏳ <span>Генерация...</span>`;
+        btnElement.innerHTML = `⏳ <span>Загрузка...</span>`;
 
         try {
             let promptRaw = TEMPLATES[type].replace('{{input}}', inputText);
@@ -156,7 +148,6 @@ Format required:
         }
     }
 
-    // --- КУБИК ---
     function showDiceModal(question, dc, finalRoll, outcomeText, outcomeColor) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
@@ -304,7 +295,6 @@ Format required:
         }
     }
 
-    // --- РЕЖИССЕР (Для бота) ---
     async function handleBotGeneration(type) {
         const ctx = SillyTavern.getContext();
         const chat = ctx.chat;
@@ -341,7 +331,7 @@ Format required:
             <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
-            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed var(--SmartThemeBorderColor, #444); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
+            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
         `;
     }
     function renderPopupTargets() {
@@ -356,7 +346,8 @@ Format required:
     }
     function buildDirectorPopup() {
         const wrap = document.createElement('div'); wrap.className = 'bb-eg-director-wrap'; wrap.id = 'bb-eg-director-wrap';
-        const mainBtn = document.createElement('button'); mainBtn.className = 'bb-eg-btn'; mainBtn.id = 'bb-eg-btn-director'; mainBtn.innerHTML = '🎬 Event Director';
+        const mainBtn = document.createElement('button'); mainBtn.className = 'bb-eg-btn'; mainBtn.id = 'bb-eg-btn-director'; 
+        mainBtn.innerHTML = '🎬 Event Director';
         const popup = document.createElement('div'); popup.className = 'bb-eg-popup'; popup.id = 'bb-eg-popup';
         popup.innerHTML = renderPopupVibes();
 
@@ -398,11 +389,10 @@ Format required:
         }
     });
 
-    // --- FAST TRAVEL ---
     async function handleFastTravel(btnElement) {
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `⏳ <span>Сканирование...</span>`;
+        btnElement.innerHTML = `⏳ <span>Скан...</span>`;
 
         try {
             let finalPrompt = TEMPLATES.ft_analyzer;
@@ -543,7 +533,6 @@ Format required:
         }
     }
 
-    // --- ИНЖЕКТЫ ---
     function updateToolbarVisibility() {
         const s = getSettings();
         const btnE = document.getElementById('bb-eg-btn-enhance'); if (btnE) btnE.style.display = s.btnEnhance ? 'flex' : 'none';
@@ -554,20 +543,21 @@ Format required:
         
         const wrapper = document.getElementById('bb-enhance-wrapper');
         const hasAny = s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel;
-        if (wrapper) wrapper.style.display = hasAny ? 'flex' : 'none';
+        if (wrapper) wrapper.style.display = hasAny ? 'inline-flex' : 'none';
     }
 
+    // === ИНЖЕКТ МЕНЮ ===
     function injectToolbar() {
         if (document.getElementById('bb-enhance-wrapper')) return;
 
         const wrapper = document.createElement('div');
         wrapper.id = 'bb-enhance-wrapper';
 
-        // КНОПКА-ЯЗЫЧОК [EG]
+        // Аккуратная квадратная кнопка
         const toggleBtn = document.createElement('div');
         toggleBtn.id = 'bb-eg-toggle-btn';
-        toggleBtn.innerHTML = '[EG]';
-        toggleBtn.title = 'BB Enhance Panel (Скрыть / Показать)';
+        toggleBtn.innerHTML = 'E';
+        toggleBtn.title = 'BB Enhance Panel';
 
         const toolbar = document.createElement('div');
         toolbar.id = 'bb-enhance-toolbar';
@@ -588,32 +578,42 @@ Format required:
         toolbar.appendChild(btnDice);
 
         const btnFT = document.createElement('button');
-        btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '<i class="fa-solid fa-map-location-dot"></i> Fast Travel';
+        btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '📍 Fast Travel';
         btnFT.onclick = (e) => { e.preventDefault(); handleFastTravel(btnFT); };
         toolbar.appendChild(btnFT);
 
         wrapper.appendChild(toggleBtn);
         wrapper.appendChild(toolbar);
 
-        const sendForm = document.getElementById('send_form');
-        if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm);
-
-        // ЛОГИКА СКРЫТИЯ/РАСКРЫТИЯ ПАНЕЛИ
-        const s = getSettings();
-        if (s.isPanelExpanded) {
-            toolbar.classList.add('expanded');
-            toggleBtn.classList.add('active');
+        // ИНЖЕКТ ПРЯМО К ВОЛШЕБНОЙ ПАЛОЧКЕ
+        const optionsBtn = document.getElementById('options_button');
+        if (optionsBtn && optionsBtn.parentNode) {
+            optionsBtn.parentNode.insertBefore(wrapper, optionsBtn.nextSibling);
+        } else {
+            const sendForm = document.getElementById('send_form');
+            if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm);
         }
 
-        toggleBtn.addEventListener('click', () => {
-            const currentSettings = getSettings();
-            currentSettings.isPanelExpanded = !currentSettings.isPanelExpanded;
-            saveSettings(); // Сохраняем выбор
+        // Локальное состояние меню (Всегда закрыто при старте)
+        let isMenuOpen = false; 
 
-            if (currentSettings.isPanelExpanded) {
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isMenuOpen = !isMenuOpen;
+            if (isMenuOpen) {
                 toolbar.classList.add('expanded');
                 toggleBtn.classList.add('active');
             } else {
+                toolbar.classList.remove('expanded');
+                toggleBtn.classList.remove('active');
+            }
+        });
+
+        // УМНОЕ ЗАКРЫТИЕ ПРИ КЛИКЕ МИМО МЕНЮ
+        document.addEventListener('click', (e) => {
+            // @ts-ignore
+            if (isMenuOpen && !wrapper.contains(e.target)) {
+                isMenuOpen = false;
                 toolbar.classList.remove('expanded');
                 toggleBtn.classList.remove('active');
             }
