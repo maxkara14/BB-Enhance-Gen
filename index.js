@@ -2,7 +2,7 @@
     const MODULE_NAME = "BB-Enhance-Gen";
 
     const TEMPLATES = {
-        enhance: `<context>\nProtagonist: {{user}} ({{persona}})\nScene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nExpand the user's brief draft below into a rich, immersive, and highly detailed literary segment.\n</task>\n\n<rules>\n1. Expand actions with deep sensory details (sight, sound, smell, texture).\n2. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n3. Polish {{user}}'s spoken dialogue to align perfectly with their personality.\n4. ONLY expand the current moment. DO NOT advance the plot.\n5. DO NOT speak, act, or react for other characters.\n6. Output ONLY the raw expanded story text. Absolutely no conversational filler, greetings, or meta-commentary. Do not use markdown code blocks (\`\`\`).\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
+        enhance: `<context>\nProtagonist: {{user}} ({{persona}})\nScene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nExpand the user's brief draft below into a rich, immersive, and highly detailed literary segment.\n</task>\n\n<rules>\n1. Expand actions with deep sensory details (sight, sound, smell, texture).\n2. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n3. Polish {{user}}'s spoken dialogue to align perfectly with their personality.\n4. ONLY expand the current moment. DO NOT advance the plot.\n5. DO NOT speak, act, or react for other characters.\n6. You MAY use HTML formatting if it matches the chat style. Output ONLY the raw expanded story text. Absolutely no conversational filler, greetings, or meta-commentary. Do not use markdown code blocks (\`\`\`).\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
         
         improve: `<context>\nProtagonist: {{user}} ({{persona}})\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nEdit and polish the draft below to improve its literary flow, grammar, and phrasing.\n</task>\n\n<rules>\n1. PARAPHRASE ONLY. Do not write new plot.\n2. DO NOT add new actions, thoughts, or dialogue that are not in the draft.\n3. DO NOT answer the previous message. DO NOT advance time.\n4. Keep the output roughly the EXACT SAME LENGTH as the original draft.\n5. Preserve any HTML formatting or markdown. Do not use markdown code blocks (\`\`\`).\n6. Output ONLY the rewritten text. No conversational filler or commentary.\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
 
@@ -16,23 +16,32 @@
 
         dir_timeskip: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n</task>\n\n<rules>\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT. It must make logical sense.\n2. Briefly summarize what happened during the skipped time.\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event to keep the story moving.\n5. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        ft_analyzer: `<task>\nAnalyze the current roleplay context and character locations to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Output STRICTLY as a raw JSON object. Do not include markdown formatting like \`\`\`json.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Причина пойти", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`
+        ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}"""\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Output STRICTLY as a raw JSON object. Do not include markdown formatting like \`\`\`json.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Причина пойти", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`
     };
 
+    // ФОРМАТ: Красивая визуальная плашка (Markdown) + Невидимые инструкции для ИИ (HTML)
     const BOT_CUES = {
-        dir_disaster: `\n\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>`,
-        dir_blessing: `\n\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>`,
-        dir_tension: `\n\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>`,
-        dir_absurd: `\n\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>`,
-        dir_timeskip: `\n\n<system_note>\nNARRATIVE DIRECTION: In your next response, execute a logical TIME SKIP. Jump forward to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene in-character.\n</system_note>`,
+        dir_disaster: `\n\n> 💥 **Событие: ОПАСНОСТЬ (Disaster)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>\n</span>`,
         
-        roll_crit_success: `\n\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>`,
-        roll_success: `\n\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>`,
-        roll_failure: `\n\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>`,
-        roll_crit_failure: `\n\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>`,
+        dir_blessing: `\n\n> 🎁 **Событие: УДАЧА (Blessing)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>\n</span>`,
+        
+        dir_tension: `\n\n> ❤️ **Событие: НАПРЯЖЕНИЕ (Tension)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>\n</span>`,
+        
+        dir_absurd: `\n\n> 🃏 **Событие: АБСУРД (Comedy)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>\n</span>`,
+        
+        dir_timeskip: `\n\n> ⏩ **Событие: ПРОМОТКА ВРЕМЕНИ (Time Skip)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, execute a logical TIME SKIP. Jump forward to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene in-character.\n</system_note>\n</span>`,
+        
+        roll_crit_success: `\n\n> 🎲 **Проверка: КРИТИЧЕСКИЙ УСПЕХ (20)** <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>\n</span>`,
+        
+        roll_success: `\n\n> 🎲 **Проверка: УСПЕХ ({{roll}} из {{dc}})** <span style="display:none;">\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>\n</span>`,
+        
+        roll_failure: `\n\n> 🎲 **Проверка: ПРОВАЛ ({{roll}} из {{dc}})** <span style="display:none;">\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>\n</span>`,
+        
+        roll_crit_failure: `\n\n> 🎲 **Проверка: КРИТИЧЕСКИЙ ПРОВАЛ (1)** <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>\n</span>`,
 
-        ft_travel_specific: `\n\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>`,
-        ft_travel_surprise: `\n\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>`
+        ft_travel_specific: `\n\n> 📍 **Путешествие: {{loc}}** (Время: {{time}}) <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>\n</span>`,
+        
+        ft_travel_surprise: `\n\n> ⚡ **Путешествие: Случайное событие** <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`
     };
 
     const DEFAULT_SETTINGS = {
@@ -93,7 +102,7 @@
 
             let cleanResult = resultStr;
             cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
-            cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, ''); // Удаляем тег часов, если ИИ его подхватил [cite: 8]
+            cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, ''); 
             cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
             cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
             cleanResult = cleanResult.replace(/※\/SCENE※/gi, '');
@@ -204,30 +213,38 @@
     async function handleSkillCheck(btnElement) {
         const ctx = SillyTavern.getContext();
         const chat = ctx.chat;
+        const ta = document.getElementById('send_textarea');
+        // @ts-ignore
+        const inputText = ta ? ta.value.trim() : '';
 
-        if (!chat || chat.length === 0) {
-            // @ts-ignore
-            toastr.warning('Чат пуст!', 'BB Dice'); return;
-        }
-
+        let targetText = '';
+        let isPreSend = false;
         let lastUserIndex = -1;
-        for (let i = chat.length - 1; i >= 0; i--) {
-            if (chat[i].is_user) { lastUserIndex = i; break; }
-        }
 
-        if (lastUserIndex === -1) {
-            // @ts-ignore
-            toastr.warning('Не найдено сообщение от вас для броска кубика.', 'BB Dice'); return;
+        if (inputText) {
+            targetText = inputText;
+            isPreSend = true;
+        } else {
+            if (!chat || chat.length === 0) {
+                // @ts-ignore
+                toastr.warning('Чат пуст!', 'BB Dice'); return;
+            }
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user) { lastUserIndex = i; break; }
+            }
+            if (lastUserIndex === -1) {
+                // @ts-ignore
+                toastr.warning('Не найдено сообщение от вас для броска кубика.', 'BB Dice'); return;
+            }
+            targetText = chat[lastUserIndex].mes;
         }
-
-        const lastUserMessage = chat[lastUserIndex].mes;
         
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
         btnElement.innerHTML = `⏳ <span>Бросок...</span>`;
 
         try {
-            const prompt = `[TASK]\nRead the user's last action in the roleplay: """${lastUserMessage}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
+            const prompt = `[TASK]\nRead the user's action: """${targetText}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
             
             // @ts-ignore 
             let actionQuestion = await ctx.generateQuietPrompt(prompt);
@@ -249,24 +266,30 @@
             let outcomeType = ''; let outcomeText = ''; let outcomeColor = '';
             if (roll === 20) { outcomeType = 'roll_crit_success'; outcomeText = 'КРИТИЧЕСКИЙ УСПЕХ'; outcomeColor = '#d4af37'; }
             else if (roll === 1) { outcomeType = 'roll_crit_failure'; outcomeText = 'КРИТИЧЕСКИЙ ПРОВАЛ'; outcomeColor = '#dc2626'; }
-            else if (roll >= dc) { outcomeType = 'roll_success'; outcomeText = 'УСПЕХ'; outcomeColor = '#16a34a'; }
-            else { outcomeType = 'roll_failure'; outcomeText = 'ПРОВАЛ'; outcomeColor = '#ea580c'; }
+            else if (roll >= dc) { outcomeType = 'roll_success'; outcomeText = 'УСПЕХ'; outcomeColor = '#10b981'; }
+            else { outcomeType = 'roll_failure'; outcomeText = 'ПРОВАЛ'; outcomeColor = '#f97316'; }
 
             await showDiceModal(actionQuestion, dc, roll, outcomeText, outcomeColor);
 
-            const originalText = chat[lastUserIndex].mes;
-            const cue = BOT_CUES[outcomeType].replace('{{dc}}', String(dc)).replace('{{roll}}', String(roll));
-            chat[lastUserIndex].mes = originalText + cue;
+            const cue = BOT_CUES[outcomeType].replace(/{{dc}}/g, String(dc)).replace(/{{roll}}/g, String(roll));
 
-            const isLastMsgBot = !chat[chat.length - 1].is_user;
-            if (isLastMsgBot) {
-                const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+            if (isPreSend) {
                 // @ts-ignore
-                if (swipeRightBtn) swipeRightBtn.click();
-                else document.getElementById('send_but')?.click();
-            } else { document.getElementById('send_but')?.click(); }
+                ta.value = targetText + cue;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                document.getElementById('send_but')?.click();
+            } else {
+                const originalText = chat[lastUserIndex].mes;
+                chat[lastUserIndex].mes = originalText + cue;
 
-            setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 3000);
+                const isLastMsgBot = !chat[chat.length - 1].is_user;
+                if (isLastMsgBot) {
+                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+                    // @ts-ignore
+                    if (swipeRightBtn) swipeRightBtn.click();
+                    else document.getElementById('send_but')?.click();
+                } else { document.getElementById('send_but')?.click(); }
+            }
 
         } catch (err) {
             console.error(err);
@@ -280,30 +303,39 @@
     async function handleBotGeneration(type) {
         const ctx = SillyTavern.getContext();
         const chat = ctx.chat;
-        
-        if (!chat || chat.length === 0) return;
-        let lastUserIndex = -1;
-        for (let i = chat.length - 1; i >= 0; i--) {
-            if (chat[i].is_user) { lastUserIndex = i; break; }
-        }
-        if (lastUserIndex === -1) {
-            // @ts-ignore
-            toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
-        }
+        const ta = document.getElementById('send_textarea');
+        // @ts-ignore
+        const inputText = ta ? ta.value.trim() : '';
 
-        const originalText = chat[lastUserIndex].mes;
         const cue = BOT_CUES[type];
-        chat[lastUserIndex].mes = originalText + cue;
 
-        const isLastMsgBot = !chat[chat.length - 1].is_user;
-        if (isLastMsgBot) {
-            const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+        if (inputText) {
             // @ts-ignore
-            if (swipeRightBtn) swipeRightBtn.click();
-            else document.getElementById('send_but')?.click();
-        } else { document.getElementById('send_but')?.click(); }
+            ta.value = inputText + cue;
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            document.getElementById('send_but')?.click();
+        } else {
+            if (!chat || chat.length === 0) return;
+            let lastUserIndex = -1;
+            for (let i = chat.length - 1; i >= 0; i--) {
+                if (chat[i].is_user) { lastUserIndex = i; break; }
+            }
+            if (lastUserIndex === -1) {
+                // @ts-ignore
+                toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
+            }
 
-        setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 2500);
+            const originalText = chat[lastUserIndex].mes;
+            chat[lastUserIndex].mes = originalText + cue;
+
+            const isLastMsgBot = !chat[chat.length - 1].is_user;
+            if (isLastMsgBot) {
+                const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+                // @ts-ignore
+                if (swipeRightBtn) swipeRightBtn.click();
+                else document.getElementById('send_but')?.click();
+            } else { document.getElementById('send_but')?.click(); }
+        }
     }
 
     function renderPopupVibes() {
@@ -372,16 +404,21 @@
     });
 
     async function handleFastTravel(btnElement) {
+        const ta = document.getElementById('send_textarea');
+        // @ts-ignore
+        const inputText = ta ? ta.value.trim() : '';
+
         btnElement.classList.add('loading');
         const oldHtml = btnElement.innerHTML;
         btnElement.innerHTML = `⏳ <span>Скан...</span>`;
 
         try {
-            let finalPrompt = TEMPLATES.ft_analyzer;
+            // ФИКС: Передаем текст в промпт Фаст Тревела
+            let finalPrompt = TEMPLATES.ft_analyzer.replace('{{input}}', inputText);
             // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(TEMPLATES.ft_analyzer);
+            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(finalPrompt);
             // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(TEMPLATES.ft_analyzer);
+            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(finalPrompt);
 
             const ctx = SillyTavern.getContext();
             // @ts-ignore
@@ -469,34 +506,41 @@
             closeModal();
             const ctx = SillyTavern.getContext();
             const chat = ctx.chat;
-            if (!chat || chat.length === 0) return;
+            const ta = document.getElementById('send_textarea');
+            // @ts-ignore
+            const inputText = ta ? ta.value.trim() : '';
 
-            let lastUserIndex = -1;
-            for (let i = chat.length - 1; i >= 0; i--) {
-                if (chat[i].is_user) { lastUserIndex = i; break; }
-            }
-            if (lastUserIndex === -1) return;
-
-            const originalText = chat[lastUserIndex].mes;
             let cue = '';
-            
             if (loc && hook) {
-                cue = BOT_CUES.ft_travel_specific.replace('{{loc}}', loc).replace('{{hook}}', hook).replace('{{time}}', time || 'неизвестно');
+                cue = BOT_CUES.ft_travel_specific.replace(/{{loc}}/g, loc).replace(/{{hook}}/g, hook).replace(/{{time}}/g, time || 'неизвестно');
             } else {
                 cue = BOT_CUES.ft_travel_surprise;
             }
 
-            chat[lastUserIndex].mes = originalText + cue;
-
-            const isLastMsgBot = !chat[chat.length - 1].is_user;
-            if (isLastMsgBot) {
-                const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+            if (inputText) {
                 // @ts-ignore
-                if (swipeRightBtn) swipeRightBtn.click();
-                else document.getElementById('send_but')?.click();
-            } else { document.getElementById('send_but')?.click(); }
+                ta.value = inputText + cue;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                document.getElementById('send_but')?.click();
+            } else {
+                if (!chat || chat.length === 0) return;
+                let lastUserIndex = -1;
+                for (let i = chat.length - 1; i >= 0; i--) {
+                    if (chat[i].is_user) { lastUserIndex = i; break; }
+                }
+                if (lastUserIndex === -1) return;
 
-            setTimeout(() => { if (chat[lastUserIndex]) chat[lastUserIndex].mes = originalText; }, 3000);
+                const originalText = chat[lastUserIndex].mes;
+                chat[lastUserIndex].mes = originalText + cue;
+
+                const isLastMsgBot = !chat[chat.length - 1].is_user;
+                if (isLastMsgBot) {
+                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
+                    // @ts-ignore
+                    if (swipeRightBtn) swipeRightBtn.click();
+                    else document.getElementById('send_but')?.click();
+                } else { document.getElementById('send_but')?.click(); }
+            }
         };
 
         const cards = overlay.querySelectorAll('.bb-ft-card');
