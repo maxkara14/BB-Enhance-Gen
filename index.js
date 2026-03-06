@@ -21,27 +21,27 @@
 
     // ФОРМАТ: Красивая визуальная плашка (Markdown) + Невидимые инструкции для ИИ (HTML)
     const BOT_CUES = {
-        dir_disaster: `\n\n> 💥 **Событие: ОПАСНОСТЬ (Disaster)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>\n</span>`,
+        dir_disaster: `\n\n> 💥 **Событие: ОПАСНОСТЬ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>\n</span>`,
         
-        dir_blessing: `\n\n> 🎁 **Событие: УДАЧА (Blessing)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>\n</span>`,
+        dir_blessing: `\n\n> 🎁 **Событие: УДАЧА** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>\n</span>`,
         
-        dir_tension: `\n\n> ❤️ **Событие: НАПРЯЖЕНИЕ (Tension)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>\n</span>`,
+        dir_tension: `\n\n> ❤️ **Событие: НАПРЯЖЕНИЕ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>\n</span>`,
         
-        dir_absurd: `\n\n> 🃏 **Событие: АБСУРД (Comedy)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>\n</span>`,
+        dir_absurd: `\n\n> 🃏 **Событие: АБСУРД** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>\n</span>`,
         
-        dir_timeskip: `\n\n> ⏩ **Событие: ПРОМОТКА ВРЕМЕНИ (Time Skip)** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, execute a logical TIME SKIP. Jump forward to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene in-character.\n</system_note>\n</span>`,
+        dir_timeskip: `\n\n> ⏩ **Событие: ПРОМОТКА ВРЕМЕНИ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, execute a logical TIME SKIP. Jump forward to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene in-character.\n</system_note>\n</span>`,
         
-        roll_crit_success: `\n\n> 🎲 **Проверка: КРИТИЧЕСКИЙ УСПЕХ (20)** <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>\n</span>`,
+        roll_crit_success: `\n\n> 🎲 **КРИТИЧЕСКИЙ УСПЕХ (20)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>\n</span>`,
         
-        roll_success: `\n\n> 🎲 **Проверка: УСПЕХ ({{roll}} из {{dc}})** <span style="display:none;">\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>\n</span>`,
+        roll_success: `\n\n> 🎲 **УСПЕХ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>\n</span>`,
         
-        roll_failure: `\n\n> 🎲 **Проверка: ПРОВАЛ ({{roll}} из {{dc}})** <span style="display:none;">\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>\n</span>`,
+        roll_failure: `\n\n> 🎲 **ПРОВАЛ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>\n</span>`,
         
-        roll_crit_failure: `\n\n> 🎲 **Проверка: КРИТИЧЕСКИЙ ПРОВАЛ (1)** <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>\n</span>`,
+        roll_crit_failure: `\n\n> 🎲 **КРИТИЧЕСКИЙ ПРОВАЛ (1)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>\n</span>`,
 
-        ft_travel_specific: `\n\n> 📍 **Путешествие: {{loc}}** (Время: {{time}}) <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>\n</span>`,
+        ft_travel_specific: `\n\n> 📍 **Путешествие:** *{{loc}}* ⏳ ({{time}}) <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>\n</span>`,
         
-        ft_travel_surprise: `\n\n> ⚡ **Путешествие: Случайное событие** <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`
+        ft_travel_surprise: `\n\n> ⚡ **Путешествие:** *Шаг в неизвестность (Случайное событие)* <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`
     };
 
     const DEFAULT_SETTINGS = {
@@ -55,10 +55,9 @@
     let activeDirectorVibe = null;
     let isPopupOpen = false;
 
-    // === НОВАЯ ФУНКЦИЯ УМНОЙ ОЧИСТКИ (ЛАСТИК) ===
+    // === ФУНКЦИЯ УМНОЙ ОЧИСТКИ (ЛАСТИК) ===
     function removeExtensionCues(text) {
         if (!text) return text;
-        // Регулярка точно находит любую старую плашку (Событие, Кубик, Путешествие) в самом конце текста и стирает её
         const regex = /(?:\r?\n)*> (?:💥|🎁|❤️|🃏|⏩|🎲|📍|⚡).*?<span style="display:none;">[\s\S]*?<\/span>\s*$/;
         return text.replace(regex, '').trim();
     }
@@ -109,7 +108,9 @@
             }
 
             let cleanResult = resultStr;
+            // ЖЕСТКАЯ ОЧИСТКА: Удаляем полные блоки и любые огрызки тега <think>
             cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
+            cleanResult = cleanResult.replace(/<\/?think[^>]*>/gi, '');
             cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, ''); 
             cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
             cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
@@ -244,7 +245,6 @@
                 // @ts-ignore
                 toastr.warning('Не найдено сообщение от вас для броска кубика.', 'BB Dice'); return;
             }
-            // ФИКС: Очищаем текст от старой плашки, чтобы она не пошла в анализ промпта ИИ
             targetText = removeExtensionCues(chat[lastUserIndex].mes);
         }
         
@@ -262,7 +262,8 @@
                 throw new Error("Пустой ответ API");
             }
 
-            actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            // ЖЕСТКАЯ ОЧИСТКА: Удаляем полные блоки и любые огрызки тега <think>
+            actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think[^>]*>/gi, '').trim();
             if(actionQuestion.startsWith('"')) actionQuestion = actionQuestion.slice(1, -1);
             if(!actionQuestion || actionQuestion.length > 100) actionQuestion = "Удастся ли задуманное действие?";
 
@@ -280,16 +281,17 @@
 
             await showDiceModal(actionQuestion, dc, roll, outcomeText, outcomeColor);
 
-            const cue = BOT_CUES[outcomeType].replace(/{{dc}}/g, String(dc)).replace(/{{roll}}/g, String(roll));
+            const cue = BOT_CUES[outcomeType]
+                .replace(/{{dc}}/g, String(dc))
+                .replace(/{{roll}}/g, String(roll))
+                .replace(/{{question}}/g, actionQuestion);
 
             if (isPreSend) {
                 // @ts-ignore
-                // ФИКС: Очищаем на всякий случай и здесь
                 ta.value = removeExtensionCues(targetText) + cue;
                 ta.dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('send_but')?.click();
             } else {
-                // ФИКС: Стираем старую плашку и лепим новую
                 const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
                 chat[lastUserIndex].mes = cleanedText + cue;
 
@@ -336,7 +338,6 @@
                 toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
             }
 
-            // ФИКС: Стираем старую плашку (если была) и лепим новую
             const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
             chat[lastUserIndex].mes = cleanedText + cue;
 
@@ -541,7 +542,6 @@
                 }
                 if (lastUserIndex === -1) return;
 
-                // ФИКС: Стираем старую плашку и лепим новую
                 const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
                 chat[lastUserIndex].mes = cleanedText + cue;
 
