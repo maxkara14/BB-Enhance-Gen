@@ -1,149 +1,164 @@
 /* =========================================
-   ОБЕРТКА ПАНЕЛИ И КНОПКА СКРЫТИЯ [EG]
+   ОБЕРТКА И КНОПКА СКРЫТИЯ [E]
 ========================================= */
 #bb-enhance-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: 5px;
+    position: relative; /* Якорь для парящего меню */
+    display: inline-flex;
+    align-items: center;
+    z-index: 1001; /* Поверх чата */
+    
+    /* ФИКС ПОЗИЦИИ: Точечная настройка координат (x, y) */
+    /* Первое значение — двигает влево (минус) или вправо (плюс) */
+    /* Второе значение — двигает вверх (минус) или вниз (плюс) */
+    transform: translate(-5px, -2px); 
 }
 
 #bb-eg-toggle-btn {
-    background: rgba(20, 20, 20, 0.85); /* Нейтральный графитовый фон */
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: 2px solid rgba(255, 255, 255, 0.3); /* Серебряный зуб в состоянии покоя */
+    background: rgba(30, 30, 30, 0.7); /* Нейтральный фон */
+    border: 1px solid rgba(255, 255, 255, 0.15);
     color: #9ca3af;
-    padding: 4px 12px;
-    font-size: 10px;
+    width: 26px; /* Идеально вписывается к остальным кнопкам */
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    border-radius: 4px;
+    border-radius: 5px; /* Мягкие углы */
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     user-select: none;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
 #bb-eg-toggle-btn:hover {
     color: #fff;
-    background: rgba(35, 35, 35, 0.95);
-    border-left-color: #d4af37; /* Золото при наведении */
+    background: rgba(50, 50, 50, 0.9);
+    border-color: rgba(212, 175, 55, 0.4);
 }
 
 #bb-eg-toggle-btn.active {
-    color: #d4af37;
-    border-left-color: #d4af37;
-    background: rgba(25, 25, 25, 0.95);
-    border-color: rgba(255, 255, 255, 0.15);
+    color: #000;
+    background: #d4af37; /* Загорается золотом при открытии */
+    border-color: #d4af37;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
 /* =========================================
-   СЕТКА КНОПОК (АДАПТИВНАЯ, НЕВИДИМАЯ)
+   ВСПЛЫВАЮЩЕЕ МЕНЮ (VERTICAL POPUP)
 ========================================= */
 #bb-enhance-toolbar {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 8px;
-    width: 100%;
-    max-height: 0;
+    position: absolute;
+    bottom: calc(100% + 10px); /* Всплывает строго вверх над кнопкой [E] */
+    left: 0;
+    
+    background: rgba(18, 18, 18, 0.95); /* Плотный темный графит */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    
+    /* Вертикальное расположение кнопок */
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 150px;
+    
+    /* Анимация плавного появления снизу-вверх */
     opacity: 0;
-    overflow: hidden;
-    margin-bottom: 0;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+    pointer-events: none;
+    transform: translateY(15px);
+    transform-origin: bottom left;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 #bb-enhance-toolbar.expanded {
-    max-height: 200px;
     opacity: 1;
-    margin-bottom: 5px;
-    overflow: visible;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 /* =========================================
-   СТРОГИЕ ПЛАВАЮЩИЕ КНОПКИ (ГРАФИТ)
+   СТРОГИЕ КНОПКИ ВНУТРИ МЕНЮ
 ========================================= */
 .bb-eg-btn {
-    background: rgba(20, 20, 20, 0.85); /* Глубокий нейтральный цвет */
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.15); /* Нейтральная светлая рамка снизу */
+    background: rgba(255, 255, 255, 0.03); 
+    border: 1px solid rgba(255, 255, 255, 0.02);
     color: #d1d5db;
-    padding: 0 10px;
+    padding: 10px 12px; /* Чуть шире для удобства пальцев на телефоне */
     border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
     font-family: 'Georgia', serif;
     font-weight: bold;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
-    transition: all 0.3s ease;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: flex-start; /* Выравнивание текста по левому краю в списке */
     gap: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-    height: 32px;
     white-space: nowrap;
     width: 100%;
     box-sizing: border-box;
 }
 
 .bb-eg-btn:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    border-bottom: 2px solid #d4af37; /* Элегантное золото только при ховере */
-    color: #fff; /* Белый текст, чтобы было ярко и свежо */
-    background: rgba(35, 35, 35, 0.95);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 -10px 20px rgba(255, 255, 255, 0.03);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(212, 175, 55, 0.4);
+    color: #d4af37;
+    transform: translateX(4px); /* Кнопки красиво отъезжают вправо при наведении */
 }
 
-.bb-eg-btn:active { transform: translateY(0); }
+.bb-eg-btn:active { transform: translateX(0); }
 
 .bb-eg-btn.loading {
     opacity: 0.7;
     cursor: not-allowed;
     pointer-events: none;
-    animation: bb-eg-pulse 1.5s infinite;
     color: #d4af37;
-    border-bottom-color: #d4af37;
+    animation: bb-eg-pulse 1.5s infinite;
 }
 
 @keyframes bb-eg-pulse { 
-    0% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
-    50% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); background: rgba(40, 40, 40, 0.9); } 
-    100% { box-shadow: 0 0 5px rgba(212, 175, 55, 0.1); } 
+    0% { background: rgba(255, 255, 255, 0.03); } 
+    50% { background: rgba(212, 175, 55, 0.1); } 
+    100% { background: rgba(255, 255, 255, 0.03); } 
 }
 
 /* =========================================
-   ВСПЛЫВАЮЩЕЕ МЕНЮ РЕЖИССЕРА
+   ПОДМЕНЮ РЕЖИССЕРА (КАСКАД)
 ========================================= */
 .bb-eg-director-wrap {
     position: relative; display: block; width: 100%;
 }
 
 .bb-eg-popup {
+    /* Каскадное меню: открывается сбоку от основной панели */
     position: absolute;
-    bottom: calc(100% + 12px);
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    background: rgba(20, 20, 20, 0.95); /* Нейтральный фон */
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-top: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 6px;
-    padding: 12px;
+    left: calc(100% + 10px); 
+    
+    /* ФИКС: Привязываем к низу, чтобы меню росло вверх и не выпадало за экран */
+    bottom: 0; 
+    
+    background: rgba(18, 18, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 2px solid #b91c1c; /* Красный акцент для опасных действий */
+    border-radius: 8px;
+    padding: 10px;
     display: flex; flex-direction: column; gap: 6px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    
     opacity: 0; pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 9999; min-width: 100%; width: max-content;
+    transform: translateX(-15px);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 9999; min-width: 150px; width: max-content;
 }
 
 .bb-eg-popup.show {
     opacity: 1; pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(0);
 }
 
 .bb-eg-popup-header {
@@ -157,35 +172,34 @@
     background: transparent;
     border: 1px solid transparent;
     color: #d1d5db;
-    text-align: left; padding: 8px 12px; border-radius: 4px;
-    cursor: pointer; font-size: 13px; font-family: 'Georgia', serif;
-    transition: all 0.2s ease; display: flex; align-items: center; gap: 10px;
+    text-align: left; padding: 6px 10px; border-radius: 4px;
+    cursor: pointer; font-size: 12px; font-family: 'Georgia', serif;
+    transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
 }
 
 .bb-eg-vibe-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
     color: #fff; transform: translateX(4px);
 }
 
-.bb-eg-target-grid { display: flex; gap: 8px; margin-top: 6px; }
+.bb-eg-target-grid { display: flex; gap: 6px; margin-top: 4px; }
 .bb-eg-target-btn {
     flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255, 255, 255, 0.05);
-    color: #9ca3af; padding: 10px 4px; border-radius: 4px;
+    color: #9ca3af; padding: 8px 4px; border-radius: 4px;
     cursor: pointer; font-size: 11px; text-align: center; transition: all 0.2s;
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    text-transform: uppercase; letter-spacing: 1px; font-weight: bold;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    text-transform: uppercase; font-weight: bold;
 }
-.bb-eg-target-btn i { font-size: 18px; margin-bottom: 2px; }
-.bb-eg-target-btn:hover { color: #fff; border-color: #d4af37; background: rgba(212, 175, 55, 0.1); }
+.bb-eg-target-btn i { font-size: 16px; margin-bottom: 2px; }
+.bb-eg-target-btn:hover { color: #000; background: #d4af37; border-color: #d4af37; }
 
 .bb-eg-back-btn {
     background: transparent; border: none; color: #6b7280;
     cursor: pointer; font-size: 10px; text-transform: uppercase;
     letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
-    padding: 0; margin-bottom: 10px; width: fit-content; transition: color 0.2s;
+    padding: 0; margin-bottom: 8px; width: fit-content; transition: color 0.2s;
 }
-.bb-eg-back-btn:hover { color: #fff; }
+.bb-eg-back-btn:hover { color: #d4af37; }
 
 /* =========================================
    🎲 3D FATE CRYSTAL 
