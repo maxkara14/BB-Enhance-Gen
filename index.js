@@ -55,6 +55,14 @@
     let activeDirectorVibe = null;
     let isPopupOpen = false;
 
+    // === НОВАЯ ФУНКЦИЯ УМНОЙ ОЧИСТКИ (ЛАСТИК) ===
+    function removeExtensionCues(text) {
+        if (!text) return text;
+        // Регулярка точно находит любую старую плашку (Событие, Кубик, Путешествие) в самом конце текста и стирает её
+        const regex = /(?:\r?\n)*> (?:💥|🎁|❤️|🃏|⏩|🎲|📍|⚡).*?<span style="display:none;">[\s\S]*?<\/span>\s*$/;
+        return text.replace(regex, '').trim();
+    }
+
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
         if (!extensionSettings[MODULE_NAME]) extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
@@ -236,7 +244,8 @@
                 // @ts-ignore
                 toastr.warning('Не найдено сообщение от вас для броска кубика.', 'BB Dice'); return;
             }
-            targetText = chat[lastUserIndex].mes;
+            // ФИКС: Очищаем текст от старой плашки, чтобы она не пошла в анализ промпта ИИ
+            targetText = removeExtensionCues(chat[lastUserIndex].mes);
         }
         
         btnElement.classList.add('loading');
@@ -275,12 +284,14 @@
 
             if (isPreSend) {
                 // @ts-ignore
-                ta.value = targetText + cue;
+                // ФИКС: Очищаем на всякий случай и здесь
+                ta.value = removeExtensionCues(targetText) + cue;
                 ta.dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('send_but')?.click();
             } else {
-                const originalText = chat[lastUserIndex].mes;
-                chat[lastUserIndex].mes = originalText + cue;
+                // ФИКС: Стираем старую плашку и лепим новую
+                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
+                chat[lastUserIndex].mes = cleanedText + cue;
 
                 const isLastMsgBot = !chat[chat.length - 1].is_user;
                 if (isLastMsgBot) {
@@ -311,7 +322,7 @@
 
         if (inputText) {
             // @ts-ignore
-            ta.value = inputText + cue;
+            ta.value = removeExtensionCues(inputText) + cue;
             ta.dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('send_but')?.click();
         } else {
@@ -325,8 +336,9 @@
                 toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
             }
 
-            const originalText = chat[lastUserIndex].mes;
-            chat[lastUserIndex].mes = originalText + cue;
+            // ФИКС: Стираем старую плашку (если была) и лепим новую
+            const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
+            chat[lastUserIndex].mes = cleanedText + cue;
 
             const isLastMsgBot = !chat[chat.length - 1].is_user;
             if (isLastMsgBot) {
@@ -413,7 +425,6 @@
         btnElement.innerHTML = `⏳ <span>Скан...</span>`;
 
         try {
-            // ФИКС: Передаем текст в промпт Фаст Тревела
             let finalPrompt = TEMPLATES.ft_analyzer.replace('{{input}}', inputText);
             // @ts-ignore
             if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(finalPrompt);
@@ -519,7 +530,7 @@
 
             if (inputText) {
                 // @ts-ignore
-                ta.value = inputText + cue;
+                ta.value = removeExtensionCues(inputText) + cue;
                 ta.dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('send_but')?.click();
             } else {
@@ -530,8 +541,9 @@
                 }
                 if (lastUserIndex === -1) return;
 
-                const originalText = chat[lastUserIndex].mes;
-                chat[lastUserIndex].mes = originalText + cue;
+                // ФИКС: Стираем старую плашку и лепим новую
+                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
+                chat[lastUserIndex].mes = cleanedText + cue;
 
                 const isLastMsgBot = !chat[chat.length - 1].is_user;
                 if (isLastMsgBot) {
