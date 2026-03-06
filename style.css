@@ -200,7 +200,28 @@
     padding: 0; margin-bottom: 8px; width: fit-content; transition: color 0.2s;
 }
 .bb-eg-back-btn:hover { color: #d4af37; }
-
+/* =========================================
+   НАСТРОЙКИ РАСШИРЕНИЯ (В МЕНЮ ТАВЕРНЫ)
+========================================= */
+.bb-eg-settings-panel {
+    background: rgba(20, 15, 15, 0.5); 
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 8px; 
+    padding: 12px; 
+    margin-top: 8px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px;
+}
+.bb-eg-settings-panel label {
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-size: 13px;
+    color: #e5e7eb; 
+    cursor: pointer;
+    margin: 0; /* Сбрасываем возможные конфликты с темами */
+}
 /* =========================================
    🎲 3D FATE CRYSTAL 
 ========================================= */
