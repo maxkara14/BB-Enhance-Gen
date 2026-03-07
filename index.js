@@ -12,61 +12,79 @@
         
         dir_tension: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n</task>\n\n<rules>\n1. RELATIONSHIP LOGIC: If {{user}} and the character are romantically involved, escalate passion and physical intimacy. If NOT involved, introduce a sudden spark of deep interest, a breathless awkward pause, or revealing micro-expression.\n2. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity.\n3. Keep the interaction STRICTLY In-Character.\n4. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        dir_absurd: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n</task>\n\n<rules>\n1. Create a ridiculous misunderstanding, clumsy mistake, or awkwardly funny situational irony.\n2. STRICT IN-CHARACTER RULE: The humor must not break character logic. Show how serious characters react NATURALLY to the absurdity (e.g., a stoic character might sigh, not laugh out loud).\n3. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_absurd: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n</task>\n\n<rules>\n1. Create a ridiculous misunderstanding, clumsy mistake, or awkwardly funny situational irony.\n2. STRICT IN-CHARACTER RULE: The humor must not break character logic. Show how serious characters react NATURALLY to the absurdity.\n3. Output ONLY the pure story text without meta-commentary.\n</rules>`,
 
-        dir_timeskip: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Execute a logical TIME SKIP to push the plot forward.\n</task>\n\n<rules>\n1. Analyze the current situation and jump forward in time to the NEXT SIGNIFICANT EVENT. It must make logical sense.\n2. Briefly summarize what happened during the skipped time.\n3. Establish the new time and location explicitly.\n4. Initiate the new plot event to keep the story moving.\n5. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_tragedy: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a TRAGIC EVENT or SEVERE EMOTIONAL DAMAGE.\n</task>\n\n<rules>\n1. Create a terrible revelation, an irreversible mistake, a painful loss, or deep despair.\n2. Characters must react STRICTLY In-Character. Do not resolve it easily.\n3. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}"""\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Output STRICTLY as a raw JSON object. Do not include markdown formatting like \`\`\`json.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Причина пойти", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`
+        ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}""" (If empty, assume user wants to travel away from their current location)\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Keep the "hook" descriptions VERY SHORT.\n4. Output STRICTLY as a raw JSON object starting with { and ending with }.\n5. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Краткая причина.", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`,
+
+        ts_analyzer: `<task>\nAnalyze the current roleplay context and determine if the user ({{user}}) can execute a TIME SKIP. Suggest 3 chapter-like skip options.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\n</context>\n\n<rules>\n1. If the characters are mid-battle, in an active conversation, or in a critical immediate situation, set "can_skip" to false and provide a "lock_reason" (in Russian).\n2. If the scene is winding down, transitioning, or free to skip, set "can_skip" to true and provide EXACTLY 3 "options".\n3. Option types: Short skip (hours/next day), Medium skip (days/weekend), Long skip (weeks/contextual).\n4. Keep the "summary" descriptions VERY SHORT.\n5. Output STRICTLY as a raw JSON object starting with { and ending with }.\n6. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_skip": true,\n  "lock_reason": "",\n  "options": [\n    { "time": "Завтра утром", "title": "Глава: Новое начало", "summary": "Персонажи просыпаются и готовы к новому дню." }\n  ]\n}\n</format>`
     };
 
-    // ФОРМАТ: Красивая визуальная плашка (Markdown) + Невидимые инструкции для ИИ (HTML)
     const BOT_CUES = {
         dir_disaster: `\n\n> 💥 **Событие: ОПАСНОСТЬ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>\n</span>`,
-        
         dir_blessing: `\n\n> 🎁 **Событие: УДАЧА** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>\n</span>`,
-        
         dir_tension: `\n\n> ❤️ **Событие: НАПРЯЖЕНИЕ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>\n</span>`,
-        
         dir_absurd: `\n\n> 🃏 **Событие: АБСУРД** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>\n</span>`,
-        
-        dir_timeskip: `\n\n> ⏩ **Событие: ПРОМОТКА ВРЕМЕНИ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, execute a logical TIME SKIP. Jump forward to the next significant plot event or new location. Briefly summarize the skipped time, establish the new setting, and initiate the new scene in-character.\n</system_note>\n</span>`,
+        dir_tragedy: `\n\n> 💀 **Событие: ТРАГЕДИЯ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a TRAGIC EVENT or severe emotional damage. A terrible revelation, an irreversible mistake, a painful loss, or deep despair. Characters must react STRICTLY In-Character. Do not resolve it easily.\n</system_note>\n</span>`,
         
         roll_crit_success: `\n\n> 🎲 **КРИТИЧЕСКИЙ УСПЕХ (20)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>\n</span>`,
-        
         roll_success: `\n\n> 🎲 **УСПЕХ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>\n</span>`,
-        
         roll_failure: `\n\n> 🎲 **ПРОВАЛ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>\n</span>`,
-        
         roll_crit_failure: `\n\n> 🎲 **КРИТИЧЕСКИЙ ПРОВАЛ (1)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>\n</span>`,
 
         ft_travel_specific: `\n\n> 📍 **Путешествие:** *{{loc}}* ⏳ ({{time}}) <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>\n</span>`,
-        
-        ft_travel_surprise: `\n\n> ⚡ **Путешествие:** *Шаг в неизвестность (Случайное событие)* <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`
+        ft_travel_surprise: `\n\n> ⚡ **Путешествие:** *Шаг в неизвестность (Случайное событие)* <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`,
+
+        ts_specific: `\n\n> ⏩ **ПРОМОТКА ВРЕМЕНИ:** *{{title}}* ⏳ ({{time}}) <span style="display:none;">\n<system_note>\nTIME SKIP EVENT: Execute a logical TIME SKIP forward by {{time}}. New Chapter: "{{title}}". Summary of situation: "{{summary}}". In your next response, seamlessly transition the narrative to the start of this new timeframe, establish the setting, and initiate the new scene.\n</system_note>\n</span>`
     };
 
     const DEFAULT_SETTINGS = {
-        btnEnhance: true,
-        btnImprove: true,
-        btnDirector: true,
-        btnDice: true,
-        btnFastTravel: true
+        btnEnhance: true, 
+        btnImprove: true, 
+        btnDirector: true, 
+        btnDice: true, 
+        btnFastTravel: true, 
+        btnTimeSkip: true
     };
 
     let activeDirectorVibe = null;
     let isPopupOpen = false;
 
+    // === БЕЗОПАСНЫЙ ПАРСЕР JSON ===
+    function extractJSON(text) {
+        let str = String(text).trim();
+        str = str.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
+        
+        let start = str.indexOf('{');
+        let end = str.lastIndexOf('}');
+        
+        if (start === -1 || end === -1) {
+            throw new Error(`Модель не выдала JSON. Ответ: ${str.substring(0, 80)}...`);
+        }
+        
+        let jsonStr = str.substring(start, end + 1);
+        try {
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            throw new Error(`Ошибка чтения формата: ${e.message}`);
+        }
+    }
+
     // === ФУНКЦИЯ УМНОЙ ОЧИСТКИ (ЛАСТИК) ===
     function removeExtensionCues(text) {
         if (!text) return text;
-        const regex = /(?:\r?\n)*> (?:💥|🎁|❤️|🃏|⏩|🎲|📍|⚡).*?<span style="display:none;">[\s\S]*?<\/span>\s*$/;
+        const regex = /(?:\r?\n)*> (?:💥|🎁|❤️|🃏|💀|⏩|🎲|📍|⚡).*?<span style="display:none;">[\s\S]*?<\/span>\s*$/;
         return text.replace(regex, '').trim();
     }
 
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
-        if (!extensionSettings[MODULE_NAME]) extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
-        if (typeof extensionSettings[MODULE_NAME].btnFastTravel === 'undefined') {
-            extensionSettings[MODULE_NAME].btnFastTravel = DEFAULT_SETTINGS.btnFastTravel;
+        if (!extensionSettings[MODULE_NAME]) {
+            extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
+        }
+        if (typeof extensionSettings[MODULE_NAME].btnTimeSkip === 'undefined') {
+            extensionSettings[MODULE_NAME].btnTimeSkip = true;
         }
         return extensionSettings[MODULE_NAME];
     }
@@ -76,6 +94,7 @@
         updateToolbarVisibility();
     }
 
+    // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
     async function handleGeneration(type, btnElement) {
         const ta = /** @type {HTMLTextAreaElement} */ (document.getElementById('send_textarea'));
         if (!ta) return;
@@ -98,17 +117,17 @@
             else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
 
             const ctx = SillyTavern.getContext();
+            // @ts-ignore
             let result = await ctx.generateQuietPrompt(finalPrompt);
 
             const resultStr = String(result).trim();
             if (result === undefined || result === null || resultStr === '' || resultStr === 'undefined' || resultStr === 'null') {
                 // @ts-ignore
-                toastr.error('Ошибка генерации: API не подключено или вернуло пустой ответ.', 'BB Enhance');
+                toastr.error('Ошибка генерации: API вернуло пустой ответ.', 'BB Enhance');
                 return;
             }
 
             let cleanResult = resultStr;
-            // ЖЕСТКАЯ ОЧИСТКА: Удаляем полные блоки и любые огрызки тега <think>
             cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
             cleanResult = cleanResult.replace(/<\/?think[^>]*>/gi, '');
             cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, ''); 
@@ -119,40 +138,38 @@
             cleanResult = cleanResult.replace(/⟦\/[A-Za-zА-Яа-яЁё\s_]+⟧/gi, '');
 
             cleanResult = cleanResult.trim();
-            if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) cleanResult = cleanResult.slice(1, -1).trim();
+            if(cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
+                cleanResult = cleanResult.slice(1, -1).trim();
+            }
             
             if (cleanResult.length > 0) {
-                ta.value = cleanResult; ta.dispatchEvent(new Event('input', { bubbles: true })); 
+                ta.value = cleanResult; 
+                ta.dispatchEvent(new Event('input', { bubbles: true })); 
                 // @ts-ignore
                 toastr.success('Готово!', 'BB Director');
-            } else if (resultStr.length > 0) {
-                ta.value = resultStr; ta.dispatchEvent(new Event('input', { bubbles: true })); 
+            } else {
+                ta.value = resultStr; 
+                ta.dispatchEvent(new Event('input', { bubbles: true })); 
                 // @ts-ignore
                 toastr.warning('Фильтр удалил всё. Возвращен сырой текст!', 'BB Director');
-            } else {
-                // @ts-ignore
-                toastr.warning('Нейросеть вернула пустой ответ.', 'BB Director');
             }
             
         } catch (err) {
             console.error(err);
-            let errMsg = err.message || String(err);
-            if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
-                errMsg = 'API недоступно (Network Error / Failed to fetch).';
-            }
             // @ts-ignore
-            toastr.error('Техническая ошибка: ' + errMsg, 'BB Enhance');
+            toastr.error('Ошибка: ' + (err.message || String(err)), 'BB Enhance');
         } finally {
             btnElement.classList.remove('loading');
             btnElement.innerHTML = oldHtml;
         }
     }
 
+    // === КУБИК (DICE) ===
     function showDiceModal(question, dc, finalRoll, outcomeText, outcomeColor) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
-            overlay.id = 'bb-dice-overlay';
-            overlay.className = 'bb-dice-overlay';
+            overlay.id = 'bb-dice-overlay'; 
+            overlay.className = 'bb-dice-overlay'; 
             overlay.style.opacity = '0'; 
             
             overlay.innerHTML = `
@@ -173,23 +190,24 @@
                     <div id="bb-dice-outcome" class="bb-dice-outcome" style="opacity: 0;">${outcomeText}</div>
                 </div>
             `;
+            
             document.body.appendChild(overlay);
             requestAnimationFrame(() => overlay.style.opacity = '1');
-
+            
             const cubeEl = document.getElementById('bb-dice-cube');
             const mainFace = document.getElementById('bb-face-main');
             const randFaces = document.querySelectorAll('.bb-rand-face');
             const outcomeEl = document.getElementById('bb-dice-outcome');
             
             let ticks = 0; const maxTicks = 40; let currentDelay = 30; 
-
+            
             function rollTick() {
                 if (ticks < maxTicks) {
                     // @ts-ignore
                     mainFace.innerText = String(Math.floor(Math.random() * 20) + 1);
-                    randFaces.forEach(face => {
+                    randFaces.forEach(face => { 
                         // @ts-ignore
-                        face.innerText = String(Math.floor(Math.random() * 20) + 1);
+                        face.innerText = String(Math.floor(Math.random() * 20) + 1); 
                     });
                     ticks++;
                     if (ticks > 25) currentDelay += 20;
@@ -198,20 +216,20 @@
                     cubeEl.classList.add('stopped'); 
                     // @ts-ignore
                     mainFace.innerText = String(finalRoll);
-                    mainFace.style.color = outcomeColor;
-                    mainFace.style.textShadow = `0 0 20px ${outcomeColor}, 0 0 10px #fff`;
-                    mainFace.style.fontSize = "60px";
-                    mainFace.style.borderColor = outcomeColor;
-                    mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`;
+                    mainFace.style.color = outcomeColor; 
+                    mainFace.style.textShadow = `0 0 20px ${outcomeColor}, 0 0 10px #fff`; 
+                    mainFace.style.fontSize = "60px"; 
+                    mainFace.style.borderColor = outcomeColor; 
+                    mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`; 
                     mainFace.style.background = "rgba(10, 5, 5, 0.95)";
                     // @ts-ignore
-                    outcomeEl.innerText = outcomeText;
-                    outcomeEl.style.color = outcomeColor;
+                    outcomeEl.innerText = outcomeText; 
+                    outcomeEl.style.color = outcomeColor; 
                     outcomeEl.style.opacity = '1';
                     
-                    setTimeout(() => {
+                    setTimeout(() => { 
                         overlay.style.opacity = '0'; 
-                        setTimeout(() => { overlay.remove(); resolve(); }, 800);
+                        setTimeout(() => { overlay.remove(); resolve(); }, 800); 
                     }, 4500); 
                 }
             }
@@ -225,50 +243,32 @@
         const ta = document.getElementById('send_textarea');
         // @ts-ignore
         const inputText = ta ? ta.value.trim() : '';
+        let targetText = ''; let isPreSend = false; let lastUserIndex = -1;
 
-        let targetText = '';
-        let isPreSend = false;
-        let lastUserIndex = -1;
-
-        if (inputText) {
-            targetText = inputText;
-            isPreSend = true;
-        } else {
-            if (!chat || chat.length === 0) {
-                // @ts-ignore
-                toastr.warning('Чат пуст!', 'BB Dice'); return;
-            }
-            for (let i = chat.length - 1; i >= 0; i--) {
-                if (chat[i].is_user) { lastUserIndex = i; break; }
-            }
-            if (lastUserIndex === -1) {
-                // @ts-ignore
-                toastr.warning('Не найдено сообщение от вас для броска кубика.', 'BB Dice'); return;
-            }
+        if (inputText) { targetText = inputText; isPreSend = true; } 
+        else {
+            if (!chat || chat.length === 0) return;
+            for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
+            if (lastUserIndex === -1) return;
             targetText = removeExtensionCues(chat[lastUserIndex].mes);
         }
         
         btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `⏳ <span>Бросок...</span>`;
+        const oldHtml = btnElement.innerHTML; btnElement.innerHTML = `⏳ <span>Бросок...</span>`;
 
         try {
             const prompt = `[TASK]\nRead the user's action: """${targetText}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
             
-            // @ts-ignore 
+            // @ts-ignore
             let actionQuestion = await ctx.generateQuietPrompt(prompt);
             const qStr = String(actionQuestion).trim();
-            if (actionQuestion === undefined || actionQuestion === null || qStr === '' || qStr === 'undefined' || qStr === 'null') {
-                throw new Error("Пустой ответ API");
-            }
+            if (!qStr || qStr === 'undefined' || qStr === 'null') throw new Error("Пустой ответ API");
 
-            // ЖЕСТКАЯ ОЧИСТКА: Удаляем полные блоки и любые огрызки тега <think>
             actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think[^>]*>/gi, '').trim();
             if(actionQuestion.startsWith('"')) actionQuestion = actionQuestion.slice(1, -1);
             if(!actionQuestion || actionQuestion.length > 100) actionQuestion = "Удастся ли задуманное действие?";
 
-            btnElement.classList.remove('loading');
-            btnElement.innerHTML = oldHtml;
+            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
 
             const dc = Math.floor(Math.random() * 7) + 10; 
             const roll = Math.floor(Math.random() * 20) + 1; 
@@ -281,41 +281,31 @@
 
             await showDiceModal(actionQuestion, dc, roll, outcomeText, outcomeColor);
 
-            const cue = BOT_CUES[outcomeType]
-                .replace(/{{dc}}/g, String(dc))
-                .replace(/{{roll}}/g, String(roll))
-                .replace(/{{question}}/g, actionQuestion);
+            const cue = BOT_CUES[outcomeType].replace(/{{dc}}/g, String(dc)).replace(/{{roll}}/g, String(roll)).replace(/{{question}}/g, actionQuestion);
 
             if (isPreSend) {
                 // @ts-ignore
-                ta.value = removeExtensionCues(targetText) + cue;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.value = removeExtensionCues(targetText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('send_but')?.click();
             } else {
-                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
-                chat[lastUserIndex].mes = cleanedText + cue;
-
+                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
                 const isLastMsgBot = !chat[chat.length - 1].is_user;
                 if (isLastMsgBot) {
                     const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
                     // @ts-ignore
-                    if (swipeRightBtn) swipeRightBtn.click();
-                    else document.getElementById('send_but')?.click();
+                    if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
                 } else { document.getElementById('send_but')?.click(); }
             }
-
         } catch (err) {
-            console.error(err);
-            btnElement.classList.remove('loading');
-            btnElement.innerHTML = oldHtml;
+            console.error(err); btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
             // @ts-ignore
-            toastr.error('Техническая ошибка: API недоступно.', 'BB Dice');
+            toastr.error('Ошибка Кубика: ' + (err.message || String(err)), 'BB Dice');
         }
     }
 
+    // === РЕЖИССЕР (DIRECTOR) ===
     async function handleBotGeneration(type) {
-        const ctx = SillyTavern.getContext();
-        const chat = ctx.chat;
+        const chat = SillyTavern.getContext().chat;
         const ta = document.getElementById('send_textarea');
         // @ts-ignore
         const inputText = ta ? ta.value.trim() : '';
@@ -324,29 +314,21 @@
 
         if (inputText) {
             // @ts-ignore
-            ta.value = removeExtensionCues(inputText) + cue;
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('send_but')?.click();
         } else {
             if (!chat || chat.length === 0) return;
             let lastUserIndex = -1;
-            for (let i = chat.length - 1; i >= 0; i--) {
-                if (chat[i].is_user) { lastUserIndex = i; break; }
-            }
-            if (lastUserIndex === -1) {
-                // @ts-ignore
-                toastr.warning('Не найдено сообщение от вас.', 'BB Director'); return;
-            }
+            for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
+            if (lastUserIndex === -1) return;
 
-            const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
-            chat[lastUserIndex].mes = cleanedText + cue;
+            const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
 
             const isLastMsgBot = !chat[chat.length - 1].is_user;
             if (isLastMsgBot) {
                 const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
                 // @ts-ignore
-                if (swipeRightBtn) swipeRightBtn.click();
-                else document.getElementById('send_but')?.click();
+                if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
             } else { document.getElementById('send_but')?.click(); }
         }
     }
@@ -358,9 +340,10 @@
             <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
             <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
-            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 4px;" data-vibe="dir_timeskip">⏩ Time Skip (Промотка)</button>
+            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 4px; color: #ef4444;" data-vibe="dir_tragedy">💀 Tragedy (Трагедия)</button>
         `;
     }
+    
     function renderPopupTargets() {
         return `
             <button class="bb-eg-back-btn"><i class="fa-solid fa-arrow-left"></i> Назад</button>
@@ -371,59 +354,49 @@
             </div>
         `;
     }
+    
     function buildDirectorPopup() {
         const wrap = document.createElement('div'); wrap.className = 'bb-eg-director-wrap'; wrap.id = 'bb-eg-director-wrap';
         const mainBtn = document.createElement('button'); mainBtn.className = 'bb-eg-btn'; mainBtn.id = 'bb-eg-btn-director'; 
         mainBtn.innerHTML = '🎬 Event Director';
+        
         const popup = document.createElement('div'); popup.className = 'bb-eg-popup'; popup.id = 'bb-eg-popup';
         popup.innerHTML = renderPopupVibes();
 
         mainBtn.onclick = (e) => {
-            e.preventDefault(); e.stopPropagation();
-            isPopupOpen = !isPopupOpen;
-            if (isPopupOpen) { popup.innerHTML = renderPopupVibes(); popup.classList.add('show'); } 
-            else { popup.classList.remove('show'); }
+            e.preventDefault(); e.stopPropagation(); isPopupOpen = !isPopupOpen;
+            if (isPopupOpen) { popup.innerHTML = renderPopupVibes(); popup.classList.add('show'); } else { popup.classList.remove('show'); }
         };
 
         popup.onclick = (e) => {
             e.stopPropagation();
             // @ts-ignore
-            const target = e.target.closest('button');
-            if (!target) return;
+            const target = e.target.closest('button'); if (!target) return;
 
-            if (target.classList.contains('bb-eg-vibe-btn')) {
-                activeDirectorVibe = target.getAttribute('data-vibe');
-                popup.innerHTML = renderPopupTargets();
-            } 
+            if (target.classList.contains('bb-eg-vibe-btn')) { activeDirectorVibe = target.getAttribute('data-vibe'); popup.innerHTML = renderPopupTargets(); } 
             else if (target.classList.contains('bb-eg-back-btn')) { popup.innerHTML = renderPopupVibes(); }
             else if (target.classList.contains('bb-eg-target-btn')) {
-                const targetType = target.getAttribute('data-target');
-                popup.classList.remove('show'); isPopupOpen = false;
-                if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn);
-                else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
+                const targetType = target.getAttribute('data-target'); popup.classList.remove('show'); isPopupOpen = false;
+                if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }
         };
-        wrap.appendChild(mainBtn); wrap.appendChild(popup);
-        return wrap;
+        wrap.appendChild(mainBtn); wrap.appendChild(popup); return wrap;
     }
 
     document.addEventListener('click', (e) => {
-        const wrap = document.getElementById('bb-eg-director-wrap');
-        const popup = document.getElementById('bb-eg-popup');
+        const wrap = document.getElementById('bb-eg-director-wrap'); const popup = document.getElementById('bb-eg-popup');
         // @ts-ignore
-        if (isPopupOpen && wrap && !wrap.contains(e.target)) {
-            isPopupOpen = false; popup.classList.remove('show');
-        }
+        if (isPopupOpen && wrap && !wrap.contains(e.target)) { isPopupOpen = false; popup.classList.remove('show'); }
     });
 
+    // === FAST TRAVEL ===
     async function handleFastTravel(btnElement) {
         const ta = document.getElementById('send_textarea');
         // @ts-ignore
         const inputText = ta ? ta.value.trim() : '';
 
         btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `⏳ <span>Скан...</span>`;
+        const oldHtml = btnElement.innerHTML; btnElement.innerHTML = `⏳ <span>Скан...</span>`;
 
         try {
             let finalPrompt = TEMPLATES.ft_analyzer.replace('{{input}}', inputText);
@@ -435,34 +408,23 @@
             const ctx = SillyTavern.getContext();
             // @ts-ignore
             let result = await ctx.generateQuietPrompt(finalPrompt);
-
-            const resultStr = String(result).trim();
-            const jsonMatch = resultStr.match(/\{[\s\S]*\}/);
             
-            if (!jsonMatch) {
-                console.error("Fast Travel Raw Output:", resultStr);
-                throw new Error("Нейросеть не смогла сгенерировать варианты перемещения.");
-            }
-
-            const data = JSON.parse(jsonMatch[0]);
+            const data = extractJSON(result);
             showFastTravelModal(data);
-
-        } catch (err) {
-            console.error(err);
+            
+        } catch (err) { 
+            console.error(err); 
             // @ts-ignore
-            toastr.error('Ошибка Fast Travel: ' + (err.message || "Сбой API"), 'BB Fast Travel');
-        } finally {
-            btnElement.classList.remove('loading');
-            btnElement.innerHTML = oldHtml;
+            toastr.error('Ошибка Fast Travel: ' + err.message, 'BB FT'); 
+        } finally { 
+            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml; 
         }
     }
 
     function showFastTravelModal(data) {
-        const overlay = document.createElement('div');
-        overlay.className = 'bb-ft-overlay';
-        
+        const overlay = document.createElement('div'); overlay.className = 'bb-ft-overlay';
         let contentHtml = '';
-
+        
         if (data.can_travel === false) {
             contentHtml = `
                 <div class="bb-ft-modal denied">
@@ -475,10 +437,9 @@
             let cardsHtml = '';
             if (data.destinations && Array.isArray(data.destinations)) {
                 data.destinations.forEach(dest => {
-                    const safeName = (dest.name || '').replace(/"/g, '&quot;');
-                    const safeHook = (dest.hook || '').replace(/"/g, '&quot;');
+                    const safeName = (dest.name || '').replace(/"/g, '&quot;'); 
+                    const safeHook = (dest.hook || '').replace(/"/g, '&quot;'); 
                     const safeTime = (dest.time_cost || '').replace(/"/g, '&quot;');
-                    
                     cardsHtml += `
                         <div class="bb-ft-card" data-loc="${safeName}" data-hook="${safeHook}" data-time="${safeTime}">
                             <div class="bb-ft-card-header">
@@ -490,7 +451,6 @@
                     `;
                 });
             }
-
             contentHtml = `
                 <div class="bb-ft-modal">
                     <div class="bb-ft-title">📍 БЫСТРОЕ ПЕРЕМЕЩЕНИЕ</div>
@@ -501,76 +461,146 @@
             `;
         }
 
-        overlay.innerHTML = contentHtml;
-        document.body.appendChild(overlay);
-
+        overlay.innerHTML = contentHtml; 
+        document.body.appendChild(overlay); 
         requestAnimationFrame(() => overlay.style.opacity = '1');
 
-        const closeModal = () => {
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 400);
-        };
-
-        const closeBtn = overlay.querySelector('#bb-ft-close');
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        const closeModal = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 400); };
+        const closeBtn = overlay.querySelector('#bb-ft-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
         const executeTravel = (loc, hook, time) => {
-            closeModal();
-            const ctx = SillyTavern.getContext();
-            const chat = ctx.chat;
-            const ta = document.getElementById('send_textarea');
+            closeModal(); const chat = SillyTavern.getContext().chat; const ta = document.getElementById('send_textarea');
             // @ts-ignore
             const inputText = ta ? ta.value.trim() : '';
-
-            let cue = '';
-            if (loc && hook) {
-                cue = BOT_CUES.ft_travel_specific.replace(/{{loc}}/g, loc).replace(/{{hook}}/g, hook).replace(/{{time}}/g, time || 'неизвестно');
-            } else {
-                cue = BOT_CUES.ft_travel_surprise;
-            }
+            let cue = (loc && hook) ? BOT_CUES.ft_travel_specific.replace(/{{loc}}/g, loc).replace(/{{hook}}/g, hook).replace(/{{time}}/g, time || 'неизвестно') : BOT_CUES.ft_travel_surprise;
 
             if (inputText) {
                 // @ts-ignore
-                ta.value = removeExtensionCues(inputText) + cue;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                document.getElementById('send_but')?.click();
+                ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('send_but')?.click();
             } else {
                 if (!chat || chat.length === 0) return;
-                let lastUserIndex = -1;
-                for (let i = chat.length - 1; i >= 0; i--) {
-                    if (chat[i].is_user) { lastUserIndex = i; break; }
-                }
+                let lastUserIndex = -1; for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
                 if (lastUserIndex === -1) return;
 
-                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes);
-                chat[lastUserIndex].mes = cleanedText + cue;
-
+                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
                 const isLastMsgBot = !chat[chat.length - 1].is_user;
-                if (isLastMsgBot) {
-                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
-                    // @ts-ignore
-                    if (swipeRightBtn) swipeRightBtn.click();
-                    else document.getElementById('send_but')?.click();
-                } else { document.getElementById('send_but')?.click(); }
+                if (isLastMsgBot) { const swipeRightBtn = document.querySelector('.last_mes .swipe_right'); 
+                // @ts-ignore
+                if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click(); } 
+                else { document.getElementById('send_but')?.click(); }
             }
         };
 
         const cards = overlay.querySelectorAll('.bb-ft-card');
-        cards.forEach(card => {
-            card.addEventListener('click', () => {
-                const loc = card.getAttribute('data-loc');
-                const hook = card.getAttribute('data-hook');
-                const time = card.getAttribute('data-time');
-                executeTravel(loc, hook, time);
-            });
-        });
-
+        cards.forEach(card => { card.addEventListener('click', () => { executeTravel(card.getAttribute('data-loc'), card.getAttribute('data-hook'), card.getAttribute('data-time')); }); });
         const surpriseBtn = overlay.querySelector('#bb-ft-btn-surprise');
-        if (surpriseBtn) {
-            surpriseBtn.addEventListener('click', () => executeTravel(null, null, null));
+        if (surpriseBtn) { surpriseBtn.addEventListener('click', () => executeTravel(null, null, null)); }
+    }
+
+    // === TIME SKIP ===
+    async function handleTimeSkip(btnElement) {
+        const ta = document.getElementById('send_textarea');
+        // @ts-ignore
+        const inputText = ta ? ta.value.trim() : '';
+
+        btnElement.classList.add('loading');
+        const oldHtml = btnElement.innerHTML; btnElement.innerHTML = `⏳ <span>Анализ...</span>`;
+
+        try {
+            let finalPrompt = TEMPLATES.ts_analyzer;
+            // @ts-ignore
+            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(finalPrompt);
+            // @ts-ignore
+            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(finalPrompt);
+
+            const ctx = SillyTavern.getContext();
+            // @ts-ignore
+            let result = await ctx.generateQuietPrompt(finalPrompt);
+            
+            const data = extractJSON(result);
+            showTimeSkipModal(data);
+            
+        } catch (err) { 
+            console.error(err); 
+            // @ts-ignore
+            toastr.error('Ошибка Time Skip: ' + err.message, 'BB TS'); 
+        } finally { 
+            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml; 
         }
     }
 
+    function showTimeSkipModal(data) {
+        const overlay = document.createElement('div'); overlay.className = 'bb-ts-overlay';
+        let contentHtml = '';
+        
+        if (data.can_skip === false) {
+            contentHtml = `
+                <div class="bb-ts-modal denied">
+                    <div class="bb-ts-title">🚫 СКИП НЕВОЗМОЖЕН</div>
+                    <div class="bb-ts-reason">«${data.lock_reason || 'События слишком важны, чтобы их пропускать.'}»</div>
+                    <button class="bb-ts-close" id="bb-ts-close">Ясно</button>
+                </div>
+            `;
+        } else {
+            let cardsHtml = '';
+            if (data.options && Array.isArray(data.options)) {
+                data.options.forEach(opt => {
+                    const safeTitle = (opt.title || '').replace(/"/g, '&quot;'); 
+                    const safeSummary = (opt.summary || '').replace(/"/g, '&quot;'); 
+                    const safeTime = (opt.time || '').replace(/"/g, '&quot;');
+                    cardsHtml += `
+                        <div class="bb-ts-card" data-title="${safeTitle}" data-summary="${safeSummary}" data-time="${safeTime}">
+                            <div class="bb-ts-card-header">
+                                <span class="bb-ts-dest">${safeTitle}</span>
+                                <span class="bb-ts-time"><i class="fa-solid fa-hourglass-half"></i> ${safeTime}</span>
+                            </div>
+                            <div class="bb-ts-hook">${safeSummary}</div>
+                        </div>
+                    `;
+                });
+            }
+            contentHtml = `
+                <div class="bb-ts-modal">
+                    <div class="bb-ts-title">⏩ ТАЙМСКИП (ВЫБОР ГЛАВЫ)</div>
+                    <div class="bb-ts-grid">${cardsHtml}</div>
+                    <button class="bb-ts-close" id="bb-ts-close" style="margin-top: 10px; background: transparent; color: #a78bfa; border: 1px solid #4c1d95;">Отмена</button>
+                </div>
+            `;
+        }
+
+        overlay.innerHTML = contentHtml; document.body.appendChild(overlay); requestAnimationFrame(() => overlay.style.opacity = '1');
+
+        const closeModal = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 400); };
+        const closeBtn = overlay.querySelector('#bb-ts-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+        const executeSkip = (title, summary, time) => {
+            closeModal(); const chat = SillyTavern.getContext().chat; const ta = document.getElementById('send_textarea');
+            // @ts-ignore
+            const inputText = ta ? ta.value.trim() : '';
+            let cue = BOT_CUES.ts_specific.replace(/{{title}}/g, title).replace(/{{summary}}/g, summary).replace(/{{time}}/g, time);
+
+            if (inputText) {
+                // @ts-ignore
+                ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('send_but')?.click();
+            } else {
+                if (!chat || chat.length === 0) return;
+                let lastUserIndex = -1; for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
+                if (lastUserIndex === -1) return;
+
+                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
+                const isLastMsgBot = !chat[chat.length - 1].is_user;
+                if (isLastMsgBot) { const swipeRightBtn = document.querySelector('.last_mes .swipe_right'); 
+                // @ts-ignore
+                if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click(); } 
+                else { document.getElementById('send_but')?.click(); }
+            }
+        };
+
+        const cards = overlay.querySelectorAll('.bb-ts-card');
+        cards.forEach(card => { card.addEventListener('click', () => { executeSkip(card.getAttribute('data-title'), card.getAttribute('data-summary'), card.getAttribute('data-time')); }); });
+    }
+
+    // === ИНЖЕКТ ПАНЕЛИ И КНОПОК ===
     function updateToolbarVisibility() {
         const s = getSettings();
         const btnE = document.getElementById('bb-eg-btn-enhance'); if (btnE) btnE.style.display = s.btnEnhance ? 'flex' : 'none';
@@ -578,83 +608,53 @@
         const wrapD = document.getElementById('bb-eg-director-wrap'); if (wrapD) wrapD.style.display = s.btnDirector ? 'block' : 'none';
         const btnDice = document.getElementById('bb-eg-btn-dice'); if (btnDice) btnDice.style.display = s.btnDice ? 'flex' : 'none';
         const btnFT = document.getElementById('bb-eg-btn-ft'); if (btnFT) btnFT.style.display = s.btnFastTravel ? 'flex' : 'none';
+        const btnTS = document.getElementById('bb-eg-btn-ts'); if (btnTS) btnTS.style.display = s.btnTimeSkip ? 'flex' : 'none';
         
         const wrapper = document.getElementById('bb-enhance-wrapper');
-        const hasAny = s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel;
+        const hasAny = s.btnEnhance || s.btnImprove || s.btnDirector || s.btnDice || s.btnFastTravel || s.btnTimeSkip;
         if (wrapper) wrapper.style.display = hasAny ? 'inline-flex' : 'none';
     }
 
-    // === ИНЖЕКТ МЕНЮ ===
     function injectToolbar() {
         if (document.getElementById('bb-enhance-wrapper')) return;
 
-        const wrapper = document.createElement('div');
-        wrapper.id = 'bb-enhance-wrapper';
-
-        // Аккуратная квадратная кнопка
-        const toggleBtn = document.createElement('div');
-        toggleBtn.id = 'bb-eg-toggle-btn';
-        toggleBtn.innerHTML = 'E';
-        toggleBtn.title = 'BB Enhance Panel';
-
-        const toolbar = document.createElement('div');
-        toolbar.id = 'bb-enhance-toolbar';
+        const wrapper = document.createElement('div'); wrapper.id = 'bb-enhance-wrapper';
+        const toggleBtn = document.createElement('div'); toggleBtn.id = 'bb-eg-toggle-btn'; toggleBtn.innerHTML = 'E'; toggleBtn.title = 'BB Enhance Panel';
+        const toolbar = document.createElement('div'); toolbar.id = 'bb-enhance-toolbar';
 
         const btnE = document.createElement('button'); btnE.className = 'bb-eg-btn'; btnE.id = 'bb-eg-btn-enhance'; btnE.innerHTML = '✨ Enhance';
-        btnE.onclick = (e) => { e.preventDefault(); handleGeneration('enhance', btnE); };
-        toolbar.appendChild(btnE);
+        btnE.onclick = (e) => { e.preventDefault(); handleGeneration('enhance', btnE); }; toolbar.appendChild(btnE);
 
         const btnI = document.createElement('button'); btnI.className = 'bb-eg-btn'; btnI.id = 'bb-eg-btn-improve'; btnI.innerHTML = '🔮 Improve';
-        btnI.onclick = (e) => { e.preventDefault(); handleGeneration('improve', btnI); };
-        toolbar.appendChild(btnI);
+        btnI.onclick = (e) => { e.preventDefault(); handleGeneration('improve', btnI); }; toolbar.appendChild(btnI);
 
         toolbar.appendChild(buildDirectorPopup());
 
-        const btnDice = document.createElement('button');
-        btnDice.className = 'bb-eg-btn'; btnDice.id = 'bb-eg-btn-dice'; btnDice.innerHTML = '🎲 Action Roll';
-        btnDice.onclick = (e) => { e.preventDefault(); handleSkillCheck(btnDice); };
-        toolbar.appendChild(btnDice);
+        const btnDice = document.createElement('button'); btnDice.className = 'bb-eg-btn'; btnDice.id = 'bb-eg-btn-dice'; btnDice.innerHTML = '🎲 Action Roll';
+        btnDice.onclick = (e) => { e.preventDefault(); handleSkillCheck(btnDice); }; toolbar.appendChild(btnDice);
 
-        const btnFT = document.createElement('button');
-        btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '📍 Fast Travel';
-        btnFT.onclick = (e) => { e.preventDefault(); handleFastTravel(btnFT); };
-        toolbar.appendChild(btnFT);
+        const btnFT = document.createElement('button'); btnFT.className = 'bb-eg-btn'; btnFT.id = 'bb-eg-btn-ft'; btnFT.innerHTML = '📍 Fast Travel';
+        btnFT.onclick = (e) => { e.preventDefault(); handleFastTravel(btnFT); }; toolbar.appendChild(btnFT);
 
-        wrapper.appendChild(toggleBtn);
-        wrapper.appendChild(toolbar);
+        const btnTS = document.createElement('button'); btnTS.className = 'bb-eg-btn'; btnTS.id = 'bb-eg-btn-ts'; btnTS.innerHTML = '⏩ Time Skip';
+        btnTS.onclick = (e) => { e.preventDefault(); handleTimeSkip(btnTS); }; toolbar.appendChild(btnTS);
 
-        // ИНЖЕКТ ПРЯМО К ВОЛШЕБНОЙ ПАЛОЧКЕ
+        wrapper.appendChild(toggleBtn); wrapper.appendChild(toolbar);
+
         const optionsBtn = document.getElementById('options_button');
-        if (optionsBtn && optionsBtn.parentNode) {
-            optionsBtn.parentNode.insertBefore(wrapper, optionsBtn.nextSibling);
-        } else {
-            const sendForm = document.getElementById('send_form');
-            if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm);
-        }
+        if (optionsBtn && optionsBtn.parentNode) { optionsBtn.parentNode.insertBefore(wrapper, optionsBtn.nextSibling); } 
+        else { const sendForm = document.getElementById('send_form'); if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm); }
 
-        // Локальное состояние меню (Всегда закрыто при старте)
         let isMenuOpen = false; 
-
         toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isMenuOpen = !isMenuOpen;
-            if (isMenuOpen) {
-                toolbar.classList.add('expanded');
-                toggleBtn.classList.add('active');
-            } else {
-                toolbar.classList.remove('expanded');
-                toggleBtn.classList.remove('active');
-            }
+            e.stopPropagation(); isMenuOpen = !isMenuOpen;
+            if (isMenuOpen) { toolbar.classList.add('expanded'); toggleBtn.classList.add('active'); } 
+            else { toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
         });
 
-        // УМНОЕ ЗАКРЫТИЕ ПРИ КЛИКЕ МИМО МЕНЮ
         document.addEventListener('click', (e) => {
             // @ts-ignore
-            if (isMenuOpen && !wrapper.contains(e.target)) {
-                isMenuOpen = false;
-                toolbar.classList.remove('expanded');
-                toggleBtn.classList.remove('active');
-            }
+            if (isMenuOpen && !wrapper.contains(e.target)) { isMenuOpen = false; toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
         });
 
         updateToolbarVisibility();
@@ -677,6 +677,7 @@
                         <label><input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}> Показать [🎬 Event Director]</label>
                         <label><input type="checkbox" id="bb-eg-cfg-dice" ${s.btnDice ? 'checked' : ''}> Показать [🎲 Action Roll]</label>
                         <label><input type="checkbox" id="bb-eg-cfg-ft" ${s.btnFastTravel ? 'checked' : ''}> Показать [📍 Fast Travel]</label>
+                        <label><input type="checkbox" id="bb-eg-cfg-ts" ${s.btnTimeSkip ? 'checked' : ''}> Показать [⏩ Time Skip]</label>
                     </div>
                 </div>
             </div>
@@ -685,25 +686,13 @@
         const target = document.querySelector("#extensions_settings2") || document.querySelector("#extensions_settings");
         if (target) {
             target.insertAdjacentHTML('beforeend', html);
-            document.getElementById('bb-eg-cfg-enhance').addEventListener('change', (e) => { 
-                // @ts-ignore
-                getSettings().btnEnhance = e.target.checked; saveSettings(); 
-            });
-            document.getElementById('bb-eg-cfg-improve').addEventListener('change', (e) => { 
-                // @ts-ignore
-                getSettings().btnImprove = e.target.checked; saveSettings(); 
-            });
-            document.getElementById('bb-eg-cfg-director').addEventListener('change', (e) => { 
-                // @ts-ignore
-                getSettings().btnDirector = e.target.checked; saveSettings(); 
-            });
-            document.getElementById('bb-eg-cfg-dice').addEventListener('change', (e) => { 
-                // @ts-ignore
-                getSettings().btnDice = e.target.checked; saveSettings(); 
-            });
-            document.getElementById('bb-eg-cfg-ft').addEventListener('change', (e) => { 
-                // @ts-ignore
-                getSettings().btnFastTravel = e.target.checked; saveSettings(); 
+            
+            const toggles = ['enhance', 'improve', 'director', 'dice', 'ft', 'ts'];
+            toggles.forEach(t => {
+                document.getElementById(`bb-eg-cfg-${t}`).addEventListener('change', (e) => { 
+                    // @ts-ignore
+                    getSettings()[`btn${t.charAt(0).toUpperCase() + t.slice(1).replace('ft','FastTravel').replace('ts','TimeSkip')}`] = e.target.checked; saveSettings(); 
+                });
             });
         }
     }
