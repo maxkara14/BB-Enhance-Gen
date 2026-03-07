@@ -2,22 +2,18 @@
    ОБЕРТКА И КНОПКА СКРЫТИЯ [E]
 ========================================= */
 #bb-enhance-wrapper {
-    position: relative; /* Якорь для парящего меню */
+    position: relative;
     display: inline-flex;
     align-items: center;
-    z-index: 1001; /* Поверх чата */
-    
-    /* ФИКС ПОЗИЦИИ: Точечная настройка координат (x, y) */
-    /* Первое значение — двигает влево (минус) или вправо (плюс) */
-    /* Второе значение — двигает вверх (минус) или вниз (плюс) */
+    z-index: 1001;
     transform: translate(-5px, -2px); 
 }
 
 #bb-eg-toggle-btn {
-    background: rgba(30, 30, 30, 0.7); /* Нейтральный фон */
+    background: rgba(30, 30, 30, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: #9ca3af;
-    width: 26px; /* Идеально вписывается к остальным кнопкам */
+    width: 26px;
     height: 26px;
     display: flex;
     align-items: center;
@@ -25,47 +21,32 @@
     font-size: 15px;
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    border-radius: 5px; /* Мягкие углы */
+    border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     user-select: none;
 }
 
-#bb-eg-toggle-btn:hover {
-    color: #fff;
-    background: rgba(50, 50, 50, 0.9);
-    border-color: rgba(212, 175, 55, 0.4);
-}
-
-#bb-eg-toggle-btn.active {
-    color: #000;
-    background: #d4af37; /* Загорается золотом при открытии */
-    border-color: #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
-}
+#bb-eg-toggle-btn:hover { color: #fff; background: rgba(50, 50, 50, 0.9); border-color: rgba(212, 175, 55, 0.4); }
+#bb-eg-toggle-btn.active { color: #000; background: #d4af37; border-color: #d4af37; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
 
 /* =========================================
    ВСПЛЫВАЮЩЕЕ МЕНЮ (VERTICAL POPUP)
 ========================================= */
 #bb-enhance-toolbar {
     position: absolute;
-    bottom: calc(100% + 10px); /* Всплывает строго вверх над кнопкой [E] */
+    bottom: calc(100% + 10px);
     left: 0;
-    
-    background: rgba(18, 18, 18, 0.95); /* Плотный темный графит */
+    background: rgba(18, 18, 18, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 8px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    
-    /* Вертикальное расположение кнопок */
     display: flex;
     flex-direction: column;
     gap: 6px;
     min-width: 150px;
-    
-    /* Анимация плавного появления снизу-вверх */
     opacity: 0;
     pointer-events: none;
     transform: translateY(15px);
@@ -73,11 +54,7 @@
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-#bb-enhance-toolbar.expanded {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
+#bb-enhance-toolbar.expanded { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
 /* =========================================
    СТРОГИЕ КНОПКИ ВНУТРИ МЕНЮ
@@ -86,7 +63,7 @@
     background: rgba(255, 255, 255, 0.03); 
     border: 1px solid rgba(255, 255, 255, 0.02);
     color: #d1d5db;
-    padding: 10px 12px; /* Чуть шире для удобства пальцев на телефоне */
+    padding: 10px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 11px;
@@ -97,131 +74,55 @@
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* Выравнивание текста по левому краю в списке */
+    justify-content: flex-start;
     gap: 8px;
     white-space: nowrap;
     width: 100%;
     box-sizing: border-box;
 }
 
-.bb-eg-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(212, 175, 55, 0.4);
-    color: #d4af37;
-    transform: translateX(4px); /* Кнопки красиво отъезжают вправо при наведении */
-}
-
+.bb-eg-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(212, 175, 55, 0.4); color: #d4af37; transform: translateX(4px); }
 .bb-eg-btn:active { transform: translateX(0); }
-
-.bb-eg-btn.loading {
-    opacity: 0.7;
-    cursor: not-allowed;
-    pointer-events: none;
-    color: #d4af37;
-    animation: bb-eg-pulse 1.5s infinite;
-}
-
-@keyframes bb-eg-pulse { 
-    0% { background: rgba(255, 255, 255, 0.03); } 
-    50% { background: rgba(212, 175, 55, 0.1); } 
-    100% { background: rgba(255, 255, 255, 0.03); } 
-}
+.bb-eg-btn.loading { opacity: 0.7; cursor: not-allowed; pointer-events: none; color: #d4af37; animation: bb-eg-pulse 1.5s infinite; }
+@keyframes bb-eg-pulse { 0% { background: rgba(255, 255, 255, 0.03); } 50% { background: rgba(212, 175, 55, 0.1); } 100% { background: rgba(255, 255, 255, 0.03); } }
 
 /* =========================================
    ПОДМЕНЮ РЕЖИССЕРА (КАСКАД)
 ========================================= */
-.bb-eg-director-wrap {
-    position: relative; display: block; width: 100%;
-}
-
+.bb-eg-director-wrap { position: relative; display: block; width: 100%; }
 .bb-eg-popup {
-    /* Каскадное меню: открывается сбоку от основной панели */
     position: absolute;
     left: calc(100% + 10px); 
-    
-    /* ФИКС: Привязываем к низу, чтобы меню росло вверх и не выпадало за экран */
     bottom: 0; 
-    
     background: rgba(18, 18, 18, 0.98);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-left: 2px solid #b91c1c; /* Красный акцент для опасных действий */
+    border-left: 2px solid #b91c1c;
     border-radius: 8px;
     padding: 10px;
     display: flex; flex-direction: column; gap: 6px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    
     opacity: 0; pointer-events: none;
     transform: translateX(-15px);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 9999; min-width: 150px; width: max-content;
 }
-
-.bb-eg-popup.show {
-    opacity: 1; pointer-events: auto;
-    transform: translateX(0);
-}
-
-.bb-eg-popup-header {
-    color: #9ca3af;
-    font-size: 10px; text-align: center; text-transform: uppercase;
-    letter-spacing: 2px; font-weight: bold; padding-bottom: 6px;
-    margin-bottom: 4px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
-}
-
-.bb-eg-vibe-btn {
-    background: transparent;
-    border: 1px solid transparent;
-    color: #d1d5db;
-    text-align: left; padding: 6px 10px; border-radius: 4px;
-    cursor: pointer; font-size: 12px; font-family: 'Georgia', serif;
-    transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
-}
-
-.bb-eg-vibe-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff; transform: translateX(4px);
-}
-
+.bb-eg-popup.show { opacity: 1; pointer-events: auto; transform: translateX(0); }
+.bb-eg-popup-header { color: #9ca3af; font-size: 10px; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); }
+.bb-eg-vibe-btn { background: transparent; border: 1px solid transparent; color: #d1d5db; text-align: left; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: 'Georgia', serif; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
+.bb-eg-vibe-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; transform: translateX(4px); }
 .bb-eg-target-grid { display: flex; gap: 6px; margin-top: 4px; }
-.bb-eg-target-btn {
-    flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255, 255, 255, 0.05);
-    color: #9ca3af; padding: 8px 4px; border-radius: 4px;
-    cursor: pointer; font-size: 11px; text-align: center; transition: all 0.2s;
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    text-transform: uppercase; font-weight: bold;
-}
+.bb-eg-target-btn { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255, 255, 255, 0.05); color: #9ca3af; padding: 8px 4px; border-radius: 4px; cursor: pointer; font-size: 11px; text-align: center; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; text-transform: uppercase; font-weight: bold; }
 .bb-eg-target-btn i { font-size: 16px; margin-bottom: 2px; }
 .bb-eg-target-btn:hover { color: #000; background: #d4af37; border-color: #d4af37; }
-
-.bb-eg-back-btn {
-    background: transparent; border: none; color: #6b7280;
-    cursor: pointer; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
-    padding: 0; margin-bottom: 8px; width: fit-content; transition: color 0.2s;
-}
+.bb-eg-back-btn { background: transparent; border: none; color: #6b7280; cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; padding: 0; margin-bottom: 8px; width: fit-content; transition: color 0.2s; }
 .bb-eg-back-btn:hover { color: #d4af37; }
+
 /* =========================================
    НАСТРОЙКИ РАСШИРЕНИЯ (В МЕНЮ ТАВЕРНЫ)
 ========================================= */
-.bb-eg-settings-panel {
-    background: rgba(20, 15, 15, 0.5); 
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 8px; 
-    padding: 12px; 
-    margin-top: 8px;
-    display: flex; 
-    flex-direction: column; 
-    gap: 8px;
-}
-.bb-eg-settings-panel label {
-    display: flex; 
-    align-items: center; 
-    gap: 8px; 
-    font-size: 13px;
-    color: #e5e7eb; 
-    cursor: pointer;
-    margin: 0; /* Сбрасываем возможные конфликты с темами */
-}
+.bb-eg-settings-panel { background: rgba(20, 15, 15, 0.5); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.bb-eg-settings-panel label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #e5e7eb; cursor: pointer; margin: 0; }
+
 /* =========================================
    🎲 3D FATE CRYSTAL 
 ========================================= */
@@ -266,3 +167,24 @@
 .bb-ft-surprise:hover { background: rgba(212, 175, 55, 0.1); color: #fff; box-shadow: 0 0 15px rgba(212,175,55,0.3); }
 .bb-ft-close { width: 100%; background: #3f2c2c; border: none; color: #fff; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-family: 'Georgia', serif; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
 .bb-ft-close:hover { background: #ef4444; }
+
+/* =========================================
+   ⏳ BB-TIME-SKIP (HUD)
+========================================= */
+.bb-ts-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(8, 2, 12, 0.9); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; opacity: 0; transition: opacity 0.5s ease; font-family: 'Georgia', serif; }
+.bb-ts-modal { background: linear-gradient(135deg, rgba(25, 10, 35, 0.95), rgba(15, 5, 20, 0.95)); border: 2px solid #581c87; border-radius: 12px; padding: 30px; width: 600px; max-width: 90%; box-shadow: 0 15px 50px rgba(0,0,0,0.9), inset 0 0 30px rgba(168, 85, 247, 0.15); position: relative; border-top: 3px solid #c084fc; }
+.bb-ts-modal.denied { border-top-color: #ef4444; box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 0 40px rgba(239, 68, 68, 0.2); animation: bb-ft-glitch 0.3s ease-in-out; }
+.bb-ts-title { color: #c084fc; font-size: 14px; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 24px; text-align: center; font-weight: bold; text-shadow: 0 0 10px rgba(192, 132, 252, 0.5); }
+.bb-ts-modal.denied .bb-ts-title { color: #ef4444; text-shadow: none; }
+.bb-ts-reason { color: #e5e7eb; font-size: 16px; text-align: center; line-height: 1.5; margin-bottom: 20px; font-style: italic; border-left: 2px solid #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px 15px; border-radius: 0 8px 8px 0; }
+.bb-ts-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+.bb-ts-card { background: rgba(30, 15, 40, 0.5); border: 1px solid #4c1d95; border-radius: 8px; padding: 18px 20px; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+.bb-ts-card::before { content: ''; position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, #c084fc, #3b82f6); transform: scaleY(0); transition: transform 0.3s ease; }
+.bb-ts-card:hover { background: rgba(45, 20, 60, 0.9); border-color: #c084fc; transform: translateX(6px); box-shadow: 0 8px 20px rgba(0,0,0,0.6), inset 0 0 15px rgba(192,132,252,0.1); }
+.bb-ts-card:hover::before { transform: scaleY(1); }
+.bb-ts-card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.bb-ts-dest { color: #fff; font-size: 19px; font-weight: bold; text-shadow: 0 1px 3px #000; flex: 1; letter-spacing: 0.5px; }
+.bb-ts-time { color: #60a5fa; font-size: 11px; font-family: -apple-system, sans-serif; font-weight: bold; letter-spacing: 1px; background: rgba(0, 0, 0, 0.5); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.3); text-transform: uppercase; }
+.bb-ts-hook { color: #d1d5db; font-size: 14px; font-style: italic; line-height: 1.5; opacity: 0.9; }
+.bb-ts-close { width: 100%; background: transparent; border: 1px solid #4c1d95; color: #a78bfa; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-family: 'Georgia', serif; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; transition: all 0.2s; }
+.bb-ts-close:hover { background: #4c1d95; color: #fff; }
