@@ -45,7 +45,11 @@
         btnDirector: true, 
         btnDice: true, 
         btnFastTravel: true, 
-        btnTimeSkip: true
+        btnTimeSkip: true,
+        useCustomApi: false,
+        customApiUrl: 'https://api.groq.com/openai/v1',
+        customApiKey: '',
+        customApiModel: ''
     };
 
     let activeDirectorVibe = null;
@@ -83,15 +87,73 @@
         if (!extensionSettings[MODULE_NAME]) {
             extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
         }
-        if (typeof extensionSettings[MODULE_NAME].btnTimeSkip === 'undefined') {
-            extensionSettings[MODULE_NAME].btnTimeSkip = true;
-        }
+        const s = extensionSettings[MODULE_NAME];
+        if (typeof s.btnTimeSkip === 'undefined') s.btnTimeSkip = true;
+        if (typeof s.useCustomApi === 'undefined') s.useCustomApi = false;
+        if (!s.customApiUrl) s.customApiUrl = '';
+        if (typeof s.customApiKey === 'undefined') s.customApiKey = '';
+        if (typeof s.customApiModel === 'undefined') s.customApiModel = '';
         return extensionSettings[MODULE_NAME];
     }
 
     function saveSettings() {
         SillyTavern.getContext().saveSettingsDebounced();
         updateToolbarVisibility();
+    }
+
+    // =======================================================
+    // ДВИЖОК УМНОЙ И БЕЗОПАСНОЙ ГЕНЕРАЦИИ (FAST PROMPT API)
+    // =======================================================
+    async function runMainGen(promptText) {
+        const ctx = SillyTavern.getContext();
+        // @ts-ignore
+        if (typeof ctx.generateQuietPrompt === 'function') {
+            // @ts-ignore
+            return await ctx.generateQuietPrompt(promptText);
+        } else if (typeof window['generateQuietPrompt'] === 'function') {
+            return await window['generateQuietPrompt'](promptText);
+        } else {
+            throw new Error("Функция генерации Таверны не найдена.");
+        }
+    }
+
+    async function generateEnhanceFast(promptText) {
+        const s = getSettings();
+        if (s.useCustomApi && s.customApiUrl && s.customApiModel) {
+            try {
+                const baseUrl = s.customApiUrl.replace(/\/$/, '');
+                const endpoint = baseUrl + '/chat/completions';
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${s.customApiKey || ''}`
+                    },
+                    body: JSON.stringify({
+                        model: s.customApiModel,
+                        messages: [
+                            { role: 'system', content: 'You are an internal assistant. Follow the instructions strictly and output only the required data.' },
+                            { role: 'user', content: promptText }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 4000,
+                        stream: false
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                const content = data?.choices?.[0]?.message?.content || "";
+                if (!content.trim()) throw new Error("Прокси вернул пустоту.");
+                return content;
+            } catch (e) {
+                console.warn(`[BB Enhance] Ошибка кастомного API (${e.message}), перехват на основной API...`);
+                return await runMainGen(promptText);
+            }
+        } else {
+            return await runMainGen(promptText);
+        }
     }
 
     // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
@@ -109,16 +171,21 @@
         btnElement.innerHTML = `⏳ <span>Загрузка...</span>`;
 
         try {
-            let promptRaw = TEMPLATES[type].replace('{{input}}', inputText);
+            // ВЫТАСКИВАЕМ КОНТЕКСТ ВРУЧНУЮ ДЛЯ КАСТОМНОГО API
+            const ctx = SillyTavern.getContext();
+            const chat = ctx.chat;
+            const recentMessages = chat && chat.length > 0 ? chat.slice(-4).map(m => `${m.name}: ${m.mes}`).join('\\n\\n') : '';
+
+            let promptRaw = TEMPLATES[type].replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages);
             let finalPrompt = promptRaw;
+
             // @ts-ignore
             if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
             // @ts-ignore
             else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
 
-            const ctx = SillyTavern.getContext();
-            // @ts-ignore
-            let result = await ctx.generateQuietPrompt(finalPrompt);
+            // ИСПОЛЬЗУЕМ FAST API
+            let result = await generateEnhanceFast(finalPrompt);
 
             const resultStr = String(result).trim();
             if (result === undefined || result === null || resultStr === '' || resultStr === 'undefined' || resultStr === 'null') {
@@ -213,7 +280,7 @@
                     if (ticks > 25) currentDelay += 20;
                     setTimeout(rollTick, currentDelay);
                 } else {
-                    cubeEl.classList.add('stopped'); 
+                    if(cubeEl) cubeEl.classList.add('stopped'); 
                     // @ts-ignore
                     mainFace.innerText = String(finalRoll);
                     mainFace.style.color = outcomeColor; 
@@ -259,8 +326,8 @@
         try {
             const prompt = `[TASK]\nRead the user's action: """${targetText}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- Strictly in Russian.\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
             
-            // @ts-ignore
-            let actionQuestion = await ctx.generateQuietPrompt(prompt);
+            // ИСПОЛЬЗУЕМ FAST API ДЛЯ ФОРМИРОВАНИЯ ВОПРОСА
+            let actionQuestion = await generateEnhanceFast(prompt);
             const qStr = String(actionQuestion).trim();
             if (!qStr || qStr === 'undefined' || qStr === 'null') throw new Error("Пустой ответ API");
 
@@ -283,6 +350,7 @@
 
             const cue = BOT_CUES[outcomeType].replace(/{{dc}}/g, String(dc)).replace(/{{roll}}/g, String(roll)).replace(/{{question}}/g, actionQuestion);
 
+            // ОТВЕТ БОТА ГЕНЕРИРУЕТСЯ СТАНДАРТНО ЧЕРЕЗ ТАВЕРНУ (send_but/swipe_right)
             if (isPreSend) {
                 // @ts-ignore
                 ta.value = removeExtensionCues(targetText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -312,6 +380,7 @@
 
         const cue = BOT_CUES[type];
 
+        // ОТВЕТ БОТА ГЕНЕРИРУЕТСЯ СТАНДАРТНО ЧЕРЕЗ ТАВЕРНУ (send_but/swipe_right)
         if (inputText) {
             // @ts-ignore
             ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -399,15 +468,21 @@
         const oldHtml = btnElement.innerHTML; btnElement.innerHTML = `⏳ <span>Скан...</span>`;
 
         try {
-            let finalPrompt = TEMPLATES.ft_analyzer.replace('{{input}}', inputText);
-            // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(finalPrompt);
-            // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(finalPrompt);
-
+            // ВЫТАСКИВАЕМ КОНТЕКСТ ВРУЧНУЮ ДЛЯ КАСТОМНОГО API
             const ctx = SillyTavern.getContext();
+            const chat = ctx.chat;
+            const recentMessages = chat && chat.length > 0 ? chat.slice(-4).map(m => `${m.name}: ${m.mes}`).join('\\n\\n') : '';
+
+            let promptRaw = TEMPLATES.ft_analyzer.replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages);
+            let finalPrompt = promptRaw;
+
             // @ts-ignore
-            let result = await ctx.generateQuietPrompt(finalPrompt);
+            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
+            // @ts-ignore
+            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
+
+            // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА
+            let result = await generateEnhanceFast(finalPrompt);
             
             const data = extractJSON(result);
             showFastTravelModal(data);
@@ -507,15 +582,21 @@
         const oldHtml = btnElement.innerHTML; btnElement.innerHTML = `⏳ <span>Анализ...</span>`;
 
         try {
-            let finalPrompt = TEMPLATES.ts_analyzer;
-            // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(finalPrompt);
-            // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(finalPrompt);
-
+            // ВЫТАСКИВАЕМ КОНТЕКСТ ВРУЧНУЮ ДЛЯ КАСТОМНОГО API
             const ctx = SillyTavern.getContext();
+            const chat = ctx.chat;
+            const recentMessages = chat && chat.length > 0 ? chat.slice(-4).map(m => `${m.name}: ${m.mes}`).join('\\n\\n') : '';
+
+            let promptRaw = TEMPLATES.ts_analyzer.replace(/\{\{lastMessage\}\}/g, recentMessages);
+            let finalPrompt = promptRaw;
+
             // @ts-ignore
-            let result = await ctx.generateQuietPrompt(finalPrompt);
+            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
+            // @ts-ignore
+            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
+
+            // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА
+            let result = await generateEnhanceFast(finalPrompt);
             
             const data = extractJSON(result);
             showTimeSkipModal(data);
@@ -670,14 +751,32 @@
                     <b>🎬 BB Event Director & Enhance</b>
                     <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
                 </div>
-                <div class="inline-drawer-content">
-                    <div class="bb-eg-settings-panel">
-                        <label><input type="checkbox" id="bb-eg-cfg-enhance" ${s.btnEnhance ? 'checked' : ''}> Показать [✨ Enhance]</label>
-                        <label><input type="checkbox" id="bb-eg-cfg-improve" ${s.btnImprove ? 'checked' : ''}> Показать [🔮 Improve]</label>
-                        <label><input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}> Показать [🎬 Event Director]</label>
-                        <label><input type="checkbox" id="bb-eg-cfg-dice" ${s.btnDice ? 'checked' : ''}> Показать [🎲 Action Roll]</label>
-                        <label><input type="checkbox" id="bb-eg-cfg-ft" ${s.btnFastTravel ? 'checked' : ''}> Показать [📍 Fast Travel]</label>
-                        <label><input type="checkbox" id="bb-eg-cfg-ts" ${s.btnTimeSkip ? 'checked' : ''}> Показать [⏩ Time Skip]</label>
+                <div class="inline-drawer-content" style="padding: 10px;">
+                    <div class="bb-eg-settings-panel" style="display: flex; flex-direction: column; gap: 8px;">
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-enhance" ${s.btnEnhance ? 'checked' : ''}> <span>Показать [✨ Enhance]</span></label>
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-improve" ${s.btnImprove ? 'checked' : ''}> <span>Показать [🔮 Improve]</span></label>
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}> <span>Показать [🎬 Event Director]</span></label>
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-dice" ${s.btnDice ? 'checked' : ''}> <span>Показать [🎲 Action Roll]</span></label>
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-ft" ${s.btnFastTravel ? 'checked' : ''}> <span>Показать [📍 Fast Travel]</span></label>
+                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-ts" ${s.btnTimeSkip ? 'checked' : ''}> <span>Показать [⏩ Time Skip]</span></label>
+                    </div>
+
+                    <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
+                
+                    <span style="font-size: 13px; color: #cbd5e1; font-weight:bold;">⚡ Custom API (Для быстрой генерации):</span>
+                    <label class="checkbox_label" style="margin-top: 5px;">
+                        <input type="checkbox" id="bb-eg-cfg-usecustom" ${s.useCustomApi ? 'checked' : ''}>
+                        <span>Использовать свой API-ключ</span>
+                    </label>
+                    
+                    <div id="bb-eg-custom-api-block" style="display: ${s.useCustomApi ? 'flex' : 'none'}; flex-direction: column; gap: 8px; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+                        <input type="text" id="bb-eg-cfg-url" class="text_pole" placeholder="URL: http://example:1234/v1" value="${s.customApiUrl || ''}">
+                        <input type="password" id="bb-eg-cfg-key" class="text_pole" placeholder="API Ключ" value="${s.customApiKey || ''}">
+                        <button id="bb-eg-btn-connect" class="menu_button"><i class="fa-solid fa-plug"></i>&nbsp; Подключиться / Обновить</button>
+                        <select id="bb-eg-cfg-model" class="text_pole" ${!s.customApiModel ? 'disabled' : ''}>
+                            <option value="${s.customApiModel || ''}">${s.customApiModel || 'Модели не загружены'}</option>
+                        </select>
+                        <span style="font-size: 10px; color: #94a3b8; line-height: 1.2;">* Работает по стандарту OpenAI.</span>
                     </div>
                 </div>
             </div>
@@ -693,6 +792,64 @@
                     // @ts-ignore
                     getSettings()[`btn${t.charAt(0).toUpperCase() + t.slice(1).replace('ft','FastTravel').replace('ts','TimeSkip')}`] = e.target.checked; saveSettings(); 
                 });
+            });
+
+            // Настройки кастомного API
+            $('#bb-eg-cfg-usecustom').on('change', function() {
+                const isChecked = $(this).is(':checked');
+                getSettings().useCustomApi = isChecked;
+                if (isChecked) $('#bb-eg-custom-api-block').slideDown(200);
+                else $('#bb-eg-custom-api-block').slideUp(200);
+                saveSettings();
+            });
+
+            $('#bb-eg-cfg-url, #bb-eg-cfg-key').on('change input', function() {
+                getSettings().customApiUrl = $('#bb-eg-cfg-url').val();
+                getSettings().customApiKey = $('#bb-eg-cfg-key').val();
+                saveSettings();
+            });
+            
+            $(document).on('change', '#bb-eg-cfg-model', function() {
+                getSettings().customApiModel = $(this).val();
+                saveSettings();
+            });
+
+            $('#bb-eg-btn-connect').on('click', async function() {
+                const btn = $(this);
+                // @ts-ignore
+                const url = $('#bb-eg-cfg-url').val().replace(/\/$/, '');
+                const key = $('#bb-eg-cfg-key').val();
+                btn.html('<i class="fa-solid fa-spinner fa-spin"></i>&nbsp; Подключение...');
+
+                try {
+                    const response = await fetch(url + '/models', {
+                        method: 'GET', headers: { 'Authorization': `Bearer ${key}` }
+                    });
+                    if (!response.ok) throw new Error(`Ошибка ${response.status}`);
+                    const data = await response.json();
+                    
+                    if (data && data.data && Array.isArray(data.data)) {
+                        const select = $('#bb-eg-cfg-model');
+                        select.empty();
+                        data.data.forEach(m => select.append(`<option value="${m.id}">${m.id}</option>`));
+                        select.prop('disabled', false);
+                        
+                        if (getSettings().customApiModel && select.find(`option[value="${getSettings().customApiModel}"]`).length) {
+                            select.val(getSettings().customApiModel);
+                        } else {
+                            getSettings().customApiModel = select.val();
+                        }
+                        // @ts-ignore
+                        toastr.success("Модели загружены!", "BB Enhance");
+                        saveSettings();
+                    } else throw new Error("Нет моделей.");
+                } catch (e) {
+                    console.error(e);
+                    // @ts-ignore
+                    toastr.error(`Ошибка: ${e.message}`, "BB Enhance");
+                } finally {
+                    btn.html('<i class="fa-solid fa-plug"></i>&nbsp; Подключиться / Обновить');
+                }
             });
         }
     }
