@@ -776,7 +776,7 @@
                         <select id="bb-eg-cfg-model" class="text_pole" ${!s.customApiModel ? 'disabled' : ''}>
                             <option value="${s.customApiModel || ''}">${s.customApiModel || 'Модели не загружены'}</option>
                         </select>
-                        <span style="font-size: 10px; color: #94a3b8; line-height: 1.2;">* Работает по стандарту OpenAI.</span>
+                        <span style="font-size: 10px; color: #94a3b8; line-height: 1.2;">* Работает по стандарту OpenAI. Идеально для Flash-моделей.</span>
                     </div>
                 </div>
             </div>
