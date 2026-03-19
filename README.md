@@ -11,6 +11,10 @@
 * ⚡ **Кастомный API:** Возможность подключить отдельный API-ключ специально для генерации ответов.
 ---
 
+<img width="1515" height="515" alt="Screenshot_12 копия" src="https://github.com/user-attachments/assets/43dd5c57-cd97-4d7b-a69f-8ebc752d550f" />
+
+---
+
 ⚙️ Установка расширения:
 
 1. Откройте SillyTavern.
