@@ -15,22 +15,26 @@
         ts: 'btnTimeSkip',
     });
 
+    const PLAYER_CONTEXT = `Player character name: {{user}}\nPlayer persona description (canonical, must not be contradicted):\n"""{{persona}}"""`;
+
+    const PLAYER_IDENTITY_RULE = `CANONICAL PLAYER IDENTITY: {{user}} is the player/protagonist described in the Player persona description. Never change {{user}}'s race, age, role, appearance, equipment, backstory, or personality. If the narrative direction mentions {{user}} by name, it refers to this same player character, not a new NPC.`;
+
     const TEMPLATES = {
-        enhance: `<context>\nProtagonist: {{user}} ({{persona}})\nScene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nExpand the user's brief draft below into a rich, immersive, and highly detailed literary segment.\n</task>\n\n<rules>\n1. Expand actions with deep sensory details (sight, sound, smell, texture).\n2. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n3. Polish {{user}}'s spoken dialogue to align perfectly with their personality.\n4. ONLY expand the current moment. DO NOT advance the plot.\n5. DO NOT speak, act, or react for other characters.\n6. LENGTH BUDGET: Keep the output proportional to the draft. Do not exceed ~2x the original length. Prefer one tight, vivid pass over multiple repetitive paragraphs. Avoid restating the same beat with different words.\n7. You MAY use HTML formatting if it matches the chat style. Output ONLY the raw expanded story text. Absolutely no conversational filler, greetings, or meta-commentary. Do not use markdown code blocks (\`\`\`).\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
+        enhance: `<context>\n${PLAYER_CONTEXT}\nScene details: {{authorsNote}}\nStory Summary: {{summary}}\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nExpand the user's brief draft below into a rich, immersive, and highly detailed literary segment.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Expand actions with deep sensory details (sight, sound, smell, texture).\n3. Describe {{user}}'s internal thoughts, micro-expressions, and physical sensations.\n4. Polish {{user}}'s spoken dialogue to align perfectly with their personality.\n5. ONLY expand the current moment. DO NOT advance the plot.\n6. DO NOT speak, act, or react for other characters.\n7. LENGTH BUDGET: Keep the output proportional to the draft. Do not exceed ~2x the original length. Prefer one tight, vivid pass over multiple repetitive paragraphs. Avoid restating the same beat with different words.\n8. You MAY use HTML formatting if it matches the chat style. Output ONLY the raw expanded story text. Absolutely no conversational filler, greetings, or meta-commentary. Do not use markdown code blocks (\`\`\`).\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
         
-        improve: `<context>\nProtagonist: {{user}} ({{persona}})\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nEdit and polish the draft below to improve its literary flow, grammar, and phrasing.\n</task>\n\n<rules>\n1. PARAPHRASE ONLY. Do not write new plot.\n2. DO NOT add new actions, thoughts, or dialogue that are not in the draft.\n3. DO NOT answer the previous message. DO NOT advance time.\n4. LENGTH BUDGET: Keep the output the EXACT SAME LENGTH as the original draft (±10%). Do not pad with extra descriptions.\n5. Preserve any HTML formatting or markdown. Do not use markdown code blocks (\`\`\`).\n6. Output ONLY the rewritten text. No conversational filler or commentary.\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
+        improve: `<context>\n${PLAYER_CONTEXT}\nLast chat message: """{{lastMessage}}"""\n</context>\n\n<task>\nEdit and polish the draft below to improve its literary flow, grammar, and phrasing.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. PARAPHRASE ONLY. Do not write new plot.\n3. DO NOT add new actions, thoughts, or dialogue that are not in the draft.\n4. DO NOT answer the previous message. DO NOT advance time.\n5. LENGTH BUDGET: Keep the output the EXACT SAME LENGTH as the original draft (±10%). Do not pad with extra descriptions.\n6. Preserve any HTML formatting or markdown. Do not use markdown code blocks (\`\`\`).\n7. Output ONLY the rewritten text. No conversational filler or commentary.\n</rules>\n\n<draft>\n{{input}}\n</draft>`,
 
-        dir_disaster: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT.\n</task>\n\n<rules>\n1. Create a sharp conflict, physical danger, bad news, or painful memory.\n2. Use the current location and objects explicitly.\n3. STRICT IN-CHARACTER RULE: The event must be logically grounded in the setting. Other characters must react STRICTLY according to their established personalities. DO NOT break character logic.\n4. Keep it highly tense. DO NOT resolve the situation yet.\n5. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_disaster: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create a sharp conflict, physical danger, bad news, or painful memory.\n4. Use the current location and objects explicitly.\n5. STRICT IN-CHARACTER RULE: The event must be logically grounded in the setting. Other characters must react STRICTLY according to their established personalities. DO NOT break character logic.\n6. Keep it highly tense. DO NOT resolve the situation yet.\n7. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        dir_blessing: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a BLESSING or GOOD EVENT.\n</task>\n\n<rules>\n1. Create an unexpected stroke of luck, deep comfort, or pleasant discovery.\n2. Use the current location and objects explicitly.\n3. STRICT IN-CHARACTER RULE: The blessing must be logical for the setting. Help from another character MUST perfectly match their established personality.\n4. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_blessing: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a BLESSING or GOOD EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create an unexpected stroke of luck, deep comfort, or pleasant discovery.\n4. Use the current location and objects explicitly.\n5. STRICT IN-CHARACTER RULE: The blessing must be logical for the setting. Help from another character MUST perfectly match their established personality.\n6. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        dir_tension: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n</task>\n\n<rules>\n1. RELATIONSHIP LOGIC: If {{user}} and the character are romantically involved, escalate passion and physical intimacy. If NOT involved, introduce a sudden spark of deep interest, a breathless awkward pause, or revealing micro-expression.\n2. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity.\n3. Keep the interaction STRICTLY In-Character.\n4. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_tension: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Focus on TENSION or DEEP EMOTION.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. RELATIONSHIP LOGIC: If {{user}} and the character are romantically involved, escalate passion and physical intimacy. If NOT involved, introduce a sudden spark of deep interest, a breathless awkward pause, or revealing micro-expression.\n4. Focus heavily on {{user}}'s heartbeat, breathing, and physical proximity.\n5. Keep the interaction STRICTLY In-Character.\n6. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        dir_absurd: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n</task>\n\n<rules>\n1. Create a ridiculous misunderstanding, clumsy mistake, or awkwardly funny situational irony.\n2. STRICT IN-CHARACTER RULE: The humor must not break character logic. Show how serious characters react NATURALLY to the absurdity.\n3. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_absurd: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce an ABSURD or COMEDIC EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create a ridiculous misunderstanding, clumsy mistake, or awkwardly funny situational irony.\n4. STRICT IN-CHARACTER RULE: The humor must not break character logic. Show how serious characters react NATURALLY to the absurdity.\n5. Output ONLY the pure story text without meta-commentary.\n</rules>`,
 
-        dir_tragedy: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a TRAGIC EVENT or SEVERE EMOTIONAL DAMAGE.\n</task>\n\n<rules>\n1. Create a terrible revelation, an irreversible mistake, a painful loss, or deep despair.\n2. Characters must react STRICTLY In-Character. Do not resolve it easily.\n3. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_tragedy: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a TRAGIC EVENT or SEVERE EMOTIONAL DAMAGE.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create a terrible revelation, an irreversible mistake, a painful loss, or deep despair.\n4. Characters must react STRICTLY In-Character. Do not resolve it easily.\n5. Output ONLY the pure story text without meta-commentary.\n</rules>`,
 
-        dir_custom: `<context>\nProtagonist: {{user}} ({{persona}})\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Follow this NARRATIVE DIRECTION from the author:\n"""{{customDirection}}"""\n</task>\n\n<rules>\n1. Follow the author's direction faithfully. Interpret it as a creative instruction for the next story beat.\n2. Use the current location, characters, and objects explicitly.\n3. STRICT IN-CHARACTER RULE: All characters must react according to their established personalities.\n4. Output ONLY the pure story text without meta-commentary.\n</rules>`,
+        dir_custom: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Follow this NARRATIVE DIRECTION from the author:\n"""{{customDirection}}"""\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. If the author's direction names {{user}}, treat that named person as the player/protagonist from the persona block, not as a newly invented NPC.\n3. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n4. Follow the author's direction faithfully. Interpret it as a creative instruction for the next story beat.\n5. Use the current location, characters, and objects explicitly.\n6. STRICT IN-CHARACTER RULE: All characters must react according to their established personalities.\n7. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
         ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}""" (If empty, assume user wants to travel away from their current location)\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Keep the "hook" descriptions VERY SHORT.\n4. Output STRICTLY as a raw JSON object starting with { and ending with }.\n5. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Краткая причина.", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`,
 
@@ -217,11 +221,56 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
+    function escapeRegExp(str) {
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
     function buildRecentContext() {
         const ctx = SillyTavern.getContext();
         const chat = ctx.chat;
         if (!chat || chat.length === 0) return '';
-        return chat.slice(-4).map(m => `${m.name}: ${m.mes}`).join('\n\n');
+        return chat.slice(-8).map(m => `${m.name}: ${m.mes}`).join('\n\n');
+    }
+    async function substitutePromptMacros(promptRaw) {
+        const ctx = SillyTavern.getContext();
+        let finalPrompt = promptRaw;
+
+        if (ctx && typeof ctx.substituteParams === 'function') {
+            finalPrompt = await ctx.substituteParams(promptRaw);
+        // @ts-ignore
+        } else if (typeof window.substituteParams === 'function') {
+            // @ts-ignore
+            finalPrompt = await window.substituteParams(promptRaw);
+        // @ts-ignore
+        } else if (typeof window.substituteParamsExtended === 'function') {
+            // @ts-ignore
+            finalPrompt = await window.substituteParamsExtended(promptRaw);
+        }
+
+        if (/\{\{[^}]+\}\}/.test(finalPrompt)) {
+            console.warn('[BB Enhance] Some macros were not substituted:', finalPrompt.match(/\{\{[^}]+\}\}/g));
+        }
+
+        console.debug('[BB Enhance] Final prompt sent to generation:', finalPrompt);
+        return finalPrompt;
+    }
+    function stripLeadingUserName(text) {
+        const ctx = SillyTavern.getContext();
+        const userName = String(ctx?.name1 || '').trim();
+        if (!text || !userName) return text;
+
+        const escapedName = escapeRegExp(userName);
+        const wrappers = `(?:\\*\\*|__|\\*|_|["'«»“”])?`;
+        const namePrefix = `${wrappers}${escapedName}${wrappers}`;
+        const patterns = [
+            new RegExp(`^\\s*${namePrefix}\\s*(?:[:：]|[—–-])\\s*`, 'i'),
+            new RegExp(`^\\s*${namePrefix}\\s*(?:\\r?\\n)+`, 'i'),
+        ];
+
+        let cleaned = text;
+        for (const pattern of patterns) {
+            cleaned = cleaned.replace(pattern, '');
+        }
+        return cleaned.trimStart();
     }
     async function withBusyLock(fn) {
         if (isBusy) {
@@ -452,14 +501,17 @@
 
     // ДВИЖОК УМНОЙ И БЕЗОПАСНОЙ ГЕНЕРАЦИИ (FAST PROMPT API)
     // =======================================================
-    async function runMainGen(promptText) {
+    async function runMainGen(promptText, purpose = 'enhance') {
         const ctx = SillyTavern.getContext();
+        const limit = resolveMaxTokens(getSettings(), purpose);
+        const params = { quietPrompt: promptText };
+        if (limit > 0) params.responseLength = limit;
         // @ts-ignore
         if (typeof ctx.generateQuietPrompt === 'function') {
             // @ts-ignore
-            return await ctx.generateQuietPrompt(promptText);
+            return await ctx.generateQuietPrompt(params);
         } else if (typeof window['generateQuietPrompt'] === 'function') {
-            return await window['generateQuietPrompt'](promptText);
+            return await window['generateQuietPrompt'](params);
         } else {
             throw new Error('SillyTavern generation function not found.');
         }
@@ -587,10 +639,10 @@
                     // @ts-ignore
                     toastr.warning(t('toast_custom_fallback'), 'BB Enhance');
                 }
-                return await runMainGen(promptText);
+                return await runMainGen(promptText, purposeKey);
             }
         } else {
-            return await runMainGen(promptText);
+            return await runMainGen(promptText, purposeKey);
         }
     }
 
@@ -641,12 +693,7 @@
         try {
             const recentMessages = buildRecentContext();
             let promptRaw = TEMPLATES[type].replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages).replace('{{customDirection}}', customDirectorText || '');
-            let finalPrompt = promptRaw;
-
-            // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
-            // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
+            let finalPrompt = await substitutePromptMacros(promptRaw);
 
             // Use fast API (Custom or main). Stream only when Custom API + streaming are enabled.
             const s = getSettings();
@@ -681,6 +728,7 @@
             if (cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
                 cleanResult = cleanResult.slice(1, -1).trim();
             }
+            cleanResult = stripLeadingUserName(cleanResult);
             
             if (cleanResult.length > 0) {
                 ta.value = cleanResult;
@@ -1041,12 +1089,7 @@
         try {
             const recentMessages = buildRecentContext();
             let promptRaw = TEMPLATES.ft_analyzer.replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages);
-            let finalPrompt = promptRaw;
-
-            // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
-            // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
+            let finalPrompt = await substitutePromptMacros(promptRaw);
 
             // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА (контекст чата -> компактный JSON)
             let result = await generateEnhanceFast(finalPrompt, undefined, 'context');
@@ -1165,12 +1208,7 @@
         try {
             const recentMessages = buildRecentContext();
             let promptRaw = TEMPLATES.ts_analyzer.replace(/\{\{lastMessage\}\}/g, recentMessages);
-            let finalPrompt = promptRaw;
-
-            // @ts-ignore
-            if (typeof window.substituteParams === 'function') finalPrompt = await window.substituteParams(promptRaw);
-            // @ts-ignore
-            else if (typeof window.substituteParamsExtended === 'function') finalPrompt = await window.substituteParamsExtended(promptRaw);
+            let finalPrompt = await substitutePromptMacros(promptRaw);
 
             // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА (контекст чата -> компактный JSON)
             let result = await generateEnhanceFast(finalPrompt, undefined, 'context');
