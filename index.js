@@ -272,6 +272,9 @@
         }
         return cleaned.trimStart();
     }
+    function clearCustomDirectorDraft(type) {
+        if (type === 'dir_custom') customDirectorText = '';
+    }
     async function withBusyLock(fn) {
         if (isBusy) {
             // @ts-ignore
@@ -741,6 +744,7 @@
                 // @ts-ignore
                 toastr.warning(t('toast_filter_empty'), 'BB Enhance');
             }
+            clearCustomDirectorDraft(type);
 
         } catch (err) {
             console.error(err);
@@ -955,6 +959,7 @@
             // @ts-ignore
             ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('send_but')?.click();
+            clearCustomDirectorDraft(type);
         } else {
             if (!chat || chat.length === 0) return;
             let lastUserIndex = -1;
@@ -969,6 +974,7 @@
                 // @ts-ignore
                 if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
             } else { document.getElementById('send_but')?.click(); }
+            clearCustomDirectorDraft(type);
         }
         });
     }
