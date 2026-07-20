@@ -989,7 +989,7 @@
         return `
             <button class="bb-eg-back-btn" data-back="vibes"><i class="fa-solid fa-arrow-left"></i> ${t('dir_back')}</button>
             <div class="bb-eg-popup-header">${t('dir_custom')}</div>
-            <textarea class="bb-eg-custom-textarea" placeholder="${escapeHtml(t('dir_custom_placeholder'))}" rows="3"></textarea>
+            <textarea class="bb-eg-custom-textarea" placeholder="${escapeHtml(t('dir_custom_placeholder'))}" rows="3">${escapeHtml(customDirectorText)}</textarea>
             <button class="bb-eg-custom-next-btn">${t('dir_custom_next')}</button>
         `;
     }
@@ -1026,7 +1026,6 @@
             if (target.classList.contains('bb-eg-vibe-btn')) {
                 activeDirectorVibe = target.getAttribute('data-vibe');
                 if (activeDirectorVibe === 'dir_custom') {
-                    customDirectorText = '';
                     popup.innerHTML = renderPopupCustomInput();
                     const ta = popup.querySelector('.bb-eg-custom-textarea');
                     if (ta) requestAnimationFrame(() => ta.focus());
@@ -1066,6 +1065,13 @@
                 if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }
         };
+
+        popup.addEventListener('input', (e) => {
+            const target = e.target;
+            if (target instanceof HTMLTextAreaElement && target.classList.contains('bb-eg-custom-textarea')) {
+                customDirectorText = target.value;
+            }
+        });
         wrap.appendChild(mainBtn); wrap.appendChild(popup); return wrap;
     }
 
