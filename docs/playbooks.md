@@ -74,7 +74,10 @@ API и чат в стенде синтетические. Запросы не д
 [документацией UI extensions](https://docs.sillytavern.app/for-contributors/writing-extensions/).
 
 - `getCurrentChatId`, `characters[characterId].avatar`, `groupId` — идентичность чата.
-- `generateQuietPrompt({ quietPrompt, responseLength })` — служебная генерация.
+- `generateRawData({ prompt, api, responseLength })` и `extractMessageFromData(data, api)` —
+  служебная генерация и извлечение ответа до `cleanUpMessage` / AI_OUTPUT regex.
+  `api` фиксируется из `context.mainApi`; после получения сохраняется штатный разбор
+  reasoning через `parseReasoningFromString`, если включён `powerUserSettings.reasoning.auto_parse`.
 - `generate('normal' | 'swipe')`, `stopGeneration()`, `saveChat()` — отправка,
   ожидание генерации, остановка и сохранение изменённого сообщения.
 - `CHAT_CHANGED`, `GENERATION_STARTED`, `GENERATION_ENDED`, `GENERATION_STOPPED`.
@@ -94,14 +97,21 @@ API и чат в стенде синтетические. Запросы не д
 взаимодействие со всеми сторонними расширениями/темами. Эти сценарии требуют
 проверки в выбранном пользователем тестовом чате.
 
-У `generateQuietPrompt` нет параметра AbortSignal: отмена делегируется
-`stopGeneration`, затем расширение ждёт завершения native promise. Этот API
-возвращает только текст, без `finish_reason`; обнаружение лимита ответа по
-метаданным доступно для Custom API, а не для основной модели. При отмене уже
+У `generateRawData` нет параметра AbortSignal: отмена делегируется
+`stopGeneration`, затем расширение ждёт завершения native promise. При наличии
+`choices[0].finish_reason` проверяются лимит и фильтрация; другие форматы провайдера
+могут не содержать этих метаданных. При отмене уже
 начатой отправки SillyTavern может сохранить отправленное сообщение или
 частичный ответ бота; расширение не удаляет их автоматически.
 Профили тоже возвращают извлечённый текст через Connection Manager без
 унифицированного `finish_reason`; отдельный SSE-парсер применяется к Custom API.
+
+`generateRawData` всё ещё вызывает общие события подготовки prompt и использует настройки
+текущего провайдера. Изоляция касается сборки чата и выходных regex, не всех расширений.
+Повторная подстановка native macros предотвращается вставкой U+200B между открывающими
+скобками `{{` в копии запроса; исходный черновик не меняется.
+Стенд выполняет установленные `createRawPrompt`, `generateRawData`, `extractMessageFromData`
+для Chat Completion с подменённым транспортом; реальные провайдеры не вызываются.
 
 Проверка после обновления SillyTavern: в отдельном чате выполнить Enhance,
 Improve, Director «Мне/Боту», бросок с черновиком и без, FT/TS, сменить чат

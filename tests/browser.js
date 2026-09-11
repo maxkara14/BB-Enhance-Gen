@@ -9,6 +9,7 @@ let fetchHandler, nativeHandler, mainHandler, requests = 0, sends = [], saved = 
 const events = Object.fromEntries(['APP_READY','CHAT_CHANGED','GENERATION_STARTED','GENERATION_ENDED','GENERATION_STOPPED'].map(key => [key,key]));
 const emit = (type, ...args) => { for (const handler of handlers.get(type) || []) handler(...args); };
 const ctx = {
+    mainApi: 'openai',
     extensionSettings: { 'BB-Enhance-Gen': settings },
     get chat() { return chat; }, getCurrentChatId: () => key, characterId: 0, name1: 'Player',
     characters: [{ avatar: 'character.png' }], eventTypes: events,
@@ -23,11 +24,9 @@ const ctx = {
         try { if (nativeHandler) await nativeHandler(type); else if (type === 'normal') input.value = ''; }
         finally { emit(events.GENERATION_ENDED); }
     },
-    async generateQuietPrompt(params) {
-        emit(events.GENERATION_STARTED,'quiet',{},false);
-        try { return mainHandler ? await mainHandler(params) : 'Main result'; }
-        finally { emit(events.GENERATION_ENDED); }
-    },
+    async generateQuietPrompt() { throw new Error('Must not use chat assembly / output regex'); },
+    async generateRawData(params) { return mainHandler ? await mainHandler(params) : 'Main result'; },
+    extractMessageFromData(data, api) { assert(api==='openai','API snapshot passed to extraction');return typeof data==='string'?data:data?.choices?.[0]?.message?.content; },
     stopGeneration() { emit(events.GENERATION_STOPPED); },
 };
 window.SillyTavern = { getContext: () => ctx };
@@ -209,7 +208,7 @@ await test('Custom API timeout is visible and preserves the draft', async () => 
         assert(dialog().textContent.includes('timed out'),'timeout displayed');assert(ta().value==='Original draft','preserved');click('Cancel');await idle();
     } finally {window.setTimeout=originalTimeout;}
 });
-await test('main quiet generation works and errors release the global generation flag', async () => {
+await test('main raw generation works and errors release the operation lock', async () => {
     settings.useCustomApi=false;settings.generationSource='main';mainHandler=async()=>{throw new Error('synthetic failure');};
     document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
     mainHandler=async()=> 'Native quiet result';click('Retry');await until(()=>!button('Apply').disabled);click('Apply');await idle();
@@ -350,6 +349,82 @@ await test('direction help explains scope and updates for every value in both la
             assert(descriptions.size===3,'each option explained');
         }
     }
+});
+
+await test('context removes inert technical HTML but preserves prose and unknown markers', async () => {
+    const {narrativeContext,validateNarrative}=await import('/narrative.js');
+    const source='<p>First <em>sentence</em>.</p><script>window.__executed=true</script><style>.hud{}</style><div hidden>hidden metadata</div><div style="display:none">private</div><iframe src="https://test.invalid"></iframe><p>Second sentence.</p>';
+    const result=narrativeContext(source);
+    assert(result==='First sentence.\nSecond sentence.','readable prose with paragraph boundary');
+    assert(!window.__executed,'scripts never executed');
+    const prose='«Ключ: ⟦Север⟧». <info>A fictional inscription</info> ※SCENE※';
+    assert(validateNarrative(prose)===prose,'unknown markers and literary tags preserved');
+    assert(narrativeContext('Story\n```js\nalert(1)\n```')==='Story','technical fence excluded from context');
+});
+await test('custom for me uses explicit direction and raw main response without chat regex', async () => {
+    settings.generationSource='main';let captured;
+    chat[1].mes='<p>The door is shut.</p><script>widget()</script><div hidden>HUD_SECRET</div>';
+    mainHandler=async params=>{captured=params;return {choices:[{message:{content:'I open the door. ⟦North⟧'},finish_reason:'stop'}]};};
+    document.getElementById('bb-eg-btn-director').click();
+    const popup=document.getElementById('bb-eg-popup');popup.querySelector('[data-vibe=dir_custom]').click();
+    const field=popup.querySelector('textarea');field.value='Open the door slowly. Literal {{lastMessage}}';field.dispatchEvent(new Event('input',{bubbles:true}));
+    popup.querySelector('.bb-eg-custom-next-btn').click();popup.querySelector('[data-target=me]').click();
+    await until(()=>button('Apply')&&!button('Apply').disabled);
+    assert(captured.api==='openai'&&!('quietPrompt' in captured),'raw request uses current connection');
+    assert(captured.prompt.includes('Open the door slowly.')&&captured.prompt.includes('have NOT happened yet'),'direction is a future action to enact');
+    assert(captured.prompt.includes('The door is shut.')&&!captured.prompt.includes('HUD_SECRET')&&!captured.prompt.includes('widget()'),'only story context supplied');
+    assert(!captured.prompt.includes('{{lastMessage}}'),'native second macro expansion blocked');
+    assert(ta().value==='Original draft','draft unchanged before Apply');
+    click('Apply');await idle();assert(ta().value==='I open the door. ⟦North⟧','raw prose and unknown marker preserved');
+});
+await test('technical output and limited main responses cannot be applied; retry preserves prose', async () => {
+    settings.generationSource='main';mainHandler=async()=>'<script>widget()</script>Story';
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
+    assert(button('Apply').disabled&&dialog().textContent.includes('technical block'),'technical output rejected');
+    mainHandler=async()=>({choices:[{message:{content:'Partial'},finish_reason:'length'}]});click('Retry');await until(()=>!button('Retry').disabled);
+    assert(button('Apply').disabled&&ta().value==='Original draft','limited response preserves draft');
+    mainHandler=async()=> 'Complete prose.';click('Retry');await until(()=>!button('Apply').disabled);click('Apply');await idle();assert(ta().value==='Complete prose.','retry works');
+});
+await test('raw request is cancelled on chat change and late output cannot overwrite draft', async () => {
+    settings.generationSource='main';let resolve,started=false,stopped=false;
+    const listener=()=>{stopped=true;};handlers.set(events.GENERATION_STOPPED,[...(handlers.get(events.GENERATION_STOPPED)||[]),listener]);
+    mainHandler=()=>{started=true;return new Promise(done=>{resolve=done;});};
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>started);
+    key='new-raw-chat';ta().value='New draft';emit(events.CHAT_CHANGED);resolve('Late response');await idle();
+    assert(stopped&&!dialog()&&ta().value==='New draft','cancelled and late output discarded');
+    handlers.set(events.GENERATION_STOPPED,handlers.get(events.GENERATION_STOPPED).filter(fn=>fn!==listener));
+});
+
+await test('installed raw API bypasses output regex, preserves prompt and supports stop events', async () => {
+    const listeners=new Map();let sent,signal;
+    window.__rawHarness={
+        event_types:{GENERATION_STOPPED:'stop',CHAT_COMPLETION_PROMPT_READY:'ready'},
+        eventSource:{on:(key,fn)=>listeners.set(key,fn),removeListener:key=>listeners.delete(key),emit:async()=>{}},
+        TempResponseLength:{isCustomized:()=>false,setupEventHook:()=>()=>{}},
+        substituteParams:text=>{assert(!text.includes('{{'),'literal macros must not be evaluated again');return text;},
+        sendOpenAIRequest:async(type,prompt,abortSignal)=>{sent={type,prompt};signal=abortSignal;return {choices:[{message:{content:'Raw story'},finish_reason:'stop'}]};},
+    };
+    const native=await import('/tests/raw-contract.js');
+    const data=await native.generateRawData({prompt:'Enact this action. {\u200B{lastMessage}}',api:'openai'});
+    assert(sent.type==='quiet'&&sent.prompt.length===1&&sent.prompt[0].content.includes('Enact this action.'),'only supplied prompt reaches transport');
+    assert(native.extractMessageFromData(data,'openai')==='Raw story','raw text extracted without regex');
+    assert(listeners.size===0&&!signal.aborted,'stop handler removed after success');
+    window.__rawHarness.eventSource.emit=async()=>{listeners.get('stop')?.();};
+    let aborted=false;try {await native.generateRawData({prompt:'Cancelled',api:'openai'});}catch{aborted=true;}
+    assert(aborted&&listeners.size===0,'stop before transport aborts and cleans up');
+});
+await test('main response respects native reasoning parsing and missing raw API stays an error', async () => {
+    settings.generationSource='main';const raw=ctx.generateRawData;
+    ctx.powerUserSettings={reasoning:{auto_parse:true}};
+    ctx.parseReasoningFromString=text=>({content:text.replace(/^PRIVATE\|/, '')});
+    try {
+        mainHandler=async()=> 'PRIVATE|Story without reasoning.';
+        document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Apply')&&!button('Apply').disabled);
+        click('Apply');await idle();assert(ta().value==='Story without reasoning.','configured reasoning removed');
+        ctx.generateRawData=undefined;
+        document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
+        assert(button('Apply').disabled&&ta().value==='Story without reasoning.','no silent quiet fallback');click('Cancel');await idle();
+    } finally {ctx.generateRawData=raw;delete ctx.powerUserSettings;delete ctx.parseReasoningFromString;}
 });
 
 window.__showSettings = async () => {

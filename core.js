@@ -15,11 +15,8 @@ export function stripCues(text) {
 export function cleanNarrative(text) {
     // An unclosed reasoning block must never become publishable narrative.
     return String(text || '')
-        .replace(/<(think|info)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
-        .replace(/<\/(?:think|info)\s*>/gi, '')
-        .replace(/::([A-Z_]+)_START::[\s\S]*?::\1_END::/g, '')
-        .replace(/※\/?SCENE(?::[^※]*)?※/gi, '')
-        .replace(/⟦\/?[A-Za-zА-Яа-яЁё\s_]+(?::[^⟧]*)?⟧/g, '')
+        .replace(/<think\b[^>]*>[\s\S]*?(?:<\/think\s*>|$)/gi, '')
+        .replace(/<\/think\s*>/gi, '')
         .replace(/^```(?:html|markdown|text)?\s*\n([\s\S]*?)\n```\s*$/i, '$1')
         .replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n')
         .replace(/\n{3,}/g, '\n\n').trim();
