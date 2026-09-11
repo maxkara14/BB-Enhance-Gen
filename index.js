@@ -4,7 +4,7 @@ import { openModal, textField } from './ui.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.2.0';
+    const VERSION = '1.2.1';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -45,6 +45,8 @@ import { openModal, textField } from './ui.js';
     };
 
     const DEFAULT_SETTINGS = {
+        generationSource: 'main',
+        connectionProfileId: '',
         requestTimeout: 120,
         fallbackToMain: true,
         expansion: '2',
@@ -125,7 +127,7 @@ import { openModal, textField } from './ui.js';
             set_extras_title: '🛠 Дополнительно:',
             set_show_preview: 'Показывать предпросмотр подсказки для бота',
             set_ask_diff_every_time: 'Каждый раз спрашивать сложность',
-            set_max_tokens_group: 'Лимиты длины ответа (max_tokens) для Custom API',
+            set_max_tokens_group: 'Лимиты длины ответа',
             set_max_tokens_hint: '0 — без ограничения. Иначе значение зажимается в [64..8000]. Касается только Custom API.',
             set_max_tokens_director: '🎬 Режиссёр → «Мне» (художественный сегмент)',
             set_max_tokens_enhance: '✨🔮 Enhance / Improve',
@@ -176,7 +178,7 @@ import { openModal, textField } from './ui.js';
             set_extras_title: '🛠 Extras:',
             set_show_preview: 'Show a preview of the bot hint',
             set_ask_diff_every_time: 'Ask for difficulty every time',
-            set_max_tokens_group: 'Response length caps (max_tokens) for Custom API',
+            set_max_tokens_group: 'Response length limits',
             set_max_tokens_hint: '0 = unlimited. Otherwise clamped to [64..8000]. Applies only to Custom API.',
             set_max_tokens_director: '🎬 Director → "Me" (full narrative segment)',
             set_max_tokens_enhance: '✨🔮 Enhance / Improve',
@@ -256,6 +258,8 @@ import { openModal, textField } from './ui.js';
             unsupported: ['В этой версии SillyTavern нет нужной функции генерации.', 'This SillyTavern version lacks the required generation function.'],
             no_connection: ['Основная модель не подключена.', 'The main model is not connected.'],
             not_sent: ['SillyTavern не принял сообщение. Черновик восстановлен.', 'SillyTavern did not accept the message. Your draft was restored.'],
+            profile_missing: ['Выберите доступный профиль подключения SillyTavern и обновите список.', 'Select an available SillyTavern connection profile and refresh the list.'],
+            profiles_unavailable: ['Профили недоступны. Проверьте, включён ли Connection Manager.', 'Profiles are unavailable. Check that Connection Manager is enabled.'],
         };
         if (error?.name === 'AbortError') return tr('Отменено.', 'Cancelled.');
         const pair = messages[error?.code];
@@ -491,6 +495,7 @@ import { openModal, textField } from './ui.js';
             extensionSettings[MODULE_NAME] = structuredClone(DEFAULT_SETTINGS);
         }
         const s = extensionSettings[MODULE_NAME];
+        if (typeof s.generationSource === 'undefined') s.generationSource = s.useCustomApi ? 'custom' : 'main';
         // One-time migration: invert legacy 'skipDifficultyPicker' into 'askDifficultyEveryTime'.
         if (typeof s.skipDifficultyPicker !== 'undefined' && typeof s.askDifficultyEveryTime === 'undefined') {
             s.askDifficultyEveryTime = !s.skipDifficultyPicker;
@@ -580,6 +585,43 @@ import { openModal, textField } from './ui.js';
 
     // ДВИЖОК УМНОЙ И БЕЗОПАСНОЙ ГЕНЕРАЦИИ (FAST PROMPT API)
     // =======================================================
+    async function profileService() {
+        try {
+            const { ConnectionManagerRequestService } = await import('../../shared.js');
+            if (!ConnectionManagerRequestService) throw new Error();
+            return ConnectionManagerRequestService;
+        } catch { throw new GenerationError('profiles_unavailable'); }
+    }
+
+    async function runProfileGen(promptText, purpose, op) {
+        const s = { ...getSettings() };
+        const service = await profileService();
+        assertCurrent(op);
+        let profiles;
+        try { profiles = service.getSupportedProfiles(); }
+        catch { throw new GenerationError('profiles_unavailable'); }
+        if (!s.connectionProfileId || !profiles.some(profile => profile.id === s.connectionProfileId)) throw new GenerationError('profile_missing');
+        const controller = new AbortController();
+        const abort = () => controller.abort(op.controller.signal.reason);
+        op.controller.signal.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
+        try {
+            const response = await service.sendRequest(s.connectionProfileId,
+                [{ role: 'system', content: 'Follow the task and output only the requested text or JSON.' }, { role: 'user', content: promptText }],
+                resolveMaxTokens(s, purpose) || undefined,
+                { stream: false, signal: controller.signal, extractData: true, includePreset: true, includeInstruct: true });
+            controller.signal.throwIfAborted();
+            assertCurrent(op);
+            const text = typeof response === 'string' ? response : response?.content;
+            if (typeof text !== 'string' || !text.trim()) throw new GenerationError('empty_response');
+            return text;
+        } catch (error) {
+            throw controller.signal.aborted ? controller.signal.reason : error;
+        } finally {
+            clearTimeout(timeout); op.controller.signal.removeEventListener('abort', abort);
+        }
+    }
+
     async function runMainGen(promptText, purpose = 'enhance', op = activeOperation) {
         assertCurrent(op);
         if (mainGenerating) throw new GenerationError('busy');
@@ -651,7 +693,9 @@ import { openModal, textField } from './ui.js';
     async function generateEnhanceFast(promptText, onChunk, purpose = 'micro', op = activeOperation) {
         assertCurrent(op);
         const s = getSettings();
-        if (!(s.useCustomApi && s.customApiUrl && s.customApiModel)) return runMainGen(promptText, purpose, op);
+        if (s.generationSource === 'profile') return runProfileGen(promptText, purpose, op);
+        if (s.generationSource !== 'custom') return runMainGen(promptText, purpose, op);
+        if (!s.customApiUrl || !s.customApiModel) return runMainGen(promptText, purpose, op);
         const controller = new AbortController();
         const abort = () => controller.abort(op.controller.signal.reason);
         op.controller.signal.addEventListener('abort', abort, { once: true });
@@ -840,6 +884,20 @@ import { openModal, textField } from './ui.js';
                 <button type="button" class="bb-eg-target-btn" data-target="bot">${escapeHtml(t('dir_to_bot'))}</button>
             </div>`;
     }
+
+    function positionDirectorPopup() {
+        const popup = document.getElementById('bb-eg-popup');
+        const anchor = document.getElementById('bb-eg-btn-director');
+        if (!popup || !anchor || !isPopupOpen) return;
+        const rect = anchor.getBoundingClientRect();
+        const width = popup.offsetWidth, height = popup.offsetHeight;
+        const viewport = document.documentElement.clientWidth;
+        let left = rect.right + 10;
+        if (left + width > viewport - 8) left = rect.left - width - 10;
+        left = Math.max(8, Math.min(left, viewport - width - 8));
+        popup.style.left = `${left}px`;
+        popup.style.top = `${Math.max(8, Math.min(rect.bottom - height, window.innerHeight - height - 8))}px`;
+    }
     
     function buildDirectorPopup() {
         const wrap = document.createElement('div'); wrap.className = 'bb-eg-director-wrap'; wrap.id = 'bb-eg-director-wrap';
@@ -852,6 +910,8 @@ import { openModal, textField } from './ui.js';
         mainBtn.onclick = (e) => {
             e.preventDefault(); e.stopPropagation(); isPopupOpen = !isPopupOpen;
             if (isPopupOpen) { popup.innerHTML = renderPopupVibes(); popup.classList.add('show'); } else { popup.classList.remove('show'); }
+            mainBtn.setAttribute('aria-expanded', String(isPopupOpen));
+            positionDirectorPopup();
         };
 
         popup.onclick = (e) => {
@@ -865,7 +925,7 @@ import { openModal, textField } from './ui.js';
                 if (activeDirectorVibe === 'dir_custom') {
                     popup.innerHTML = renderPopupCustomInput();
                     const ta = popup.querySelector('.bb-eg-custom-textarea');
-                    if (ta) requestAnimationFrame(() => ta.focus());
+                    if (ta) requestAnimationFrame(() => ta.focus({ preventScroll: true }));
                 } else {
                     customDirectorText = '';
                     popup.innerHTML = renderPopupTargets();
@@ -901,7 +961,10 @@ import { openModal, textField } from './ui.js';
                 const targetType = target.getAttribute('data-target'); popup.classList.remove('show'); isPopupOpen = false;
                 if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }
-            if (isPopupOpen) queueMicrotask(() => (popup.querySelector('textarea') || popup.querySelector('button'))?.focus());
+            if (isPopupOpen) {
+                positionDirectorPopup();
+                queueMicrotask(() => (popup.querySelector('textarea') || popup.querySelector('button'))?.focus({ preventScroll: true }));
+            } else mainBtn.setAttribute('aria-expanded', 'false');
         };
 
         popup.addEventListener('input', (e) => {
@@ -910,13 +973,24 @@ import { openModal, textField } from './ui.js';
                 customDirectorText = target.value;
             }
         });
-        wrap.appendChild(mainBtn); wrap.appendChild(popup); return wrap;
+        mainBtn.setAttribute('aria-expanded', 'false'); mainBtn.setAttribute('aria-controls', popup.id);
+        popup.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); isPopupOpen = false; popup.classList.remove('show'); mainBtn.setAttribute('aria-expanded', 'false'); mainBtn.focus({ preventScroll: true }); }
+        });
+        mainBtn.addEventListener('keydown', e => {
+            if ((e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) && isPopupOpen) { e.preventDefault(); popup.querySelector('button')?.focus({ preventScroll: true }); }
+        });
+        window.addEventListener('resize', positionDirectorPopup, { signal: toolbarEvents.signal });
+        document.addEventListener('scroll', positionDirectorPopup, { signal: toolbarEvents.signal, capture: true });
+        wrap.appendChild(mainBtn); document.body.appendChild(popup); return wrap;
     }
 
     document.addEventListener('click', (e) => {
         const wrap = document.getElementById('bb-eg-director-wrap'); const popup = document.getElementById('bb-eg-popup');
         // @ts-ignore
-        if (isPopupOpen && wrap && !wrap.contains(e.target)) { isPopupOpen = false; popup.classList.remove('show'); }
+        if (isPopupOpen && wrap && !wrap.contains(e.target) && !popup.contains(e.target)) {
+            isPopupOpen = false; popup.classList.remove('show'); document.getElementById('bb-eg-btn-director')?.setAttribute('aria-expanded', 'false');
+        }
     });
 
     // === FAST TRAVEL ===
@@ -948,6 +1022,7 @@ import { openModal, textField } from './ui.js';
         if (document.getElementById('bb-enhance-wrapper')) return;
         toolbarEvents?.abort();
         toolbarEvents = new AbortController();
+        document.getElementById('bb-eg-popup')?.remove(); isPopupOpen = false;
 
         const wrapper = document.createElement('div'); wrapper.id = 'bb-enhance-wrapper';
         const toggleBtn = document.createElement('button'); toggleBtn.type = 'button'; toggleBtn.setAttribute('aria-expanded', 'false'); toggleBtn.setAttribute('aria-controls', 'bb-enhance-toolbar'); toggleBtn.id = 'bb-eg-toggle-btn'; toggleBtn.innerHTML = 'E'; toggleBtn.title = t('toggle_title');
@@ -985,7 +1060,11 @@ import { openModal, textField } from './ui.js';
         toggleBtn.addEventListener('click', (e) => {
             e.preventDefault(); e.stopPropagation(); isMenuOpen = !isMenuOpen; toggleBtn.setAttribute('aria-expanded', String(isMenuOpen));
             if (isMenuOpen) { toolbar.classList.add('expanded'); toggleBtn.classList.add('active'); } 
-            else { toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
+            else {
+                toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); isPopupOpen = false;
+                document.getElementById('bb-eg-popup')?.classList.remove('show');
+                document.getElementById('bb-eg-btn-director')?.setAttribute('aria-expanded', 'false');
+            }
         });
 
         document.addEventListener('click', (e) => {
@@ -1004,15 +1083,32 @@ import { openModal, textField } from './ui.js';
         updateToolbarVisibility(); updateBusyBadge();
     }
 
-    function injectSettingsPanel() {
-        if (document.getElementById('bb-eg-settings-container')) return;
+    function injectSettingsPanel(rebuild = false) {
+        const existing = document.getElementById('bb-eg-settings-container');
+        if (existing && !rebuild) return;
         const target = document.querySelector('#extensions_settings2') || document.querySelector('#extensions_settings');
         if (!target) return;
         const s = getSettings();
-        const panel = document.createElement('details'); panel.id = 'bb-eg-settings-container'; panel.className = 'bb-eg-settings';
-        const heading = document.createElement('summary'); heading.textContent = '🎬 Enhance Generation ' + VERSION; panel.append(heading);
-        function group(label) {
-            const section = document.createElement('fieldset'); const legend = document.createElement('legend'); legend.textContent = label; section.append(legend); panel.append(section); return section;
+        const openGroups = new Set([...existing?.querySelectorAll('details[open]') || []].map(el => el.dataset.section));
+        const wasOpen = existing && existing.querySelector(':scope > .inline-drawer-content')?.style.display !== 'none';
+        const panel = existing || document.createElement('div'); panel.id = 'bb-eg-settings-container'; panel.className = 'inline-drawer bb-eg-settings';
+        const heading = document.createElement('div'); heading.className = 'inline-drawer-toggle inline-drawer-header'; heading.tabIndex = 0; heading.setAttribute('role', 'button');
+        heading.innerHTML = '<b data-extension-title>🎬 BB Enhance Generation</b><div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>';
+        heading.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); heading.click(); } };
+        const drawer = document.createElement('div'); drawer.className = 'inline-drawer-content'; drawer.style.display = wasOpen ? 'block' : 'none';
+        if (wasOpen) heading.querySelector('.inline-drawer-icon').className = 'inline-drawer-icon fa-solid fa-circle-chevron-up up';
+        const body = document.createElement('div'); body.className = 'bb-eg-settings-body'; drawer.append(body); panel.replaceChildren(heading, drawer);
+        const intro = document.createElement('div'); intro.className = 'bb-eg-settings-intro';
+        const title = document.createElement('strong'); title.textContent = tr('Текст, события и темп сцены', 'Writing, events and scene pacing');
+        const version = document.createElement('span'); version.className = 'bb-eg-version'; version.textContent = VERSION;
+        const description = document.createElement('p'); description.textContent = tr('Выбери модель и настрой инструменты под свой отыгрыш.', 'Choose a model and tune the tools to your roleplay.');
+        intro.append(title, version, description); body.append(intro);
+        function group(label, icon, key) {
+            const section = document.createElement('details'); section.className = 'bb-eg-settings-section'; section.dataset.section = key; section.open = existing ? openGroups.has(key) : key === 'connection';
+            const summary = document.createElement('summary');
+            const glyph = document.createElement('span'); glyph.className = 'bb-eg-section-icon'; glyph.textContent = icon;
+            const name = document.createElement('span'); name.textContent = label; summary.append(glyph, name);
+            const content = document.createElement('div'); content.className = 'bb-eg-section-body'; section.append(summary, content); body.append(section); return content;
         }
         function select(parent, label, key, options) {
             const wrap = document.createElement('label'); wrap.className = 'bb-eg-field';
@@ -1023,8 +1119,8 @@ import { openModal, textField } from './ui.js';
             el.onchange = () => {
                 getSettings()[key] = el.value; saveSettings();
                 if (key === 'uiLanguage') {
-                    panel.remove(); document.getElementById('bb-enhance-wrapper')?.remove();
-                    injectToolbar(); injectSettingsPanel(); document.getElementById('bb-eg-settings-container').open = true;
+                    document.getElementById('bb-enhance-wrapper')?.remove();
+                    injectToolbar(); injectSettingsPanel(true);
                 }
             };
             wrap.append(caption, el); parent.append(wrap); return el;
@@ -1033,7 +1129,8 @@ import { openModal, textField } from './ui.js';
             const wrap = document.createElement('label'); wrap.className = 'checkbox_label';
             const el = document.createElement('input'); el.type = 'checkbox'; el.checked = !!s[key]; el.dataset.setting = key;
             el.onchange = () => { getSettings()[key] = el.checked; saveSettings(); change?.(el.checked); };
-            wrap.append(el, document.createTextNode(' ' + label)); parent.append(wrap); return el;
+            const caption = document.createElement('span'); caption.textContent = label;
+            wrap.append(el, caption); parent.append(wrap); return el;
         }
         function number(parent, label, key, min, max) {
             const el = textField(parent, label, String(s[key])); el.type = 'number'; el.min = String(min); el.max = String(max); el.step = '1'; el.dataset.setting = key;
@@ -1045,28 +1142,54 @@ import { openModal, textField } from './ui.js';
                 el.value = String(value); getSettings()[key] = value; saveSettings();
             };
         }
-        const general = group(tr('Панель и язык', 'Toolbar and language'));
+        const general = group(tr('Панель и язык', 'Toolbar and language'), '⚙', 'general');
         select(general, tr('Язык интерфейса', 'Interface language'), 'uiLanguage', [['auto',tr('Как в браузере','Browser language')],['ru','Русский'],['en','English']]);
-        for (const [short, key] of Object.entries(SETTING_KEYS)) check(general, tr('Показать: ', 'Show: ') + t('btn_' + short), key);
-        const writing = group(tr('Редактирование текста', 'Writing'));
+        const toggles = document.createElement('div'); toggles.className = 'bb-eg-toggle-grid'; general.append(toggles);
+        for (const [short, key] of Object.entries(SETTING_KEYS)) check(toggles, t('btn_' + short), key);
+        const writing = group(tr('Редактирование текста', 'Writing'), '✨', 'writing');
         select(writing, tr('Расширение Enhance', 'Enhance expansion'), 'expansion', [['1.5','×1.5'],['2','×2'],['3','×3']]);
         check(writing, tr('Сохранять реплики дословно', 'Preserve dialogue verbatim'), 'preserveDialogue');
         select(writing, tr('Лицо повествования', 'Narrative person'), 'narrativePerson', [['preserve',tr('Как в оригинале','Match original')],['first',tr('Первое','First person')],['third',tr('Третье','Third person')]]);
         select(writing, tr('Язык результата', 'Output language'), 'outputLanguage', [['auto',tr('Как в тексте / чате','Match draft / chat')],['ru','Русский'],['en','English']]);
-        const director = group(tr('Контекст и режиссура', 'Context and direction'));
+        const director = group(tr('Контекст и режиссура', 'Context and direction'), '🎬', 'direction');
         number(director, tr('Последних сообщений', 'Recent messages'), 'contextDepth', 1, 40);
         number(director, tr('Бюджет контекста (символы)', 'Context budget (characters)'), 'contextBudget', 4000, 60000);
         select(director, tr('Интенсивность событий', 'Event intensity'), 'eventIntensity', [['subtle',tr('Лёгкий намёк','Subtle hint')],['noticeable',tr('Заметное событие','Noticeable event')],['turning',tr('Перелом сцены','Turning point')]]);
         select(director, tr('Тип напряжения', 'Tension type'), 'tensionType', [['romantic',tr('Романтическое','Romantic')],['conflict',tr('Конфликтное','Conflict')],['anxious',tr('Тревожное','Suspense')]]);
         check(director, t('set_show_preview'), 'showCuePreview');
-        const dice = group('🎲 Action Roll');
+        const dice = group('Action Roll', '🎲', 'dice');
         const difficulty = select(dice, t('set_default_diff'), 'defaultDifficulty', ['easy','normal','hard','epic','random'].map(key => [key, t('diff_' + key)]));
         difficulty.disabled = !!s.askDifficultyEveryTime;
         check(dice, t('set_ask_diff_every_time'), 'askDifficultyEveryTime', checked => { difficulty.disabled = checked; });
         check(dice, tr('Вводить вопрос вручную (без запроса модели)', 'Enter question manually (no model request)'), 'manualRoll');
         check(dice, tr('Без анимации броска', 'Skip dice animation'), 'skipAnimation');
-        const api = group('Custom API');
-        check(api, tr('Использовать отдельный API', 'Use a separate API'), 'useCustomApi');
+        const connection = group(tr('Модель для генерации', 'Generation model'), '⚡', 'connection');
+        intro.after(connection.parentElement);
+        const source = select(connection, tr('Источник', 'Source'), 'generationSource', [['main', tr('Текущее подключение SillyTavern', 'Current SillyTavern connection')], ['profile', tr('Профиль подключения SillyTavern', 'SillyTavern connection profile')], ['custom', 'Custom API']]);
+        const profileBlock = document.createElement('div'); profileBlock.className = 'bb-eg-provider-block'; connection.append(profileBlock);
+        const profiles = select(profileBlock, tr('Профиль подключения', 'Connection profile'), 'connectionProfileId', []);
+        const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'menu_button'; refresh.textContent = tr('↻ Обновить профили', '↻ Refresh profiles'); profileBlock.append(refresh);
+        const profileNote = document.createElement('p'); profileNote.className = 'bb-eg-settings-note'; profileBlock.append(profileNote);
+        async function refreshProfiles() {
+            refresh.disabled = true; profiles.disabled = true;
+            try {
+                const service = await profileService();
+                const available = service.getSupportedProfiles();
+                if (!profiles.isConnected) return;
+                profiles.replaceChildren();
+                const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = tr('Выберите профиль', 'Select a profile'); profiles.append(placeholder);
+                for (const profile of available) { const option = document.createElement('option'); option.value = profile.id; option.textContent = profile.name || profile.id; profiles.append(option); }
+                const selected = getSettings().connectionProfileId;
+                if (selected && !available.some(profile => profile.id === selected)) {
+                    const missing = document.createElement('option'); missing.value = selected; missing.textContent = tr('Сохранённый профиль недоступен', 'Saved profile unavailable'); profiles.append(missing);
+                }
+                profiles.value = selected; profiles.disabled = available.length === 0;
+                profileNote.textContent = available.length ? tr('Используются модель и пресет профиля. Основное подключение не меняется.', 'Uses the profile model and preset. Your main connection stays unchanged.') : tr('Нет доступных текстовых профилей. Создайте профиль в Connection Manager.', 'No supported text profiles. Create a profile in Connection Manager.');
+            } catch { profileNote.textContent = errorText(new GenerationError('profiles_unavailable')); }
+            finally { refresh.disabled = false; }
+        }
+        refresh.onclick = () => { void refreshProfiles(); };
+        const api = document.createElement('div'); api.className = 'bb-eg-provider-block'; connection.append(api);
         for (const [key, label] of [['customApiUrl','URL'],['customApiKey','API key']]) {
             const el = textField(api,label,s[key] || ''); el.dataset.setting = key;
             if (key === 'customApiKey') { el.type = 'password'; el.autocomplete = 'off'; }
@@ -1094,12 +1217,21 @@ import { openModal, textField } from './ui.js';
         };
         check(api, tr('Стриминг в окне предпросмотра', 'Stream into preview'), 'enableStreaming');
         check(api, tr('При ошибке переключаться на основную модель', 'Fall back to the main model on failure'), 'fallbackToMain');
-        number(api, tr('Тайм-аут запроса (секунды)', 'Request timeout (seconds)'), 'requestTimeout', 15, 600);
+        number(connection, tr('Тайм-аут запроса (секунды)', 'Request timeout (seconds)'), 'requestTimeout', 15, 600);
         const warning = document.createElement('p'); warning.textContent = t('set_security_warn'); api.append(warning);
-        const limits = group(t('set_max_tokens_group'));
+        const sourceNote = document.createElement('p'); sourceNote.className = 'bb-eg-settings-note'; sourceNote.textContent = tr('Этот источник используется для Enhance, Improve, «Мне», анализа переходов и вопроса кубика. Ответ «Боту» пишет основное подключение чата.', 'Used for Enhance, Improve, “Me”, transition analysis and dice questions. “Bot” replies use the main chat connection.'); connection.append(sourceNote);
+        function updateSource() {
+            const mode = getSettings().generationSource;
+            api.hidden = mode !== 'custom'; profileBlock.hidden = mode !== 'profile';
+            getSettings().useCustomApi = mode === 'custom';
+            if (mode === 'profile') void refreshProfiles();
+        }
+        source.addEventListener('change', updateSource);
+        const limits = group(t('set_max_tokens_group'), '📏', 'limits');
         for (const [key,label] of [['maxTokensDirector','set_max_tokens_director'],['maxTokensEnhance','set_max_tokens_enhance'],['maxTokensContext','set_max_tokens_context'],['maxTokensMicro','set_max_tokens_micro']]) number(limits,t(label),key,0,8000);
         const hint = document.createElement('p'); hint.textContent = tr('0 — не задавать лимит в запросе; ограничения провайдера остаются.', '0 omits the request limit; provider limits still apply.'); limits.append(hint);
-        target.append(panel);
+        if (!existing) target.append(panel);
+        updateSource();
     }
 
     jQuery(() => {

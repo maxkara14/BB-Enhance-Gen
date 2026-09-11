@@ -32,7 +32,18 @@ const ctx = {
 };
 window.SillyTavern = { getContext: () => ctx };
 window.toastr = Object.fromEntries(['info','warning','error','success'].map(type => [type, message => notifications.push({ type,message })]));
-window.jQuery = callback => callback();
+// Host drawer behaviour; actual installed jQuery also runs the Sorter contract below.
+$(document).on('click', '.inline-drawer-toggle', function () {
+    const drawer = $(this).closest('.inline-drawer');
+    drawer.children('.inline-drawer-content').toggle();
+    drawer.find('>.inline-drawer-header .inline-drawer-icon').toggleClass('down up');
+});
+const profileCalls = [];
+let supportedProfiles = [{ id: 'profile-a', name: 'Creative profile' }], profilesAvailable = true, profileHandler = async () => ({ content: 'Profile result' });
+window.__profileService = {
+    getSupportedProfiles() { if (!profilesAvailable) throw new Error('Connection Manager disabled'); return supportedProfiles; },
+    async sendRequest(...args) { profileCalls.push(args); return profileHandler(...args); },
+};
 window.fetch = async (...args) => { requests++; return fetchHandler(...args); };
 const completion = text => new Response(JSON.stringify({ choices: [{ message: { content: text }, finish_reason: 'stop' }] }));
 const pause = () => new Promise(resolve => setTimeout(resolve, 10));
@@ -47,7 +58,8 @@ async function reset() {
     document.getElementById('bb-eg-stop')?.click(); await idle();
     key = 'chat-a'; chat = [{ name:'Player',is_user:true,mes:'I enter the room.' },{ name:'Character',is_user:false,mes:'Welcome.' }]; emit(events.CHAT_CHANGED);
     settings.showCuePreview=false; settings.enableStreaming=false; settings.manualRoll=false; settings.fallbackToMain=false;
-    settings.useCustomApi=true; settings.askDifficultyEveryTime=false; settings.skipAnimation=true;
+    settings.useCustomApi=true; settings.generationSource='custom'; settings.connectionProfileId=''; settings.askDifficultyEveryTime=false; settings.skipAnimation=true;
+    supportedProfiles=[{id:'profile-a',name:'Creative profile'}];profilesAvailable=true;profileCalls.length=0;profileHandler=async()=>({content:'Profile result'});
     settings.tensionType='romantic'; settings.outputLanguage='auto'; settings.expansion='2';
     fetchHandler = async () => completion('A polished draft.'); nativeHandler=null; mainHandler=null; ta().value='Original draft'; sends=[]; saved=0;
 }
@@ -57,6 +69,18 @@ async function test(name, fn) {
     document.getElementById('results').textContent=JSON.stringify(results,null,2);
 }
 await import('/index.js');
+await until(()=>document.getElementById('bb-eg-btn-enhance'), 'extension registration');
+const sorter = await import('/tests/sorter-contract.js');
+const migratedLegacySource = settings.generationSource;
+
+await test('legacy Custom API source survives migration and incomplete config preserves native fallback', async () => {
+    assert(migratedLegacySource==='custom','legacy custom setting retained');
+    const model=settings.customApiModel;settings.customApiModel='';
+    try {
+        document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Apply')&&!button('Apply').disabled);
+        assert(dialog().querySelectorAll('textarea')[1].value==='Main result','existing incomplete-config fallback preserved');click('Cancel');await idle();
+    } finally {settings.customApiModel=model;}
+});
 
 await test('preview applies only on request; undo preserves later edits', async () => {
     document.getElementById('bb-eg-btn-enhance').click(); await until(() => button('Apply') && !button('Apply').disabled);
@@ -186,13 +210,13 @@ await test('Custom API timeout is visible and preserves the draft', async () => 
     } finally {window.setTimeout=originalTimeout;}
 });
 await test('main quiet generation works and errors release the global generation flag', async () => {
-    settings.useCustomApi=false;mainHandler=async()=>{throw new Error('synthetic failure');};
+    settings.useCustomApi=false;settings.generationSource='main';mainHandler=async()=>{throw new Error('synthetic failure');};
     document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
     mainHandler=async()=> 'Native quiet result';click('Retry');await until(()=>!button('Apply').disabled);click('Apply');await idle();
     assert(ta().value==='Native quiet result','native result applied');assert(!document.getElementById('bb-eg-btn-enhance').disabled,'unlocked');
 });
 await test('main model timeout closes preview, reports timeout and unlocks', async () => {
-    settings.useCustomApi=false;
+    settings.useCustomApi=false;settings.generationSource='main';
     const originalTimeout=window.setTimeout;
     window.setTimeout=(fn,ms,...args)=>originalTimeout(fn,ms===120000?5:ms,...args);
     try {
@@ -213,6 +237,93 @@ await test('settings clamp numeric limits on change, model listing stays text-on
     assert(!document.querySelector('#bb-eg-model-list img'),'models escaped');assert(document.querySelector('#bb-eg-model-list option').value.includes('<img'),'literal model retained');
 });
 
+await test('Sorter discovers the standard drawer and keeps its identity in a folder after language changes', async () => {
+    const panel=document.getElementById('bb-eg-settings-container');
+    assert(panel.matches('div.inline-drawer'),'standard extension root');assert(sorter.isRealExtension(panel),'real Sorter discovery');
+    const title=sorter.getTitle(panel),identity=sorter.getExtensionKey(panel);
+    assert(title.includes('BB Enhance Generation')&&!title.includes('1.2.'),'stable title without version');
+    const folder=document.createElement('div');folder.className='bb-folder-content';document.getElementById('extensions_settings').append(folder);folder.append(panel);
+    const before=panel;
+    const language=panel.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
+    const rebuilt=document.getElementById('bb-eg-settings-container');
+    assert(rebuilt===before&&rebuilt.parentElement===folder,'same node stays in folder');
+    assert(sorter.getTitle(rebuilt)===title&&sorter.getExtensionKey(rebuilt)===identity,'stable Sorter identity');
+    const english=rebuilt.querySelector('[data-setting=uiLanguage]');english.value='en';english.dispatchEvent(new Event('change'));
+    document.getElementById('extensions_settings').append(rebuilt);folder.remove();
+});
+await test('profile list, selected profile and request options do not change the active connection', async () => {
+    const mode=document.querySelector('[data-setting=generationSource]');mode.value='profile';mode.dispatchEvent(new Event('change'));
+    const profile=document.querySelector('[data-setting=connectionProfileId]');await until(()=>!profile.disabled&&profile.options.length===2,'profiles loaded');
+    profile.value='profile-a';profile.dispatchEvent(new Event('change'));
+    const currentId=key;const before=requests;const beforeLimit=settings.maxTokensEnhance;settings.maxTokensEnhance=0;
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Apply')&&!button('Apply').disabled);
+    const [id,messages,limit,options]=profileCalls[0];
+    assert(id==='profile-a'&&messages[1].content.includes('Original draft'),'selected profile and prompt');assert(limit===undefined,'0 omits max tokens');
+    assert(options.signal instanceof AbortSignal&&options.includePreset&&options.includeInstruct&&!options.stream,'native profile options');
+    assert(requests===before&&sends.length===0&&key===currentId,'no direct fetch or main generation');
+    click('Apply');await idle();assert(ta().value==='Profile result','profile output applied');settings.maxTokensEnhance=beforeLimit;
+});
+await test('missing or unsupported profile cannot silently fall back to another model', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='missing';settings.fallbackToMain=true;
+    let native=0;mainHandler=async()=>{native++;return 'Wrong model';};const before=requests;
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
+    assert(button('Apply').disabled&&profileCalls.length===0&&requests===before&&native===0,'missing profile not sent elsewhere');click('Cancel');await idle();
+});
+await test('disabled Connection Manager gives an actionable error without sending a request', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';profilesAvailable=false;
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
+    assert(profileCalls.length===0&&button('Apply').disabled,'disabled service not called');assert(dialog().textContent.includes('Connection Manager'),'actionable error');click('Cancel');await idle();
+});
+await test('profile request is aborted on chat change and cannot overwrite a new draft', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';let cancelled=false;
+    profileHandler=(_id,_messages,_limit,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>{cancelled=true;reject(options.signal.reason);}));
+    document.getElementById('bb-eg-btn-enhance').click();await until(()=>profileCalls.length===1);key='other-profile-chat';chat=[];ta().value='Other draft';emit(events.CHAT_CHANGED);await idle();
+    assert(cancelled&&!dialog()&&ta().value==='Other draft','profile request cancelled safely');
+});
+await test('profile timeout and empty result stay errors with the draft intact', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';const realTimeout=window.setTimeout;
+    window.setTimeout=(fn,ms,...args)=>realTimeout(fn,ms===120000?5:ms,...args);
+    try {
+        profileHandler=(_id,_messages,_limit,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('wrapper failure',{cause:options.signal.reason}))));
+        document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);assert(dialog().textContent.includes('timed out'),'profile timeout reported');
+        profileHandler=async()=>({content:''});click('Retry');await until(()=>!button('Retry').disabled);assert(button('Apply').disabled,'empty profile result blocked');assert(ta().value==='Original draft','draft intact');click('Cancel');await idle();
+    } finally {window.setTimeout=realTimeout;}
+});
+await test('profile names are text and unavailable saved profile stays visible', async () => {
+    supportedProfiles=[{id:'profile-a',name:'<img src=x onerror=alert(1)>'}];settings.connectionProfileId='deleted-profile';
+    const mode=document.querySelector('[data-setting=generationSource]');mode.value='profile';mode.dispatchEvent(new Event('change'));
+    const profile=document.querySelector('[data-setting=connectionProfileId]');await until(()=>profile.querySelector('[value="deleted-profile"]'));
+    assert(profile.value==='deleted-profile'&&!profile.querySelector('img'),'missing selection and safe names preserved');
+});
+await test('event flyout opens sideways without moving toolbar items and remains inside the viewport', async () => {
+    const toggle=document.getElementById('bb-eg-toggle-btn');if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))toggle.click();
+    await new Promise(resolve=>setTimeout(resolve,240));
+    const dice=document.getElementById('bb-eg-btn-dice'),before=dice.getBoundingClientRect();
+    document.getElementById('bb-eg-btn-director').click();await new Promise(resolve=>setTimeout(resolve,200));
+    const popup=document.getElementById('bb-eg-popup'),rect=popup.getBoundingClientRect(),after=dice.getBoundingClientRect();
+    assert(Math.abs(before.top-after.top)<1,'toolbar items do not shift');
+    assert(rect.left>=0&&rect.right<=document.documentElement.clientWidth+1&&rect.top>=0&&rect.bottom<=innerHeight+1,'flyout inside viewport');
+    const anchor=document.getElementById('bb-eg-btn-director').getBoundingClientRect();
+    if(innerWidth>=700)assert(rect.left>=anchor.right||rect.right<=anchor.left,'desktop flyout opens sideways');
+    popup.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(!popup.classList.contains('show'),'Escape closes flyout');
+    document.getElementById('bb-eg-btn-director').click();toggle.click();assert(!popup.classList.contains('show'),'toolbar collapse closes flyout');
+});
+
+window.__showSettings = async () => {
+    await reset();document.getElementById('results').hidden=true;
+    const language=document.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
+    const root=document.getElementById('bb-eg-settings-container');root.querySelector('.inline-drawer-content').style.display='block';
+    const mode=root.querySelector('[data-setting=generationSource]');mode.value='profile';mode.dispatchEvent(new Event('change'));
+    root.querySelector('[data-section=connection]').open=true;
+    await until(()=>!root.querySelector('[data-setting=connectionProfileId]').disabled);
+    const profile=root.querySelector('[data-setting=connectionProfileId]');profile.value='profile-a';profile.dispatchEvent(new Event('change'));
+    window.scrollTo(0,0);
+};
+window.__showMenu = async () => {
+    await reset();document.getElementById('results').hidden=true;
+    if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))document.getElementById('bb-eg-toggle-btn').click();
+    await new Promise(resolve=>setTimeout(resolve,240));document.getElementById('bb-eg-btn-director').click();await new Promise(resolve=>setTimeout(resolve,200));
+};
 window.__showPreview = async () => {
     await reset();
     ta().value='I pause at the doorway, listening to the rain.';

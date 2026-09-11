@@ -11,8 +11,18 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const chrome = process.env.CHROME_PATH || ['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 if (!chrome) throw new Error('Set CHROME_PATH to a Chromium browser executable.');
 const files = new Set(['/index.js','/core.js','/ui.js','/style.css','/tests/browser.html','/tests/browser.js']);
+// Use the installed Sorter's actual discovery/title functions, not a guessed selector.
+const sorterSource = await readFile(resolve(root, '../BB-Extension-Sorter/index.js'), 'utf8');
+const sorterContract = ['normalizeText', 'cleanTitle', 'isRealExtension', 'getTitle', 'getExtensionKey'].map(name => {
+    const start = sorterSource.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `Installed Sorter exposes ${name}`);
+    return 'export ' + sorterSource.slice(start, sorterSource.indexOf('\n}', start) + 2);
+}).join('\n');
 const server = createServer(async (req,res) => {
     const path = new URL(req.url,'http://localhost').pathname;
+    if (path === '/shared.js') { res.setHeader('Content-Type', 'text/javascript'); res.end('export const ConnectionManagerRequestService = globalThis.__profileService;'); return; }
+    if (path === '/tests/sorter-contract.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(sorterContract); return; }
+    if (path === '/jquery.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(await readFile(resolve(root, '../../../../lib/jquery-3.5.1.min.js'))); return; }
     if (!files.has(path)) { res.writeHead(404).end(); return; }
     res.setHeader('Content-Type',path.endsWith('.js')?'text/javascript; charset=utf-8':path.endsWith('.css')?'text/css':'text/html; charset=utf-8');
     res.end(await readFile(join(root,path)));
@@ -43,8 +53,15 @@ try {
     }
     console.log(JSON.stringify(suite,null,2));
     if(process.env.ENHANCE_SCREENSHOT){
-        await command('Runtime.evaluate',{expression:'window.__showPreview()',awaitPromise:true});
-        const shot=await command('Page.captureScreenshot',{format:'png'});await writeFile(process.env.ENHANCE_SCREENSHOT,Buffer.from(shot.data,'base64'));
+        const views = process.env.ENHANCE_VIEW === 'review' ? ['settings', 'menu'] : [process.env.ENHANCE_VIEW || 'preview'];
+        for (const view of views) {
+            const show = view === 'settings' ? '__showSettings' : view === 'menu' ? '__showMenu' : '__showPreview';
+            const opened = await command('Runtime.evaluate',{expression:`window.${show}()`,awaitPromise:true});
+            assert.ok(!opened.exceptionDetails, 'Screenshot view opened');
+            const shot=await command('Page.captureScreenshot',{format:'png'});
+            const file = views.length > 1 ? process.env.ENHANCE_SCREENSHOT.replace(/\.png$/, `-${view}.png`) : process.env.ENHANCE_SCREENSHOT;
+            await writeFile(file,Buffer.from(shot.data,'base64'));
+        }
     }
     assert.ok(suite?.done,'Browser suite completed');
     assert.equal(suite.errors.length,0,'No runtime errors');
