@@ -4,7 +4,7 @@ import { openModal, textField } from './ui.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.2.1';
+    const VERSION = '1.2.2';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -1110,7 +1110,7 @@ import { openModal, textField } from './ui.js';
             const name = document.createElement('span'); name.textContent = label; summary.append(glyph, name);
             const content = document.createElement('div'); content.className = 'bb-eg-section-body'; section.append(summary, content); body.append(section); return content;
         }
-        function select(parent, label, key, options) {
+        function select(parent, label, key, options, help) {
             const wrap = document.createElement('label'); wrap.className = 'bb-eg-field';
             const caption = document.createElement('span'); caption.textContent = label;
             const el = document.createElement('select'); el.className = 'text_pole'; el.dataset.setting = key;
@@ -1123,7 +1123,14 @@ import { openModal, textField } from './ui.js';
                     injectToolbar(); injectSettingsPanel(true);
                 }
             };
-            wrap.append(caption, el); parent.append(wrap); return el;
+            wrap.append(caption, el); parent.append(wrap);
+            if (help) {
+                const note = document.createElement('p'); note.id = `bb-eg-help-${key}`;
+                el.setAttribute('aria-describedby', note.id);
+                const updateHelp = () => { note.textContent = help.scope + ' ' + (help.values[el.value] || ''); };
+                el.addEventListener('change', updateHelp); updateHelp(); parent.append(note);
+            }
+            return el;
         }
         function check(parent, label, key, change) {
             const wrap = document.createElement('label'); wrap.className = 'checkbox_label';
@@ -1154,8 +1161,22 @@ import { openModal, textField } from './ui.js';
         const director = group(tr('Контекст и режиссура', 'Context and direction'), '🎬', 'direction');
         number(director, tr('Последних сообщений', 'Recent messages'), 'contextDepth', 1, 40);
         number(director, tr('Бюджет контекста (символы)', 'Context budget (characters)'), 'contextBudget', 4000, 60000);
-        select(director, tr('Интенсивность событий', 'Event intensity'), 'eventIntensity', [['subtle',tr('Лёгкий намёк','Subtle hint')],['noticeable',tr('Заметное событие','Noticeable event')],['turning',tr('Перелом сцены','Turning point')]]);
-        select(director, tr('Тип напряжения', 'Tension type'), 'tensionType', [['romantic',tr('Романтическое','Romantic')],['conflict',tr('Конфликтное','Conflict')],['anxious',tr('Тревожное','Suspense')]]);
+        select(director, tr('Интенсивность событий', 'Event intensity'), 'eventIntensity', [['subtle',tr('Лёгкий намёк','Subtle hint')],['noticeable',tr('Заметное событие','Noticeable event')],['turning',tr('Перелом сцены','Turning point')]], {
+            scope: tr('Для всех событий Event Director: «Мне» и «Боту».', 'For all Event Director events: “For me” and “For bot”.'),
+            values: {
+                subtle: tr('Просит модель добавить лёгкий намёк без резкой смены сцены.', 'Asks the model for a subtle hint without forcing a major scene change.'),
+                noticeable: tr('Просит модель добавить одно заметное событие, связанное с текущей сценой.', 'Asks the model for one noticeable event grounded in the current scene.'),
+                turning: tr('Просит модель создать крупный поворот сюжета с опорой на текущую сцену.', 'Asks the model for a major turning point grounded in the current scene.'),
+            },
+        });
+        select(director, tr('Тип напряжения', 'Tension type'), 'tensionType', [['romantic',tr('Романтическое','Romantic')],['conflict',tr('Конфликтное','Conflict')],['anxious',tr('Тревожное','Suspense')]], {
+            scope: tr('Только для события «Напряжение» в Event Director: «Мне» и «Боту».', 'Only for the Tension event in Event Director: “For me” and “For bot”.'),
+            values: {
+                romantic: tr('Романтическое напряжение с учётом уже сложившихся отношений и границ персонажей.', 'Romantic tension consistent with established relationships and character boundaries.'),
+                conflict: tr('Столкновение целей, недоверие или нерешённый спор. Без добавления романтики.', 'Conflicting goals, distrust or an unresolved disagreement. No added romance.'),
+                anxious: tr('Неопределённость, тревожное ожидание или приближающаяся угроза. Без добавления романтики.', 'Uncertainty, anticipation or an approaching threat. No added romance.'),
+            },
+        });
         check(director, t('set_show_preview'), 'showCuePreview');
         const dice = group('Action Roll', '🎲', 'dice');
         const difficulty = select(dice, t('set_default_diff'), 'defaultDifficulty', ['easy','normal','hard','epic','random'].map(key => [key, t('diff_' + key)]));

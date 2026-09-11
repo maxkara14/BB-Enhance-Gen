@@ -119,7 +119,7 @@
 
 /* Custom direction textarea & button */
 .bb-eg-custom-textarea {
-    width: 100%; min-width: 220px; box-sizing: border-box;
+    width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
     background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 6px; padding: 8px 10px;
     color: #e5e7eb; font-size: 12px; font-family: 'Georgia', serif;
@@ -129,7 +129,7 @@
 .bb-eg-custom-textarea::placeholder { color: #6b7280; font-style: italic; }
 .bb-eg-custom-textarea:focus { outline: none; border-color: rgba(212, 175, 55, 0.5); }
 .bb-eg-custom-next-btn {
-    width: 100%; margin-top: 6px;
+    width: 100%; min-width: 0; box-sizing: border-box; margin-top: 6px;
     background: rgba(212, 175, 55, 0.12); border: 1px solid rgba(212, 175, 55, 0.4);
     color: #d4af37; padding: 7px 10px; border-radius: 6px;
     cursor: pointer; font-size: 11px; font-family: 'Georgia', serif;

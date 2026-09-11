@@ -309,6 +309,49 @@ await test('event flyout opens sideways without moving toolbar items and remains
     document.getElementById('bb-eg-btn-director').click();toggle.click();assert(!popup.classList.contains('show'),'toolbar collapse closes flyout');
 });
 
+await test('custom direction fits the flyout and preserves text through target selection', async () => {
+    const toggle=document.getElementById('bb-eg-toggle-btn');
+    if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))toggle.click();
+    await new Promise(resolve=>setTimeout(resolve,240));
+    document.getElementById('bb-eg-btn-director').click();
+    await new Promise(resolve=>setTimeout(resolve,200));
+    const popup=document.getElementById('bb-eg-popup');popup.querySelector('[data-vibe=dir_custom]').click();
+    await new Promise(resolve=>setTimeout(resolve,200));
+    const field=popup.querySelector('textarea');
+    const fits=()=>{
+        const box=popup.getBoundingClientRect(),input=popup.querySelector('textarea').getBoundingClientRect();
+        assert(popup.scrollWidth<=popup.clientWidth,'no horizontal scrollbar');
+        assert(input.left>=box.left&&input.right<=box.right,'input fits popup');
+        assert(box.left>=0&&box.right<=innerWidth&&box.top>=0&&box.bottom<=innerHeight,'custom popup fits viewport');
+    };
+    fits();assert(document.activeElement===field,'custom input focused');
+    const value='A mysterious visitor arrives. '+ 'LongDirection'.repeat(50);
+    field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));fits();
+    popup.querySelector('.bb-eg-custom-next-btn').click();
+    assert(popup.querySelectorAll('.bb-eg-target-btn').length===2,'both targets preserved');
+    popup.querySelector('.bb-eg-back-btn').click();
+    assert(popup.querySelector('textarea').value===value,'text preserved on back');fits();
+    popup.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));toggle.click();
+});
+await test('direction help explains scope and updates for every value in both languages', async () => {
+    for(const language of ['ru','en']) {
+        const languageSelect=document.querySelector('[data-setting=uiLanguage]');languageSelect.value=language;languageSelect.dispatchEvent(new Event('change'));
+        for(const key of ['eventIntensity','tensionType']) {
+            const select=document.querySelector(`[data-setting=${key}]`),note=document.getElementById(select.getAttribute('aria-describedby'));
+            assert(note&&select.parentElement.nextElementSibling===note,'associated help below field');
+            const descriptions=new Set();
+            for(const option of select.options) {
+                select.value=option.value;select.dispatchEvent(new Event('change'));
+                assert(settings[key]===option.value,'setting still saved');
+                assert(note.textContent.includes('Event Director'),'tool scope explained');
+                if(key==='tensionType')assert(note.textContent.includes(language==='ru'?'Только для события «Напряжение»':'Only for the Tension event'),'tension scope explicit');
+                descriptions.add(note.textContent);
+            }
+            assert(descriptions.size===3,'each option explained');
+        }
+    }
+});
+
 window.__showSettings = async () => {
     await reset();document.getElementById('results').hidden=true;
     const language=document.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
@@ -323,6 +366,19 @@ window.__showMenu = async () => {
     await reset();document.getElementById('results').hidden=true;
     if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))document.getElementById('bb-eg-toggle-btn').click();
     await new Promise(resolve=>setTimeout(resolve,240));document.getElementById('bb-eg-btn-director').click();await new Promise(resolve=>setTimeout(resolve,200));
+};
+window.__showCustom = async () => {
+    await window.__showSettings();
+    document.querySelector('#bb-eg-settings-container .inline-drawer-content').style.display='none';
+    await window.__showMenu();document.querySelector('#bb-eg-popup [data-vibe=dir_custom]').click();
+    const field=document.querySelector('#bb-eg-popup textarea');field.value='';field.dispatchEvent(new Event('input',{bubbles:true}));
+};
+window.__showDirection = async () => {
+    await window.__showSettings();
+    const root=document.getElementById('bb-eg-settings-container');
+    root.querySelector('[data-section=connection]').open=false;root.querySelector('[data-section=direction]').open=true;
+    document.getElementById('send_form').hidden=true;
+    root.querySelector('[data-setting=eventIntensity]').parentElement.scrollIntoView();
 };
 window.__showPreview = async () => {
     await reset();
