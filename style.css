@@ -303,3 +303,36 @@
 /* History button accent */
 .bb-eg-btn-history { border-top: 1px dashed rgba(255,255,255,0.08); margin-top: 4px; color: #a78bfa; }
 .bb-eg-btn-history:hover { color: #c084fc; border-color: rgba(192, 132, 252, 0.4); }
+
+/* Responsive, keyboard-accessible preview/settings shared by all operations. */
+.bb-eg-dialog { padding: 12px; box-sizing: border-box; }
+.bb-eg-dialog .bb-modal-box { max-height: calc(100dvh - 24px); overflow-y: auto; box-sizing: border-box; }
+.bb-eg-dialog .bb-eg-wide { width: 900px; }
+.bb-eg-dialog .bb-preview-actions { flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.bb-eg-dialog .bb-preview-actions button { min-height: 40px; min-width: 110px; }
+.bb-eg-field { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
+.bb-eg-field textarea { width: 100%; min-height: 120px; resize: vertical; box-sizing: border-box; }
+.bb-eg-status { white-space: pre-wrap; color: #e5c07b; }
+.bb-eg-option { display: block; width: 100%; text-align: left; white-space: pre-wrap; padding: 12px; margin: 8px 0; color: inherit; background: rgba(128,128,128,.1); border: 1px solid #83755b; border-radius: 6px; cursor: pointer; }
+.bb-eg-settings { padding: 10px; }
+.bb-eg-settings fieldset { min-width: 0; border: 1px solid #7775; border-radius: 6px; margin: 10px 0; padding: 10px; }
+.bb-eg-settings legend { font-weight: bold; }
+.bb-eg-settings summary { cursor: pointer; }
+.bb-eg-settings .checkbox_label { margin: 8px 0; }
+.bb-eg-settings input, .bb-eg-settings select { max-width: 100%; }
+.bb-eg-dialog .bb-dice-scene { margin-top: 40px; }
+#bb-enhance-wrapper [hidden] { display: none !important; }
+#bb-enhance-wrapper button:disabled, .bb-eg-dialog button:disabled { opacity: .5; cursor: wait; }
+#bb-enhance-wrapper button:focus-visible, .bb-eg-dialog :focus-visible { outline: 2px solid #d4af37; outline-offset: 3px; }
+#bb-enhance-toolbar { max-height: 80dvh; overflow-y: auto; max-width: calc(100vw - 32px); visibility: hidden; }
+#bb-enhance-toolbar.expanded { visibility: visible; }
+#bb-enhance-toolbar .bb-eg-popup { position: static; width: auto; min-width: 0; margin-top: 8px; display: none; }
+#bb-enhance-toolbar .bb-eg-popup.show { display: block; }
+@media (max-width: 600px) {
+    .bb-eg-dialog .bb-modal-box { padding: 14px; max-width: 100%; }
+    .bb-eg-dialog .bb-modal-title { letter-spacing: 1px; }
+    .bb-eg-dialog .bb-preview-actions { flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #bb-enhance-wrapper *, .bb-eg-dialog * { animation: none !important; transition: none !important; }
+}

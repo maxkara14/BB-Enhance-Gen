@@ -1,7 +1,10 @@
+import { GenerationError, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream } from './core.js';
+import { openModal, textField } from './ui.js';
+
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.1.4';
+    const VERSION = '1.2.0';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -36,30 +39,25 @@
 
         dir_custom: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Follow this NARRATIVE DIRECTION from the author:\n"""{{customDirection}}"""\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. If the author's direction names {{user}}, treat that named person as the player/protagonist from the persona block, not as a newly invented NPC.\n3. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n4. Follow the author's direction faithfully. Interpret it as a creative instruction for the next story beat.\n5. Use the current location, characters, and objects explicitly.\n6. STRICT IN-CHARACTER RULE: All characters must react according to their established personalities.\n7. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
-        ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}""" (If empty, assume user wants to travel away from their current location)\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in Russian).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Keep the "hook" descriptions VERY SHORT.\n4. Output STRICTLY as a raw JSON object starting with { and ending with }.\n5. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (Russian)", "hook": "Краткая причина.", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`,
+        ft_analyzer: `<task>\nAnalyze the current roleplay context, character locations, and the user's intended action to determine if the user ({{user}}) can use Fast Travel, and suggest 3 destinations.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nUser's Intended Action: """{{input}}""" (If empty, assume user wants to travel away from their current location)\n</context>\n\n<rules>\n1. If the user is in battle, an important active dialogue, a lesson, or physically restrained, set "can_travel" to false and provide a "lock_reason" (in the requested output language).\n2. If the user is free to go, set "can_travel" to true and provide EXACTLY 3 logical "destinations" based on the world, time, and motives.\n3. Keep the "hook" descriptions VERY SHORT.\n4. Output STRICTLY as a raw JSON object starting with { and ending with }.\n5. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_travel": true,\n  "lock_reason": "",\n  "destinations": [\n    { "name": "Название (localized)", "hook": "Краткая причина.", "time_cost": "Время (напр. 15 мин)" }\n  ]\n}\n</format>`,
 
-        ts_analyzer: `<task>\nAnalyze the current roleplay context and determine if the user ({{user}}) can execute a TIME SKIP. Suggest 3 chapter-like skip options.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\n</context>\n\n<rules>\n1. If the characters are mid-battle, in an active conversation, or in a critical immediate situation, set "can_skip" to false and provide a "lock_reason" (in Russian).\n2. If the scene is winding down, transitioning, or free to skip, set "can_skip" to true and provide EXACTLY 3 "options".\n3. Option types: Short skip (hours/next day), Medium skip (days/weekend), Long skip (weeks/contextual).\n4. Keep the "summary" descriptions VERY SHORT.\n5. Output STRICTLY as a raw JSON object starting with { and ending with }.\n6. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_skip": true,\n  "lock_reason": "",\n  "options": [\n    { "time": "Завтра утром", "title": "Глава: Новое начало", "summary": "Персонажи просыпаются и готовы к новому дню." }\n  ]\n}\n</format>`
-    };
-
-    const BOT_CUES = {
-        dir_disaster: `\n\n> 💥 **Событие: ОПАСНОСТЬ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT. CRITICAL RULE: Stay STRICTLY In-Character (IC). The event must make logical sense for the setting, and characters' reactions must perfectly match their established personalities. Do not resolve the tension yet.\n</system_note>\n</span>`,
-        dir_blessing: `\n\n> 🎁 **Событие: УДАЧА** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a BLESSING or UNEXPECTED LUCK for the user. CRITICAL RULE: Stay STRICTLY In-Character (IC). If another character provides help, they must do so in a way that fits their exact personality and dynamic with the user. The event must make sense in this world.\n</system_note>\n</span>`,
-        dir_tension: `\n\n> ❤️ **Событие: НАПРЯЖЕНИЕ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, focus heavily on TENSION. CRITICAL RULE: Analyze the relationship status. If characters are romantically involved, escalate passion. If NOT involved, create a sudden breathless moment of deep interest, lingering eye contact, or accidental touch. Stay STRICTLY In-Character.\n</system_note>\n</span>`,
-        dir_absurd: `\n\n> 🃏 **Событие: АБСУРД** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce an ABSURD or COMEDIC SITUATION (e.g., clumsy mistake, misunderstanding). CRITICAL RULE: Stay STRICTLY In-Character (IC). Do not break a character's core personality for a joke; show how they logically react to the absurdity based on their persona.\n</system_note>\n</span>`,
-        dir_tragedy: `\n\n> 💀 **Событие: ТРАГЕДИЯ** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: In your next response, introduce a TRAGIC EVENT or severe emotional damage. A terrible revelation, an irreversible mistake, a painful loss, or deep despair. Characters must react STRICTLY In-Character. Do not resolve it easily.\n</system_note>\n</span>`,
-        
-        roll_crit_success: `\n\n> 🎲 **КРИТИЧЕСКИЙ УСПЕХ (20)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL SUCCESS (Rolled 20!). The user's action succeeded brilliantly. Describe an absolute triumph with an unexpected bonus. CRITICAL RULE: NPCs must react STRICTLY In-Character (e.g., deep shock, immense respect, complete defeat).\n</system_note>\n</span>`,
-        roll_success: `\n\n> 🎲 **УСПЕХ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — SUCCESS (Roll: {{roll}} vs DC: {{dc}}). The user's action was successful. Describe how their plan worked perfectly. CRITICAL RULE: Ensure NPC reactions are logical and STRICTLY In-Character.\n</system_note>\n</span>`,
-        roll_failure: `\n\n> 🎲 **ПРОВАЛ ({{roll}} из {{dc}})** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — FAILURE (Roll: {{roll}} vs DC: {{dc}}). The user's action failed. Describe a fiasco (plan collapsed, weapon slipped). CRITICAL RULE: NPCs must react STRICTLY In-Character to this failure (e.g., an enemy triumphs, a mentor sighs).\n</system_note>\n</span>`,
-        roll_crit_failure: `\n\n> 🎲 **КРИТИЧЕСКИЙ ПРОВАЛ (1)** | *{{question}}* <span style="display:none;">\n<system_note>\nDICE OF FATE — CRITICAL FAILURE (Rolled 1!). The user's action turned into an absolute catastrophe. The situation got 10 times worse. CRITICAL RULE: Describe the worst logical outcome. Characters must react STRICTLY In-Character (e.g., intense anger, cruel mockery).\n</system_note>\n</span>`,
-
-        ft_travel_specific: `\n\n> 📍 **Путешествие:** *{{loc}}* ⏳ ({{time}}) <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user has decided to Fast Travel to "{{loc}}". Reason: "{{hook}}". Time passed: {{time}}. In your next response, smoothly transition the narrative. Describe the user arriving at the destination, close the previous scene, and initiate a new event there.\n</system_note>\n</span>`,
-        ft_travel_surprise: `\n\n> ⚡ **Путешествие:** *Шаг в неизвестность (Случайное событие)* <span style="display:none;">\n<system_note>\nFAST TRAVEL EVENT: The user wanders off randomly (Surprise Me). In your next response, smoothly transition the narrative. Describe the user leaving their current spot and stumbling into an UNEXPECTED ENCOUNTER, interesting event, or obstacle in a new location. Ensure it makes logical sense.\n</system_note>\n</span>`,
-
-        ts_specific: `\n\n> ⏩ **ПРОМОТКА ВРЕМЕНИ:** *{{title}}* ⏳ ({{time}}) <span style="display:none;">\n<system_note>\nTIME SKIP EVENT: Execute a logical TIME SKIP forward by {{time}}. New Chapter: "{{title}}". Summary of situation: "{{summary}}". In your next response, seamlessly transition the narrative to the start of this new timeframe, establish the setting, and initiate the new scene.\n</system_note>\n</span>`
+        ts_analyzer: `<task>\nAnalyze the current roleplay context and determine if the user ({{user}}) can execute a TIME SKIP. Suggest 3 chapter-like skip options.\n</task>\n\n<context>\nRecent chat: """{{lastMessage}}"""\nAuthor intention: """{{input}}"""\n</context>\n\n<rules>\n1. If the characters are mid-battle, in an active conversation, or in a critical immediate situation, set "can_skip" to false and provide a "lock_reason" (in the requested output language).\n2. If the scene is winding down, transitioning, or free to skip, set "can_skip" to true and provide EXACTLY 3 "options".\n3. Option types: Short skip (hours/next day), Medium skip (days/weekend), Long skip (weeks/contextual).\n4. Keep the "summary" descriptions VERY SHORT.\n5. Output STRICTLY as a raw JSON object starting with { and ending with }.\n6. DO NOT wrap the output in markdown code blocks.\n</rules>\n\n<format>\n{\n  "can_skip": true,\n  "lock_reason": "",\n  "options": [\n    { "time": "Завтра утром", "title": "Глава: Новое начало", "summary": "Персонажи просыпаются и готовы к новому дню." }\n  ]\n}\n</format>`
     };
 
     const DEFAULT_SETTINGS = {
+        requestTimeout: 120,
+        fallbackToMain: true,
+        expansion: '2',
+        preserveDialogue: false,
+        narrativePerson: 'preserve',
+        outputLanguage: 'auto',
+        contextDepth: 8,
+        contextBudget: 16000,
+        eventIntensity: 'noticeable',
+        tensionType: 'romantic',
+        manualRoll: false,
+        skipAnimation: false,
+        uiLanguage: 'auto',
         btnEnhance: true,
         btnImprove: true,
         btnDirector: true,
@@ -193,10 +191,9 @@
     };
 
     function currentLang() {
-        // UI language is auto-detected via navigator.language. No manual override —
-        // most user-facing strings are localized, but bot-facing prompts/cues stay English.
-        const nav = (typeof navigator !== 'undefined' && navigator.language) || 'en';
-        return nav.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+        const choice = SillyTavern.getContext().extensionSettings?.[MODULE_NAME]?.uiLanguage;
+        if (choice === 'ru' || choice === 'en') return choice;
+        return (navigator.language || 'en').toLowerCase().startsWith('ru') ? 'ru' : 'en';
     }
     function t(key) {
         const lang = currentLang();
@@ -210,6 +207,206 @@
     let isPopupOpen = false;
     let customApiWarnedThisSession = false;
     let pendingBotResponse = false;
+    let activeOperation = null;
+    let mainGenerating = false;
+    let chatEpoch = 0;
+    let undoDraft = null;
+    let toolbarEvents = null;
+
+    function tr(ru, en) { return currentLang() === 'ru' ? ru : en; }
+
+    function chatKey() {
+        const ctx = SillyTavern.getContext();
+        const id = ctx.getCurrentChatId?.() ?? ctx.chatId;
+        if (id === undefined || id === null) return null;
+        const owner = ctx.groupId != null ? ['group', ctx.groupId] : ['character', ctx.characters?.[ctx.characterId]?.avatar ?? ctx.characterId];
+        return JSON.stringify([...owner, id]);
+    }
+
+    function captureOperation() {
+        return { key: chatKey(), epoch: chatEpoch, chat: SillyTavern.getContext().chat,
+            input: document.getElementById('send_textarea')?.value || '', controller: new AbortController(), mainRequest: false };
+    }
+
+    function assertCurrent(op, checkDraft = false) {
+        op.controller.signal.throwIfAborted();
+        if (!op.key || op.key !== chatKey() || op.epoch !== chatEpoch || op.chat !== SillyTavern.getContext().chat) throw new GenerationError('stale_chat');
+        if (checkDraft && (document.getElementById('send_textarea')?.value || '') !== op.input) throw new GenerationError('draft_changed');
+    }
+
+    function cancelOperation() {
+        const op = activeOperation;
+        if (!op) return;
+        op.controller.abort(new DOMException('Cancelled', 'AbortError'));
+        updateBusyBadge();
+    }
+
+    function errorText(error) {
+        const messages = {
+            stale_chat: ['Чат изменился. Запустите действие заново.', 'Chat changed. Start the action again.'],
+            draft_changed: ['Черновик изменился. Скопируйте нужный результат или начните заново.', 'Draft changed. Copy the result you need or start again.'],
+            invalid_json: ['Модель вернула неверный формат вариантов. Повторите запрос.', 'The model returned invalid options. Retry the request.'],
+            stream_error: ['Ответ оборвался. Неполный текст не применён.', 'The response was interrupted. Partial text was not applied.'],
+            truncated: ['Достигнут лимит ответа. Увеличьте лимит и повторите.', 'Response limit reached. Increase the limit and retry.'],
+            empty_response: ['Модель не вернула текст.', 'The model returned no text.'],
+            provider_error: ['Провайдер не смог завершить ответ.', 'The provider could not complete the response.'],
+            timeout: ['Истекло время ожидания. Повторите запрос.', 'Request timed out. Retry the request.'],
+            busy: ['SillyTavern уже генерирует ответ.', 'SillyTavern is already generating.'],
+            no_action: ['Напишите действие или выберите чат с сообщением игрока.', 'Write an action or select a chat with a player message.'],
+            unsupported: ['В этой версии SillyTavern нет нужной функции генерации.', 'This SillyTavern version lacks the required generation function.'],
+            no_connection: ['Основная модель не подключена.', 'The main model is not connected.'],
+            not_sent: ['SillyTavern не принял сообщение. Черновик восстановлен.', 'SillyTavern did not accept the message. Your draft was restored.'],
+        };
+        if (error?.name === 'AbortError') return tr('Отменено.', 'Cancelled.');
+        const pair = messages[error?.code];
+        if (pair) return tr(...pair);
+        if (Number.isInteger(error?.status)) return tr('Ошибка API: HTTP ', 'API error: HTTP ') + error.status;
+        return tr('Не удалось выполнить запрос. Проверьте подключение и настройки API.', 'Request failed. Check the connection and API settings.');
+    }
+
+    function writingRules(type) {
+        const s = getSettings();
+        const rules = [];
+        if (type === 'enhance') rules.push(`Expand to approximately ${['1.5', '2', '3'].includes(s.expansion) ? s.expansion : '2'} times the original draft length. Avoid repetition.`);
+        if (s.preserveDialogue) rules.push('Preserve all existing spoken dialogue verbatim.');
+        const persons = { preserve: 'Preserve the draft narrative person; if there is no draft, match recent player messages.', first: 'Write player narration in the first person.', third: 'Write player narration in the third person.' };
+        rules.push(persons[s.narrativePerson] || persons.preserve);
+        const languages = { auto: 'Use the language of the draft or, if empty, the recent chat.', ru: 'Write the output strictly in Russian.', en: 'Write the output strictly in English.' };
+        if (type === 'ft_analyzer' || type === 'ts_analyzer') return languages[s.outputLanguage] || languages.auto;
+        rules.push(languages[s.outputLanguage] || languages.auto);
+        return rules.join('\n');
+    }
+
+    function directionRules(type) {
+        const s = getSettings();
+        const intensity = { subtle: 'Use only a subtle hint; do not force a major scene change.', noticeable: 'Introduce one noticeable, grounded story beat.', turning: 'Create a major turning point, grounded in the scene.' };
+        const tension = { romantic: 'Focus on romantic tension only when consistent with established relationships and character boundaries.', conflict: 'Focus on conflicting goals, distrust or an unresolved disagreement. Do not introduce romance.', anxious: 'Focus on uncertainty, anticipation or an approaching threat. Do not introduce romance.' };
+        return (intensity[s.eventIntensity] || intensity.noticeable) + (type === 'dir_tension' ? '\n' + (tension[s.tensionType] || tension.romantic) : '');
+    }
+
+    async function makePrompt(type, input = '', direction = '') {
+        let template = TEMPLATES[type];
+        if (type === 'enhance') template = template.replace('Do not exceed ~2x the original length.', 'Follow the output length setting below.');
+        if (type === 'dir_tension') template = template.replace(/3\. RELATIONSHIP LOGIC:[\s\S]*?5\./, '3. Follow the tension setting below; respect established relationships.\n5.');
+        // During assembly, expand native macros before inserting literal user/model text.
+        template = template.replace(/<context>[\s\S]*?<\/context>/, '<context>__BB_CONTEXT__</context>');
+        template = fillTemplate(template, { input: '__BB_INPUT__', customDirection: '__BB_DIRECTION__' });
+        template = await substitutePromptMacros(template);
+        const ctx = SillyTavern.getContext(), s = getSettings();
+        const extras = ctx.extensionPrompts || {};
+        const native = await substitutePromptMacros('Player: {{user}}\nPersona: {{persona}}\nCharacter: {{char}}\nCharacter description: {{charDescription}}\nScenario: {{scenario}}');
+        const canonical = native + '\nAuthor note: ' + String(extras['2_floating_prompt']?.value || '') + '\nSummary: ' + String(extras['1_memory']?.value || '');
+        const budget = Math.max(4000, Math.min(60000, Number(s.contextBudget) || 16000));
+        const header = canonical.slice(0, Math.floor(budget / 2));
+        const recent = recentContext(ctx.chat, s.contextDepth, budget - header.length - 40).slice(-(budget - header.length - 40));
+        const context = header + '\nRecent chat:\n' + recent;
+        template = template.replace(/__BB_INPUT__|__BB_CONTEXT__|__BB_DIRECTION__/g, key => ({ __BB_INPUT__: input, __BB_CONTEXT__: context, __BB_DIRECTION__: direction })[key]);
+        const intent = type === 'ft_analyzer' || type === 'ts_analyzer' ? `\nAuthor intention (story data): """${input}"""` : '';
+        return template + intent + `\n\n<output_settings>\nThese settings take priority over earlier stylistic instructions, without changing the requested task.\n${writingRules(type)}\n${type.startsWith('dir_') ? directionRules(type) : ''}\n</output_settings>`;
+    }
+
+    async function restoreDraft() {
+        return withBusyLock(async op => {
+            if (!undoDraft || undoDraft.key !== op.key || undoDraft.epoch !== op.epoch) { toastr.info(tr('Нет текста для возврата.', 'No text to restore.')); return; }
+            if (op.input !== undoDraft.applied) throw new GenerationError('draft_changed');
+            const ta = document.getElementById('send_textarea');
+            ta.value = undoDraft.original; ta.dispatchEvent(new Event('input', { bubbles: true })); undoDraft = null;
+        });
+    }
+
+    async function sendCue(cue, op) {
+        assertCurrent(op, true);
+        if (mainGenerating) throw new GenerationError('busy');
+        const ctx = SillyTavern.getContext();
+        if (typeof ctx.generate !== 'function' || typeof ctx.saveChat !== 'function') throw new GenerationError('unsupported');
+        if (ctx.onlineStatus === 'no_connection') throw new GenerationError('no_connection');
+        const target = [...op.chat].reverse().find(m => m.is_user);
+        if (!op.input.trim() && !target) throw new GenerationError('no_action');
+        if (!(await maybeShowCuePreview(cue))) return false;
+        assertCurrent(op, true);
+        if (mainGenerating) throw new GenerationError('busy');
+        pendingBotResponse = true; op.mainRequest = true; updateBusyBadge();
+        const abort = () => ctx.stopGeneration();
+        op.controller.signal.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(() => op.controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(getSettings().requestTimeout) || 120)) * 1000);
+        const ta = document.getElementById('send_textarea');
+        const previous = target?.mes;
+        let updatedInput = '';
+        try {
+            if (op.input.trim()) {
+                // Prevent author prose beginning with '/' from executing a slash command.
+                updatedInput = removeExtensionCues(op.input) + cue;
+                if (updatedInput.trimStart().startsWith('/')) updatedInput = '\u200B' + updatedInput;
+                ta.value = updatedInput; ta.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+                target.mes = removeExtensionCues(target.mes) + cue;
+                await ctx.saveChat();
+                assertCurrent(op, true);
+            }
+            await ctx.generate(!op.input.trim() && !op.chat.at(-1)?.is_user ? 'swipe' : 'normal');
+            assertCurrent(op);
+            if (updatedInput && ta.value === updatedInput) throw new GenerationError('not_sent');
+            return true;
+        } catch (error) {
+            if (op.key === chatKey() && op.epoch === chatEpoch) {
+                if (updatedInput && ta.value === updatedInput) { ta.value = op.input; ta.dispatchEvent(new Event('input', { bubbles: true })); }
+                if (!updatedInput && target && target.mes === removeExtensionCues(previous) + cue) { target.mes = previous; await ctx.saveChat(); }
+            }
+            throw op.controller.signal.aborted ? op.controller.signal.reason : error;
+        } finally {
+            clearTimeout(timeout);
+            op.controller.signal.removeEventListener('abort', abort); op.mainRequest = false; pendingBotResponse = false; mainGenerating = false; updateBusyBadge();
+        }
+    }
+
+    function makeCue(label, instruction) {
+        // These values will become message HTML: never interpolate raw model/user markup.
+        return `\n\n> ${escapeHtml(label)} <span style="display:none;">\n<system_note>\n${escapeHtml(instruction)}\n</system_note>\n</span>`;
+    }
+
+    async function handleTransition(kind) {
+        return withBusyLock(async op => {
+            let refresh = true;
+            while (refresh) {
+                assertCurrent(op);
+                const prompt = await makePrompt(kind === 'ft' ? 'ft_analyzer' : 'ts_analyzer', op.input);
+                const data = parseTransition(await generateEnhanceFast(prompt, undefined, 'context', op), kind);
+                assertCurrent(op);
+                const view = openModal(kind === 'ft' ? t('ft_title') : t('ts_title'), { signal: op.controller.signal, cancelLabel: t('diff_cancel') });
+                const note = document.createElement('p'); note.textContent = data.allowed ? tr('Выберите вариант или задайте свой.', 'Choose an option or write your own.') : data.reason; view.body.append(note);
+                const title = textField(view.body, kind === 'ft' ? tr('Место', 'Destination') : tr('Глава', 'Chapter'));
+                const time = textField(view.body, tr('Через сколько / время в пути', 'Time skip / travel time'));
+                const summary = textField(view.body, tr('Направление сцены', 'Scene direction'), '', true);
+                for (const field of [title, time, summary]) { field.required = true; field.maxLength = 1200; }
+                for (const option of data.options) {
+                    const card = document.createElement('button'); card.type = 'button'; card.className = 'bb-eg-option';
+                    card.textContent = `${option.title} · ${option.time}\n${option.summary}`;
+                    card.onclick = () => { title.value = option.title; time.value = option.time; summary.value = option.summary; title.focus(); };
+                    view.body.insertBefore(card, title.parentElement);
+                }
+                let override;
+                if (!data.allowed) {
+                    const label = document.createElement('label'); override = document.createElement('input'); override.type = 'checkbox';
+                    label.append(override, document.createTextNode(tr(' Всё равно выполнить переход по моему указанию', ' Override the warning and follow my direction'))); view.body.append(label);
+                }
+                view.button(tr('Обновить варианты', 'Refresh options'), () => view.close('refresh'));
+                if (kind === 'ft' && data.allowed) view.button(tr('Случайное событие', 'Surprise me'), () => view.close({ surprise: true }));
+                view.button(tr('Применить переход', 'Apply transition'), () => {
+                    if (override && !override.checked) { view.status.textContent = tr('Подтвердите авторское решение.', 'Confirm the override.'); return; }
+                    const fields = [title, time, summary];
+                    for (const field of fields) { if (!field.value.trim() || field.value.trim().length > 1200 || !field.reportValidity()) { field.focus(); return; } }
+                    view.close({ title: title.value.trim(), time: time.value.trim(), summary: summary.value.trim() });
+                }, true);
+                const selected = await view.result;
+                refresh = selected === 'refresh';
+                if (refresh) continue;
+                if (!selected) return;
+                assertCurrent(op, true);
+                const instruction = selected.surprise ? 'FAST TRAVEL: Move to a logical new location and introduce an unexpected encounter.' : `${kind === 'ft' ? 'FAST TRAVEL' : 'TIME SKIP'}: ${selected.title}. Time passed: ${selected.time}. Author direction: ${selected.summary}. Close the previous scene smoothly and establish the new scene. Keep characters in character.`;
+                await sendCue(makeCue((kind === 'ft' ? '📍 ' : '⏩ ') + (selected.title || tr('Случайное событие', 'Surprise me')), instruction), op);
+            }
+        });
+    }
 
     // === UTILS ===
     function escapeHtml(str) {
@@ -224,34 +421,12 @@
     function escapeRegExp(str) {
         return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
-    function buildRecentContext() {
-        const ctx = SillyTavern.getContext();
-        const chat = ctx.chat;
-        if (!chat || chat.length === 0) return '';
-        return chat.slice(-8).map(m => `${m.name}: ${m.mes}`).join('\n\n');
-    }
+
     async function substitutePromptMacros(promptRaw) {
         const ctx = SillyTavern.getContext();
-        let finalPrompt = promptRaw;
-
-        if (ctx && typeof ctx.substituteParams === 'function') {
-            finalPrompt = await ctx.substituteParams(promptRaw);
-        // @ts-ignore
-        } else if (typeof window.substituteParams === 'function') {
-            // @ts-ignore
-            finalPrompt = await window.substituteParams(promptRaw);
-        // @ts-ignore
-        } else if (typeof window.substituteParamsExtended === 'function') {
-            // @ts-ignore
-            finalPrompt = await window.substituteParamsExtended(promptRaw);
-        }
-
-        if (/\{\{[^}]+\}\}/.test(finalPrompt)) {
-            console.warn('[BB Enhance] Some macros were not substituted:', finalPrompt.match(/\{\{[^}]+\}\}/g));
-        }
-
-        console.debug('[BB Enhance] Final prompt sent to generation:', finalPrompt);
-        return finalPrompt;
+        if (typeof ctx.substituteParams !== 'function') throw new GenerationError('unsupported');
+        // Never log chat/persona/prompt contents, including in debug output.
+        return ctx.substituteParams(promptRaw);
     }
     function stripLeadingUserName(text) {
         const ctx = SillyTavern.getContext();
@@ -276,73 +451,39 @@
         if (type === 'dir_custom') customDirectorText = '';
     }
     async function withBusyLock(fn) {
-        if (isBusy) {
-            // @ts-ignore
-            toastr.info(t('toast_busy'), 'BB Enhance');
-            return;
+        if (isBusy || mainGenerating || (SillyTavern.getContext().streamingProcessor && !SillyTavern.getContext().streamingProcessor.isFinished && !SillyTavern.getContext().streamingProcessor.isStopped)) {
+            toastr.info(t('toast_busy'), 'BB Enhance'); return;
         }
-        isBusy = true;
-        try { return await fn(); } finally { isBusy = false; }
+        const op = captureOperation();
+        if (!op.key) { toastr.info(errorText(new GenerationError('no_action')), 'BB Enhance'); return; }
+        activeOperation = op; isBusy = true; updateBusyBadge();
+        try { return await fn(op); }
+        catch (error) {
+            if (error?.name !== 'AbortError') toastr.error(errorText(error), 'BB Enhance');
+        } finally {
+            op.controller.abort(new DOMException('Finished', 'AbortError'));
+            if (activeOperation === op) activeOperation = null;
+            isBusy = false; pendingBotResponse = false; updateBusyBadge();
+        }
     }
-    function loadRollHistory() {
-        try { const raw = localStorage.getItem(HISTORY_KEY); if (!raw) return [];
-            const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; }
-        catch (_) { return []; }
+    function loadRollHistory(legacy = false) {
+        try {
+            const storage = legacy ? localStorage : SillyTavern.getContext().accountStorage;
+            const key = legacy ? HISTORY_KEY : HISTORY_KEY + ':' + chatKey();
+            const parsed = JSON.parse(storage?.getItem(key) || '[]');
+            return Array.isArray(parsed) ? parsed.filter(h => h && typeof h.question === 'string' && Number.isInteger(h.roll) && h.roll >= 1 && h.roll <= 20 && Number.isInteger(h.dc)).slice(0, HISTORY_MAX) : [];
+        } catch { return []; }
     }
     function saveRollHistory(entry) {
-        try { const history = loadRollHistory(); history.unshift(entry);
-            while (history.length > HISTORY_MAX) history.pop();
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-        } catch (e) { console.warn('[BB Enhance] Cannot save roll history:', e); }
-    }
-    function clearRollHistory() { try { localStorage.removeItem(HISTORY_KEY); } catch (_) {} }
-    function fadeOutAndRemove(overlay) {
-        overlay.style.opacity = '0';
-        setTimeout(() => overlay.remove(), 400);
-    }
-
-    /**
-     * Collapse whitespace left over by regex-based cleanups:
-     *  - normalize CRLF/CR to LF
-     *  - strip trailing spaces/tabs at end of every line
-     *  - collapse 3+ consecutive newlines into exactly 2 (i.e. single blank line)
-     *  - strip leading/trailing blank lines
-     */
-    function tidyWhitespace(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/\r\n?/g, '\n')
-            .replace(/[ \t]+\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .replace(/^\s+|\s+$/g, '');
-    }
-
-    // === БЕЗОПАСНЫЙ ПАРСЕР JSON ===
-    function extractJSON(text) {
-        let str = String(text).trim();
-        str = str.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
-        
-        let start = str.indexOf('{');
-        let end = str.lastIndexOf('}');
-        
-        if (start === -1 || end === -1) {
-            throw new Error(`Модель не выдала JSON. Ответ: ${str.substring(0, 80)}...`);
-        }
-        
-        let jsonStr = str.substring(start, end + 1);
         try {
-            return JSON.parse(jsonStr);
-        } catch (e) {
-            throw new Error(`Ошибка чтения формата: ${e.message}`);
-        }
+            const history = [entry, ...loadRollHistory()].slice(0, HISTORY_MAX);
+            SillyTavern.getContext().accountStorage.setItem(HISTORY_KEY + ':' + chatKey(), JSON.stringify(history));
+        } catch { toastr.warning(tr('Не удалось сохранить историю бросков.', 'Could not save roll history.')); }
     }
+    function clearRollHistory() { SillyTavern.getContext().accountStorage.removeItem(HISTORY_KEY + ':' + chatKey()); }
 
     // === ФУНКЦИЯ УМНОЙ ОЧИСТКИ (ЛАСТИК) ===
-    function removeExtensionCues(text) {
-        if (!text) return text;
-        const regex = /(?:\r?\n)*> (?:💥|🎁|❤️|🃏|💀|📝|⏩|🎲|📍|⚡).*?<span style="display:none;">[\s\S]*?<\/span>\s*$/;
-        return text.replace(regex, '').trim();
-    }
+    function removeExtensionCues(text) { return stripCues(text); }
 
     function getSettings() {
         const { extensionSettings } = SillyTavern.getContext();
@@ -382,39 +523,14 @@
      * @param {string} defaultDifficulty Difficulty highlighted as default.
      * @returns {Promise<string|null>} chosen difficulty or null if cancelled.
      */
-    function pickDifficulty(defaultDifficulty) {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.className = 'bb-modal-overlay bb-diff-overlay';
-            overlay.style.opacity = '0';
-            const def = defaultDifficulty || 'random';
-            const opts = [
-                { key: 'easy',   label: t('diff_easy'),   dc: 8 },
-                { key: 'normal', label: t('diff_normal'), dc: 12 },
-                { key: 'hard',   label: t('diff_hard'),   dc: 16 },
-                { key: 'epic',   label: t('diff_epic'),   dc: 20 },
-                { key: 'random', label: t('diff_random'), dc: '10-16' },
-            ];
-            const btns = opts.map(o => `<button class="bb-diff-btn${o.key === def ? ' default' : ''}" data-key="${o.key}">${escapeHtml(o.label)} <span class="bb-diff-dc">DC ${o.dc}</span></button>`).join('');
-            overlay.innerHTML = `
-                <div class="bb-modal-box bb-diff-box">
-                    <div class="bb-modal-title">${escapeHtml(t('diff_title'))}</div>
-                    <div class="bb-diff-grid">${btns}</div>
-                    <button class="bb-modal-cancel" data-key="__cancel__">${escapeHtml(t('diff_cancel'))}</button>
-                </div>`;
-            document.body.appendChild(overlay);
-            requestAnimationFrame(() => overlay.style.opacity = '1');
-            const close = (val) => { fadeOutAndRemove(overlay); resolve(val); };
-            overlay.addEventListener('click', (ev) => {
-                if (ev.target === overlay) { close(null); return; }
-                // @ts-ignore
-                const btn = ev.target.closest('button[data-key]'); if (!btn) return;
-                const key = btn.getAttribute('data-key');
-                if (key === '__cancel__') return close(null);
-                try { const s = getSettings(); s.defaultDifficulty = key; SillyTavern.getContext().saveSettingsDebounced(); } catch (_) {}
-                close(key);
-            });
-        });
+    async function pickDifficulty(defaultDifficulty) {
+        const op = activeOperation;
+        const view = openModal(t('diff_title'), { signal: op.controller.signal, cancelLabel: t('diff_cancel') });
+        for (const key of ['easy', 'normal', 'hard', 'epic', 'random']) {
+            const dc = key === 'random' ? '10–16' : computeDC(key);
+            view.button(`${t('diff_' + key)} (DC ${dc})`, () => view.close(key), key === defaultDifficulty);
+        }
+        return view.result;
     }
 
     /**
@@ -423,100 +539,75 @@
      * @param {string} cue Full cue text (with HTML).
      * @returns {Promise<boolean>}
      */
-    function maybeShowCuePreview(cue) {
-        return new Promise((resolve) => {
-            const s = getSettings();
-            if (!s.showCuePreview) { resolve(true); return; }
-            const overlay = document.createElement('div');
-            overlay.className = 'bb-modal-overlay bb-preview-overlay';
-            overlay.style.opacity = '0';
-            overlay.innerHTML = `
-                <div class="bb-modal-box bb-preview-box">
-                    <div class="bb-modal-title">${escapeHtml(t('preview_title'))}</div>
-                    <div class="bb-preview-desc">${escapeHtml(t('preview_desc'))}</div>
-                    <pre class="bb-preview-code">${escapeHtml(cue)}</pre>
-                    <div class="bb-preview-actions">
-                        <button class="bb-modal-cancel" data-act="cancel">${escapeHtml(t('preview_cancel'))}</button>
-                        <button class="bb-modal-ok" data-act="ok">${escapeHtml(t('preview_send'))}</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(overlay);
-            requestAnimationFrame(() => overlay.style.opacity = '1');
-            const close = (val) => { fadeOutAndRemove(overlay); resolve(val); };
-            overlay.addEventListener('click', (ev) => {
-                if (ev.target === overlay) { close(false); return; }
-                // @ts-ignore
-                const btn = ev.target.closest('button[data-act]'); if (!btn) return;
-                close(btn.getAttribute('data-act') === 'ok');
-            });
-        });
+    async function maybeShowCuePreview(cue) {
+        if (!getSettings().showCuePreview) return true;
+        const view = openModal(t('preview_title'), { signal: activeOperation.controller.signal, cancelLabel: t('preview_cancel') });
+        const text = document.createElement('pre'); text.className = 'bb-preview-code'; text.textContent = cue; view.body.append(text);
+        view.button(t('preview_send'), () => view.close(true), true);
+        return (await view.result) === true;
     }
 
     /** Toggle a small busy badge on the 'E' toggle button while a bot response is pending. */
     function updateBusyBadge() {
         const toggle = document.getElementById('bb-eg-toggle-btn');
-        if (!toggle) return;
-        if (pendingBotResponse) toggle.classList.add('bb-busy');
-        else toggle.classList.remove('bb-busy');
+        toggle?.classList.toggle('bb-busy', isBusy || pendingBotResponse);
+        const stop = document.getElementById('bb-eg-stop');
+        if (stop) stop.hidden = !isBusy;
+        document.querySelectorAll('#bb-enhance-toolbar > button:not(#bb-eg-stop), #bb-eg-btn-director').forEach(btn => { btn.disabled = isBusy || mainGenerating; });
     }
 
     /** Show a modal with the latest roll history entries from localStorage. */
     function showRollHistory() {
-        const history = loadRollHistory();
-        const overlay = document.createElement('div');
-        overlay.className = 'bb-modal-overlay bb-history-overlay';
-        overlay.style.opacity = '0';
-        let body;
-        if (history.length === 0) {
-            body = `<div class="bb-history-empty">${escapeHtml(t('history_empty'))}</div>`;
-        } else {
-            body = '<div class="bb-history-list">' + history.map(h => {
-                const d = new Date(h.timestamp || Date.now());
-                const ts = d.toLocaleString();
-                return `<div class="bb-history-item">
-                    <div class="bb-history-meta"><span class="bb-history-ts">${escapeHtml(ts)}</span> <span class="bb-history-diff">${escapeHtml(h.difficulty || '')}</span></div>
-                    <div class="bb-history-q">${escapeHtml(h.question || '')}</div>
-                    <div class="bb-history-result">${escapeHtml(t('history_dc'))}: <b>${h.dc}</b> · ${escapeHtml(t('history_roll'))}: <b>${h.roll}</b> · ${escapeHtml(h.outcome || '')}</div>
-                </div>`;
-            }).join('') + '</div>';
-        }
-        overlay.innerHTML = `
-            <div class="bb-modal-box bb-history-box">
-                <div class="bb-modal-title">${escapeHtml(t('history_title'))}</div>
-                ${body}
-                <div class="bb-preview-actions">
-                    <button class="bb-modal-cancel" data-act="clear">${escapeHtml(t('history_clear'))}</button>
-                    <button class="bb-modal-ok" data-act="close">${escapeHtml(t('history_close'))}</button>
-                </div>
-            </div>`;
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.style.opacity = '1');
-        const close = () => fadeOutAndRemove(overlay);
-        overlay.addEventListener('click', (ev) => {
-            if (ev.target === overlay) { close(); return; }
-            // @ts-ignore
-            const btn = ev.target.closest('button[data-act]'); if (!btn) return;
-            const act = btn.getAttribute('data-act');
-            if (act === 'clear') { clearRollHistory(); close(); }
-            else close();
+        return withBusyLock(async op => {
+            const view = openModal(t('history_title'), { signal: op.controller.signal, cancelLabel: t('history_close') });
+            function render(legacy = false) {
+                view.body.replaceChildren();
+                const history = loadRollHistory(legacy);
+                if (!history.length) { view.status.textContent = t('history_empty'); return; }
+                view.status.textContent = legacy ? tr('Старая общая история — только чтение.', 'Legacy shared history — read only.') : '';
+                for (const h of history) {
+                    const item = document.createElement('p'); item.className = 'bb-history-item';
+                    item.textContent = `${new Date(h.timestamp || 0).toLocaleString()} · ${h.question}\n${h.roll} / DC ${h.dc} · ${h.outcomeKey ? t('outcome_' + h.outcomeKey) : String(h.outcome || '')}`; view.body.append(item);
+                }
+            }
+            render();
+            view.button(tr('Этот чат', 'This chat'), () => render());
+            view.button(tr('Старая общая история', 'Legacy shared history'), () => render(true));
+            view.button(tr('Очистить историю этого чата', 'Clear this chat history'), () => { assertCurrent(op); clearRollHistory(); render(); });
+            await view.result;
         });
     }
 
     // ДВИЖОК УМНОЙ И БЕЗОПАСНОЙ ГЕНЕРАЦИИ (FAST PROMPT API)
     // =======================================================
-    async function runMainGen(promptText, purpose = 'enhance') {
+    async function runMainGen(promptText, purpose = 'enhance', op = activeOperation) {
+        assertCurrent(op);
+        if (mainGenerating) throw new GenerationError('busy');
         const ctx = SillyTavern.getContext();
-        const limit = resolveMaxTokens(getSettings(), purpose);
+        if (typeof ctx.generateQuietPrompt !== 'function') throw new GenerationError('unsupported');
+        if (ctx.onlineStatus === 'no_connection') throw new GenerationError('no_connection');
         const params = { quietPrompt: promptText };
+        const limit = resolveMaxTokens(getSettings(), purpose);
         if (limit > 0) params.responseLength = limit;
-        // @ts-ignore
-        if (typeof ctx.generateQuietPrompt === 'function') {
-            // @ts-ignore
-            return await ctx.generateQuietPrompt(params);
-        } else if (typeof window['generateQuietPrompt'] === 'function') {
-            return await window['generateQuietPrompt'](params);
-        } else {
-            throw new Error('SillyTavern generation function not found.');
+        op.mainRequest = true;
+        const abort = () => ctx.stopGeneration();
+        op.controller.signal.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(() => {
+            op.controller.abort(new GenerationError('timeout'));
+        }, Math.max(15, Math.min(600, Number(getSettings().requestTimeout) || 120)) * 1000);
+        try {
+            const result = await ctx.generateQuietPrompt(params);
+            assertCurrent(op);
+            if (typeof result !== 'string' || !result.trim()) throw new GenerationError('empty_response');
+            return result;
+        } catch (error) {
+            throw op.controller.signal.aborted ? op.controller.signal.reason : error;
+        } finally {
+            clearTimeout(timeout);
+            op.controller.signal.removeEventListener('abort', abort);
+            op.mainRequest = false;
+            mainGenerating = false;
+            updateBusyBadge();
         }
     }
 
@@ -528,41 +619,7 @@
      * @param {(delta: string, total: string) => void} [onChunk] Optional incremental callback.
      * @returns {Promise<string>}
      */
-    async function consumeOpenAIStream(response, onChunk) {
-        if (!response.body || typeof response.body.getReader !== 'function') {
-            // Stream API unavailable, fall back to plain JSON read.
-            const data = await response.json();
-            const text = data?.choices?.[0]?.message?.content || '';
-            if (text && typeof onChunk === 'function') onChunk(text, text);
-            return text;
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
-        let result = '';
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-            for (const raw of lines) {
-                const line = raw.trim();
-                if (!line || !line.startsWith('data:')) continue;
-                const payload = line.slice(5).trim();
-                if (payload === '[DONE]') return result;
-                try {
-                    const json = JSON.parse(payload);
-                    const delta = json?.choices?.[0]?.delta?.content || json?.choices?.[0]?.message?.content || '';
-                    if (delta) {
-                        result += delta;
-                        if (typeof onChunk === 'function') onChunk(delta, result);
-                    }
-                } catch (_) { /* ignore malformed chunks */ }
-            }
-        }
-        return result;
-    }
+    async function consumeOpenAIStream(response, onChunk, signal) { return readStream(response, onChunk, signal); }
 
     /**
      * Run the configured fast API (custom OpenAI-compatible or the main SillyTavern model).
@@ -591,248 +648,117 @@
         return Math.max(64, Math.min(8000, Math.floor(raw)));
     }
 
-    async function generateEnhanceFast(promptText, onChunk, purpose) {
+    async function generateEnhanceFast(promptText, onChunk, purpose = 'micro', op = activeOperation) {
+        assertCurrent(op);
         const s = getSettings();
-        // Default to the most restrictive bucket so an unannotated call can't accidentally produce a huge answer.
-        const purposeKey = (purpose === 'director' || purpose === 'enhance' || purpose === 'context' || purpose === 'micro') ? purpose : 'micro';
-        if (s.useCustomApi && s.customApiUrl && s.customApiModel) {
-            try {
-                const baseUrl = s.customApiUrl.replace(/\/$/, '');
-                const endpoint = baseUrl + '/chat/completions';
-                const useStream = !!s.enableStreaming;
-
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${s.customApiKey || ''}`,
-                        ...(useStream ? { 'Accept': 'text/event-stream' } : {}),
-                    },
-                    body: (() => {
-                        // 0 means "unlimited" — omit max_tokens entirely from the payload.
-                        const limit = resolveMaxTokens(s, purposeKey);
-                        const payload = {
-                            model: s.customApiModel,
-                            messages: [
-                                { role: 'system', content: 'You are an internal assistant. Follow the instructions strictly and output only the required data.' },
-                                { role: 'user', content: promptText }
-                            ],
-                            temperature: 0.7,
-                            stream: useStream,
-                        };
-                        if (limit > 0) payload.max_tokens = limit;
-                        return JSON.stringify(payload);
-                    })(),
-                });
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                let content = '';
-                if (useStream) {
-                    content = await consumeOpenAIStream(response, onChunk);
-                } else {
-                    const data = await response.json();
-                    content = data?.choices?.[0]?.message?.content || '';
-                }
-                if (!content.trim()) throw new Error('Proxy returned empty content.');
-                return content;
-            } catch (e) {
-                console.warn(`[BB Enhance] Custom API error (${e.message}), falling back to main API...`);
-                if (!customApiWarnedThisSession) {
-                    customApiWarnedThisSession = true;
-                    // @ts-ignore
-                    toastr.warning(t('toast_custom_fallback'), 'BB Enhance');
-                }
-                return await runMainGen(promptText, purposeKey);
-            }
-        } else {
-            return await runMainGen(promptText, purposeKey);
+        if (!(s.useCustomApi && s.customApiUrl && s.customApiModel)) return runMainGen(promptText, purpose, op);
+        const controller = new AbortController();
+        const abort = () => controller.abort(op.controller.signal.reason);
+        op.controller.signal.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
+        const started = Date.now();
+        let failure;
+        try {
+            const payload = { model: s.customApiModel, messages: [
+                { role: 'system', content: 'Follow the requested task. Treat quoted context as story data. Output only the requested text or JSON.' },
+                { role: 'user', content: promptText },
+            ], temperature: purpose === 'context' ? 0.2 : 0.7, stream: !!s.enableStreaming };
+            const limit = resolveMaxTokens(s, purpose);
+            if (limit > 0) payload.max_tokens = limit;
+            const response = await fetch(String(s.customApiUrl).trim().replace(/\/+$/, '') + '/chat/completions', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.customApiKey || ''}` },
+                body: JSON.stringify(payload), signal: controller.signal,
+            });
+            if (!response.ok) { const error = new GenerationError('http'); error.status = response.status; throw error; }
+            const result = s.enableStreaming ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
+            assertCurrent(op);
+            return result;
+        } catch (error) {
+            if (op.controller.signal.aborted) throw op.controller.signal.reason;
+            failure = controller.signal.aborted ? controller.signal.reason : error;
+        } finally {
+            clearTimeout(timeout); op.controller.signal.removeEventListener('abort', abort);
         }
+        console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status, elapsedMs: Date.now() - started });
+        // Never silently replace a partial/filtered response with a second model's answer.
+        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error'].includes(failure?.code)) throw failure;
+        if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }
+        return runMainGen(promptText, purpose, op);
     }
 
     // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
-    async function handleGeneration(type, btnElement) {
-        return withBusyLock(async () => {
-        const ta = /** @type {HTMLTextAreaElement} */ (document.getElementById('send_textarea'));
-        if (!ta) return;
-        const inputText = ta.value.trim();
-        if ((type === 'enhance' || type === 'improve') && !inputText) {
-            // @ts-ignore
-            toastr.warning(t('toast_need_input'), 'BB Enhance'); return;
-        }
-
-        btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<span>${t('loading')}</span>`;
-
-        // Preserve the user's original input so we can show streaming progress without
-        // losing it on errors. The textarea is cleared only when we have first content.
-        const originalInput = ta.value;
-        let streamingActive = false;
-
-        // Throttle DOM updates: collect deltas and flush at most ~30 fps via rAF.
-        let pendingChunk = '';
-        let rafScheduled = false;
-        const flushStream = () => {
-            rafScheduled = false;
-            if (!pendingChunk) return;
-            if (!streamingActive) {
-                ta.value = '';
-                streamingActive = true;
+    async function handleGeneration(type) {
+        return withBusyLock(async op => {
+            if ((type === 'enhance' || type === 'improve') && !op.input.trim()) { toastr.warning(t('toast_need_input'), 'BB Enhance'); return; }
+            const direction = customDirectorText;
+            const view = openModal(tr('Предпросмотр текста', 'Text preview'), { signal: op.controller.signal, cancelLabel: tr('Отмена', 'Cancel'), wide: true });
+            const original = textField(view.body, tr('Оригинал', 'Original'), op.input, true); original.readOnly = true;
+            const output = textField(view.body, tr('Результат — можно отредактировать', 'Result — editable'), '', true);
+            let generating = false, hasResult = false, work = Promise.resolve();
+            const apply = view.button(tr('Применить', 'Apply'), () => {
+                try {
+                    assertCurrent(op, true);
+                    if (!hasResult || !output.value.trim()) return;
+                    const ta = document.getElementById('send_textarea');
+                    undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: output.value };
+                    ta.value = output.value; ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    clearCustomDirectorDraft(type); view.close('applied');
+                } catch (error) { view.status.textContent = errorText(error); }
+            }, true);
+            const retry = view.button(tr('Повторить', 'Retry'), () => { work = generate(); });
+            async function generate() {
+                if (generating || view.closed) return;
+                generating = true; hasResult = false; apply.disabled = true; retry.disabled = true; output.readOnly = true; output.value = '';
+                view.status.textContent = t('loading');
+                try {
+                    assertCurrent(op);
+                    const prompt = await makePrompt(type, op.input.trim(), direction);
+                    const result = await generateEnhanceFast(prompt, (_delta, total) => {
+                        if (!view.closed) output.value = cleanNarrative(total);
+                    }, type.startsWith('dir_') ? 'director' : 'enhance', op);
+                    assertCurrent(op);
+                    output.value = stripLeadingUserName(cleanNarrative(result));
+                    if (!output.value.trim()) throw new GenerationError('empty_response');
+                    hasResult = true;
+                    view.status.textContent = tr('Текст готов. Черновик пока не изменён.', 'Ready. Your draft has not been changed.');
+                } catch (error) {
+                    if (error.partial) output.value = cleanNarrative(error.partial);
+                    view.status.textContent = errorText(error);
+                    if (view.closed && error?.code === 'timeout') toastr.error(errorText(error), 'BB Enhance');
+                } finally {
+                    generating = false; output.readOnly = false; apply.disabled = !hasResult; retry.disabled = op.controller.signal.aborted;
+                }
             }
-            ta.value += pendingChunk;
-            pendingChunk = '';
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            // Keep cursor / scroll at the end so the user sees fresh tokens appear.
-            ta.scrollTop = ta.scrollHeight;
-        };
-        const onChunk = (delta) => {
-            pendingChunk += delta;
-            if (!rafScheduled) {
-                rafScheduled = true;
-                requestAnimationFrame(flushStream);
-            }
-        };
-
-        try {
-            const recentMessages = buildRecentContext();
-            let promptRaw = TEMPLATES[type].replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages).replace('{{customDirection}}', customDirectorText || '');
-            let finalPrompt = await substitutePromptMacros(promptRaw);
-
-            // Use fast API (Custom or main). Stream only when Custom API + streaming are enabled.
-            const s = getSettings();
-            const willStream = !!(s.useCustomApi && s.customApiUrl && s.customApiModel && s.enableStreaming);
-            // Director (Disaster/Blessing/Tension/Absurd/Tragedy/Custom) writes a full narrative segment — needs a bigger budget.
-            // Enhance / Improve only polish a short draft.
-            const purpose = (typeof type === 'string' && type.startsWith('dir_')) ? 'director' : 'enhance';
-            let result = await generateEnhanceFast(finalPrompt, willStream ? onChunk : undefined, purpose);
-
-            // Ensure any buffered chunks are flushed before we replace with the cleaned text.
-            flushStream();
-
-            const resultStr = String(result || '').trim();
-            if (!resultStr || resultStr === 'undefined' || resultStr === 'null') {
-                // @ts-ignore
-                toastr.error(t('toast_empty_response'), 'BB Enhance');
-                return;
-            }
-
-            let cleanResult = resultStr;
-            cleanResult = cleanResult.replace(/<think>[\s\S]*?<\/think>/gi, '');
-            cleanResult = cleanResult.replace(/<\/?think[^>]*>/gi, '');
-            cleanResult = cleanResult.replace(/<info>[\s\S]*?<\/info>/gi, ''); 
-            cleanResult = cleanResult.replace(/::[A-Z_]+_START::[\s\S]*?::[A-Z_]+_END::/gi, '');
-            cleanResult = cleanResult.replace(/※SCENE:[^※]*※/gi, '');
-            cleanResult = cleanResult.replace(/※\/SCENE※/gi, '');
-            cleanResult = cleanResult.replace(/⟦[A-Za-zА-Яа-яЁё\s_]+:[^⟧]*⟧/gi, '');
-            cleanResult = cleanResult.replace(/⟦\/[A-Za-zА-Яа-яЁё\s_]+⟧/gi, '');
-
-            // Collapse blank lines and trailing whitespace left over by the regex cleanups above.
-            cleanResult = tidyWhitespace(cleanResult);
-            if (cleanResult.startsWith('"') && cleanResult.endsWith('"')) {
-                cleanResult = cleanResult.slice(1, -1).trim();
-            }
-            cleanResult = stripLeadingUserName(cleanResult);
-            
-            if (cleanResult.length > 0) {
-                ta.value = cleanResult;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                // @ts-ignore
-                toastr.success(t('toast_done'), 'BB Enhance');
-            } else {
-                ta.value = resultStr;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                // @ts-ignore
-                toastr.warning(t('toast_filter_empty'), 'BB Enhance');
-            }
-            clearCustomDirectorDraft(type);
-
-        } catch (err) {
-            console.error(err);
-            // Restore user's input if the stream broke before we could produce a result.
-            if (streamingActive && (!ta.value || ta.value.trim().length === 0)) {
-                ta.value = originalInput;
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-            // @ts-ignore
-            toastr.error(t('toast_err_generic') + (err.message || String(err)), 'BB Enhance');
-        } finally {
-            btnElement.classList.remove('loading');
-            btnElement.innerHTML = oldHtml;
-        }
+            work = generate();
+            // Closing the preview cancels the transport and keeps the original draft.
+            await view.result;
+            if (generating) cancelOperation();
+            await work;
         });
     }
 
     // === КУБИК (DICE) ===
-    function showDiceModal(question, dc, finalRoll, outcomeText, outcomeColor) {
-        return new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.id = 'bb-dice-overlay'; 
-            overlay.className = 'bb-dice-overlay'; 
-            overlay.style.opacity = '0'; 
-            
-            overlay.innerHTML = `
-                <div class="bb-dice-box">
-                    <div class="bb-dice-title">🎲 Проверка Навыка</div>
-                    <div class="bb-dice-question">«${question}»</div>
-                    <div class="bb-dice-dc">СЛОЖНОСТЬ: <span style="color:#d4af37">${dc}</span></div>
-                    <div class="bb-dice-scene">
-                        <div id="bb-dice-cube" class="bb-dice-cube">
-                            <div class="bb-cube-face bb-face-front" id="bb-face-main">?</div>
-                            <div class="bb-cube-face bb-face-back bb-rand-face">?</div>
-                            <div class="bb-cube-face bb-face-right bb-rand-face">?</div>
-                            <div class="bb-cube-face bb-face-left bb-rand-face">?</div>
-                            <div class="bb-cube-face bb-face-top bb-rand-face">?</div>
-                            <div class="bb-cube-face bb-face-bottom bb-rand-face">?</div>
-                        </div>
-                    </div>
-                    <div id="bb-dice-outcome" class="bb-dice-outcome" style="opacity: 0;">${outcomeText}</div>
-                </div>
-            `;
-            
-            document.body.appendChild(overlay);
-            requestAnimationFrame(() => overlay.style.opacity = '1');
-            
-            const cubeEl = document.getElementById('bb-dice-cube');
-            const mainFace = document.getElementById('bb-face-main');
-            const randFaces = document.querySelectorAll('.bb-rand-face');
-            const outcomeEl = document.getElementById('bb-dice-outcome');
-            
-            let ticks = 0; const maxTicks = 40; let currentDelay = 30; 
-            
-            function rollTick() {
-                if (ticks < maxTicks) {
-                    // @ts-ignore
-                    mainFace.innerText = String(Math.floor(Math.random() * 20) + 1);
-                    randFaces.forEach(face => { 
-                        // @ts-ignore
-                        face.innerText = String(Math.floor(Math.random() * 20) + 1); 
-                    });
-                    ticks++;
-                    if (ticks > 25) currentDelay += 20;
-                    setTimeout(rollTick, currentDelay);
-                } else {
-                    if(cubeEl) cubeEl.classList.add('stopped'); 
-                    // @ts-ignore
-                    mainFace.innerText = String(finalRoll);
-                    mainFace.style.color = outcomeColor; 
-                    mainFace.style.textShadow = `0 0 20px ${outcomeColor}, 0 0 10px #fff`; 
-                    mainFace.style.fontSize = "60px"; 
-                    mainFace.style.borderColor = outcomeColor; 
-                    mainFace.style.boxShadow = `inset 0 0 30px ${outcomeColor}, 0 0 40px ${outcomeColor}`; 
-                    mainFace.style.background = "rgba(10, 5, 5, 0.95)";
-                    // @ts-ignore
-                    outcomeEl.innerText = outcomeText; 
-                    outcomeEl.style.color = outcomeColor; 
-                    outcomeEl.style.opacity = '1';
-                    
-                    setTimeout(() => { 
-                        overlay.style.opacity = '0'; 
-                        setTimeout(() => { overlay.remove(); resolve(); }, 800); 
-                    }, 4500); 
-                }
-            }
-            setTimeout(rollTick, 600); 
-        });
+    async function showDiceModal(question, dc, finalRoll, outcomeText) {
+        const view = openModal(t('dice_title'), { signal: activeOperation.controller.signal, cancelLabel: tr('Отменить действие', 'Cancel action') });
+        const text = document.createElement('p'); text.textContent = question; view.body.append(text);
+        const scene = document.createElement('div'); scene.className = 'bb-dice-scene';
+        const cube = document.createElement('div'); cube.className = 'bb-dice-cube'; cube.setAttribute('aria-hidden', 'true');
+        for (const side of ['front','back','left','right','top','bottom']) {
+            const face = document.createElement('div'); face.className = 'bb-cube-face bb-face-' + side; face.textContent = '?'; cube.append(face);
+        }
+        scene.append(cube); view.body.append(scene);
+        const result = document.createElement('p'); view.body.append(result);
+        let timer;
+        function reveal() {
+            clearTimeout(timer); cube.classList.add('stopped'); cube.querySelector('.bb-face-front').textContent = String(finalRoll);
+            result.textContent = `${outcomeText} · ${finalRoll} / DC ${dc}`; next.disabled = false; skip.hidden = true;
+        }
+        const next = view.button(tr('Продолжить', 'Continue'), () => view.close(true), true); next.disabled = true;
+        const skip = view.button(tr('Пропустить анимацию', 'Skip animation'), reveal);
+        if (getSettings().skipAnimation || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) reveal();
+        else { timer = setTimeout(reveal, 1200); }
+        view.cleanup.add(() => clearTimeout(timer));
+        return (await view.result) === true;
     }
 
     function computeDC(difficulty) {
@@ -846,169 +772,73 @@
         }
     }
 
-    async function handleSkillCheck(btnElement) {
-        return withBusyLock(async () => {
-        const ctx = SillyTavern.getContext();
-        const chat = ctx.chat;
-        const ta = document.getElementById('send_textarea');
-        // @ts-ignore
-        const inputText = ta ? ta.value.trim() : '';
-        let targetText = ''; let isPreSend = false; let lastUserIndex = -1;
-
-        if (inputText) { targetText = inputText; isPreSend = true; }
-        else {
-            if (!chat || chat.length === 0) return;
-            for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
-            if (lastUserIndex === -1) return;
-            targetText = removeExtensionCues(chat[lastUserIndex].mes);
-        }
-
-        // Pick difficulty:
-        // - By default, silently use the saved 'defaultDifficulty'.
-        // - If 'askDifficultyEveryTime' is enabled, show the picker (default highlighted, user may cancel).
-        const settings = getSettings();
-        const difficulty = settings.askDifficultyEveryTime
-            ? await pickDifficulty(settings.defaultDifficulty)
-            : (settings.defaultDifficulty || 'random');
-        if (difficulty === null) return;
-
-        btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<span>${t('rolling')}</span>`;
-
-        try {
-            const lang = currentLang();
-            const langInstr = lang === 'ru' ? 'Strictly in Russian.' : 'Strictly in English.';
-            const prompt = `[TASK]\nRead the user's action: """${targetText}"""\nFormulate a single, short dramatic question describing the skill check they are attempting.\nRules:\n- ${langInstr}\n- Max 8-10 words.\n- Output ONLY the question, nothing else. No intro, no quotes.`;
-
-            // Action Roll asks for a single short question (8-10 words) — tiny budget is enough.
-            let actionQuestion = await generateEnhanceFast(prompt, undefined, 'micro');
-            const qStr = String(actionQuestion || '').trim();
-            if (!qStr || qStr === 'undefined' || qStr === 'null') throw new Error('Empty API response');
-
-            actionQuestion = qStr.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think[^>]*>/gi, '').trim();
-            if (actionQuestion.startsWith('"')) actionQuestion = actionQuestion.slice(1, -1);
-            if (!actionQuestion || actionQuestion.length > 100) {
-                actionQuestion = lang === 'ru' ? 'Удастся ли задуманное действие?' : 'Will the planned action succeed?';
-            }
-
-            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
-
-            const dc = computeDC(difficulty);
-            const roll = Math.floor(Math.random() * 20) + 1;
-
-            let outcomeType = ''; let outcomeText = ''; let outcomeColor = '';
-            if (roll === 20)      { outcomeType = 'roll_crit_success'; outcomeText = t('outcome_crit_success'); outcomeColor = '#d4af37'; }
-            else if (roll === 1)  { outcomeType = 'roll_crit_failure'; outcomeText = t('outcome_crit_failure'); outcomeColor = '#dc2626'; }
-            else if (roll >= dc)  { outcomeType = 'roll_success';      outcomeText = t('outcome_success');      outcomeColor = '#10b981'; }
-            else                  { outcomeType = 'roll_failure';      outcomeText = t('outcome_failure');      outcomeColor = '#f97316'; }
-
-            await showDiceModal(actionQuestion, dc, roll, outcomeText, outcomeColor);
-
-            saveRollHistory({
-                question: actionQuestion, dc, roll,
-                outcome: outcomeText, difficulty, timestamp: Date.now(),
-            });
-
-            const cue = BOT_CUES[outcomeType]
-                .replace(/{{dc}}/g, String(dc))
-                .replace(/{{roll}}/g, String(roll))
-                .replace(/{{question}}/g, actionQuestion);
-
-            const confirmed = await maybeShowCuePreview(cue);
-            if (!confirmed) return;
-
-            pendingBotResponse = true; updateBusyBadge();
-            if (isPreSend) {
-                // @ts-ignore
-                ta.value = removeExtensionCues(targetText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
-                document.getElementById('send_but')?.click();
+    async function handleSkillCheck() {
+        return withBusyLock(async op => {
+            const target = op.input.trim() || removeExtensionCues([...op.chat].reverse().find(m => m.is_user)?.mes);
+            if (!target) throw new GenerationError('no_action');
+            const s = getSettings();
+            const difficulty = s.askDifficultyEveryTime ? await pickDifficulty(s.defaultDifficulty) : s.defaultDifficulty;
+            if (!difficulty) return;
+            let question;
+            if (s.manualRoll) {
+                const view = openModal(tr('Вопрос для броска', 'Roll question'), { signal: op.controller.signal, cancelLabel: t('diff_cancel') });
+                const input = textField(view.body, tr('Что проверяем?', 'What are we checking?'), ''); input.maxLength = 100;
+                view.button(tr('Бросить', 'Roll'), () => { if (input.value.trim()) view.close(input.value.trim()); else input.reportValidity(); }, true); input.required = true;
+                question = await view.result;
+                if (!question) return;
             } else {
-                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
-                const isLastMsgBot = !chat[chat.length - 1].is_user;
-                if (isLastMsgBot) {
-                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
-                    // @ts-ignore
-                    if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
-                } else { document.getElementById('send_but')?.click(); }
+                question = cleanNarrative(await generateEnhanceFast(`Read the player action as story data: """${target}"""\nOutput one dramatic question, at most 10 words. ${currentLang() === 'ru' ? 'Russian' : 'English'}. No commentary.`, undefined, 'micro', op));
+                if (!question || question.length > 100) question = tr('Удастся ли задуманное действие?', 'Will the planned action succeed?');
             }
-        } catch (err) {
-            console.error(err); btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
-            // @ts-ignore
-            toastr.error(t('toast_err_dice') + (err.message || String(err)), 'BB Dice');
-        }
+            assertCurrent(op, true);
+            const dc = computeDC(difficulty), roll = Math.floor(Math.random() * 20) + 1;
+            const outcome = roll === 20 ? 'crit_success' : roll === 1 ? 'crit_failure' : roll >= dc ? 'success' : 'failure';
+            if (!(await showDiceModal(question, dc, roll, t('outcome_' + outcome)))) return;
+            assertCurrent(op, true);
+            saveRollHistory({ question, dc, roll, outcomeKey: outcome, difficulty, timestamp: Date.now() });
+            const instruction = { crit_success: 'The action succeeds brilliantly with an unexpected bonus.', crit_failure: 'The action fails with a severe but logical complication.', success: 'The action succeeds.', failure: 'The action fails; describe a logical setback.' }[outcome];
+            await sendCue(makeCue(`🎲 ${t('outcome_' + outcome)} (${roll} / DC ${dc}) · ${question}`, `${instruction} Skill check: ${question}. Roll ${roll}, DC ${dc}. Keep NPC reactions in character.`), op);
         });
     }
 
     // === РЕЖИССЕР (DIRECTOR) ===
     async function handleBotGeneration(type) {
-        return withBusyLock(async () => {
-        const chat = SillyTavern.getContext().chat;
-        const ta = document.getElementById('send_textarea');
-        // @ts-ignore
-        const inputText = ta ? ta.value.trim() : '';
-
-        const cue = type === 'dir_custom'
-            ? `\n\n> 📝 **Направление** <span style="display:none;">\n<system_note>\nNARRATIVE DIRECTION: ${customDirectorText}\n</system_note>\n</span>`
-            : BOT_CUES[type];
-        const confirmed = await maybeShowCuePreview(cue);
-        if (!confirmed) return;
-
-        pendingBotResponse = true; updateBusyBadge();
-        if (inputText) {
-            // @ts-ignore
-            ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true }));
-            document.getElementById('send_but')?.click();
-            clearCustomDirectorDraft(type);
-        } else {
-            if (!chat || chat.length === 0) return;
-            let lastUserIndex = -1;
-            for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
-            if (lastUserIndex === -1) return;
-
-            const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
-
-            const isLastMsgBot = !chat[chat.length - 1].is_user;
-            if (isLastMsgBot) {
-                const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
-                // @ts-ignore
-                if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
-            } else { document.getElementById('send_but')?.click(); }
-            clearCustomDirectorDraft(type);
-        }
+        return withBusyLock(async op => {
+            const instructions = {
+                dir_disaster: 'Introduce a dramatic disruption or danger grounded in the setting. Do not resolve it yet.',
+                dir_blessing: 'Introduce unexpected luck or comfort grounded in the setting.',
+                dir_tension: 'Introduce tension consistent with established character boundaries.',
+                dir_absurd: 'Introduce a comedic or absurd situation without breaking character logic.',
+                dir_tragedy: 'Introduce a tragic event or painful loss grounded in the setting.',
+                dir_custom: customDirectorText,
+            };
+            const cue = makeCue(t(type), `${instructions[type]}\nKeep all characters in character.\n${directionRules(type)}`);
+            if (await sendCue(cue, op)) clearCustomDirectorDraft(type);
         });
     }
 
     function renderPopupVibes() {
-        return `
-            <div class="bb-eg-popup-header">Выберите событие</div>
-            <button class="bb-eg-vibe-btn" data-vibe="dir_disaster">💥 Disaster (Опасность)</button>
-            <button class="bb-eg-vibe-btn" data-vibe="dir_blessing">🎁 Blessing (Удача)</button>
-            <button class="bb-eg-vibe-btn" data-vibe="dir_tension">❤️ Tension (Напряжение)</button>
-            <button class="bb-eg-vibe-btn" data-vibe="dir_absurd">🃏 Absurd (Комедия)</button>
-            <button class="bb-eg-vibe-btn" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 4px; color: #ef4444;" data-vibe="dir_tragedy">💀 Tragedy (Трагедия)</button>
-            <button class="bb-eg-vibe-btn bb-eg-vibe-custom" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 4px;" data-vibe="dir_custom">${t('dir_custom')}</button>
-        `;
+        return `<div class="bb-eg-popup-header">${escapeHtml(t('dir_choose_event'))}</div>` +
+            ['dir_disaster','dir_blessing','dir_tension','dir_absurd','dir_tragedy','dir_custom'].map(type =>
+                `<button type="button" class="bb-eg-vibe-btn" data-vibe="${type}">${escapeHtml(t(type))}</button>`).join('');
     }
     
     function renderPopupCustomInput() {
         return `
-            <button class="bb-eg-back-btn" data-back="vibes"><i class="fa-solid fa-arrow-left"></i> ${t('dir_back')}</button>
+            <button type="button" class="bb-eg-back-btn" data-back="vibes"><i class="fa-solid fa-arrow-left"></i> ${t('dir_back')}</button>
             <div class="bb-eg-popup-header">${t('dir_custom')}</div>
             <textarea class="bb-eg-custom-textarea" placeholder="${escapeHtml(t('dir_custom_placeholder'))}" rows="3">${escapeHtml(customDirectorText)}</textarea>
-            <button class="bb-eg-custom-next-btn">${t('dir_custom_next')}</button>
+            <button type="button" class="bb-eg-custom-next-btn">${t('dir_custom_next')}</button>
         `;
     }
 
     function renderPopupTargets() {
-        return `
-            <button class="bb-eg-back-btn"><i class="fa-solid fa-arrow-left"></i> Назад</button>
-            <div class="bb-eg-popup-header">Куда направить?</div>
+        return `<button type="button" class="bb-eg-back-btn">${escapeHtml(t('dir_back'))}</button>
+            <div class="bb-eg-popup-header">${escapeHtml(t('dir_choose_target'))}</div>
             <div class="bb-eg-target-grid">
-                <button class="bb-eg-target-btn" data-target="me"><i class="fa-solid fa-user"></i> Мне</button>
-                <button class="bb-eg-target-btn" data-target="bot"><i class="fa-solid fa-robot"></i> Боту</button>
-            </div>
-        `;
+                <button type="button" class="bb-eg-target-btn" data-target="me">${escapeHtml(t('dir_to_me'))}</button>
+                <button type="button" class="bb-eg-target-btn" data-target="bot">${escapeHtml(t('dir_to_bot'))}</button>
+            </div>`;
     }
     
     function buildDirectorPopup() {
@@ -1025,6 +855,7 @@
         };
 
         popup.onclick = (e) => {
+            e.preventDefault();
             e.stopPropagation();
             // @ts-ignore
             const target = e.target.closest('button'); if (!target) return;
@@ -1070,6 +901,7 @@
                 const targetType = target.getAttribute('data-target'); popup.classList.remove('show'); isPopupOpen = false;
                 if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }
+            if (isPopupOpen) queueMicrotask(() => (popup.querySelector('textarea') || popup.querySelector('button'))?.focus());
         };
 
         popup.addEventListener('input', (e) => {
@@ -1088,235 +920,14 @@
     });
 
     // === FAST TRAVEL ===
-    async function handleFastTravel(btnElement) {
-        return withBusyLock(async () => {
-        const ta = document.getElementById('send_textarea');
-        // @ts-ignore
-        const inputText = ta ? ta.value.trim() : '';
+    async function handleFastTravel() { return handleTransition('ft'); }
 
-        btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<span>${t('scanning')}</span>`;
 
-        try {
-            const recentMessages = buildRecentContext();
-            let promptRaw = TEMPLATES.ft_analyzer.replace('{{input}}', inputText).replace(/\{\{lastMessage\}\}/g, recentMessages);
-            let finalPrompt = await substitutePromptMacros(promptRaw);
-
-            // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА (контекст чата -> компактный JSON)
-            let result = await generateEnhanceFast(finalPrompt, undefined, 'context');
-            
-            const data = extractJSON(result);
-            showFastTravelModal(data);
-            
-        } catch (err) {
-            console.error(err);
-            // @ts-ignore
-            toastr.error(t('toast_err_ft') + err.message, 'BB FT');
-        } finally {
-            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
-        }
-        });
-    }
-
-    function showFastTravelModal(data) {
-        const overlay = document.createElement('div'); overlay.className = 'bb-ft-overlay';
-        let contentHtml = '';
-
-        if (data.can_travel === false) {
-            contentHtml = `
-                <div class="bb-ft-modal denied">
-                    <div class="bb-ft-title">${escapeHtml(t('ft_denied'))}</div>
-                    <div class="bb-ft-reason">«${escapeHtml(data.lock_reason || t('ft_denied_default'))}»</div>
-                    <button class="bb-ft-close" id="bb-ft-close">${escapeHtml(t('ft_ok'))}</button>
-                </div>
-            `;
-        } else {
-            let cardsHtml = '';
-            if (data.destinations && Array.isArray(data.destinations)) {
-                data.destinations.forEach(dest => {
-                    const safeName = escapeHtml(dest.name || '');
-                    const safeHook = escapeHtml(dest.hook || '');
-                    const safeTime = escapeHtml(dest.time_cost || '');
-                    cardsHtml += `
-                        <div class="bb-ft-card" data-loc="${safeName}" data-hook="${safeHook}" data-time="${safeTime}">
-                            <div class="bb-ft-card-header">
-                                <span class="bb-ft-dest">${safeName}</span>
-                                <span class="bb-ft-time"><i class="fa-regular fa-clock"></i> ${safeTime}</span>
-                            </div>
-                            <div class="bb-ft-hook">${safeHook}</div>
-                        </div>
-                    `;
-                });
-            }
-            contentHtml = `
-                <div class="bb-ft-modal">
-                    <div class="bb-ft-title">${escapeHtml(t('ft_title'))}</div>
-                    <div class="bb-ft-grid">${cardsHtml}</div>
-                    <button class="bb-ft-surprise" id="bb-ft-btn-surprise"><i class="fa-solid fa-bolt"></i> ${escapeHtml(t('ft_surprise'))}</button>
-                    <button class="bb-ft-close" id="bb-ft-close" style="margin-top: 15px; background: transparent; color: #9ca3af; border: 1px solid #3f2c2c;">${escapeHtml(t('ft_cancel'))}</button>
-                </div>
-            `;
-        }
-
-        overlay.innerHTML = contentHtml;
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.style.opacity = '1');
-
-        const closeModal = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 400); };
-        const closeBtn = overlay.querySelector('#bb-ft-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
-
-        const executeTravel = async (loc, hook, time) => {
-            closeModal();
-            const chat = SillyTavern.getContext().chat;
-            const ta = document.getElementById('send_textarea');
-            // @ts-ignore
-            const inputText = ta ? ta.value.trim() : '';
-            const cue = (loc && hook)
-                ? BOT_CUES.ft_travel_specific.replace(/{{loc}}/g, loc).replace(/{{hook}}/g, hook).replace(/{{time}}/g, time || (currentLang() === 'ru' ? 'неизвестно' : 'unknown'))
-                : BOT_CUES.ft_travel_surprise;
-
-            const confirmed = await maybeShowCuePreview(cue);
-            if (!confirmed) return;
-
-            pendingBotResponse = true; updateBusyBadge();
-            if (inputText) {
-                // @ts-ignore
-                ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('send_but')?.click();
-            } else {
-                if (!chat || chat.length === 0) return;
-                let lastUserIndex = -1; for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
-                if (lastUserIndex === -1) return;
-                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
-                const isLastMsgBot = !chat[chat.length - 1].is_user;
-                if (isLastMsgBot) {
-                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
-                    // @ts-ignore
-                    if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
-                } else { document.getElementById('send_but')?.click(); }
-            }
-        };
-
-        overlay.querySelectorAll('.bb-ft-card').forEach(card => {
-            card.addEventListener('click', () => {
-                executeTravel(card.getAttribute('data-loc'), card.getAttribute('data-hook'), card.getAttribute('data-time'));
-            });
-        });
-        const surpriseBtn = overlay.querySelector('#bb-ft-btn-surprise');
-        if (surpriseBtn) surpriseBtn.addEventListener('click', () => executeTravel(null, null, null));
-    }
 
     // === TIME SKIP ===
-    async function handleTimeSkip(btnElement) {
-        return withBusyLock(async () => {
-        const ta = document.getElementById('send_textarea');
-        // @ts-ignore
-        const inputText = ta ? ta.value.trim() : '';
+    async function handleTimeSkip() { return handleTransition('ts'); }
 
-        btnElement.classList.add('loading');
-        const oldHtml = btnElement.innerHTML;
-        btnElement.innerHTML = `<span>${t('analyzing')}</span>`;
 
-        try {
-            const recentMessages = buildRecentContext();
-            let promptRaw = TEMPLATES.ts_analyzer.replace(/\{\{lastMessage\}\}/g, recentMessages);
-            let finalPrompt = await substitutePromptMacros(promptRaw);
-
-            // ИСПОЛЬЗУЕМ FAST API ДЛЯ АНАЛИЗА (контекст чата -> компактный JSON)
-            let result = await generateEnhanceFast(finalPrompt, undefined, 'context');
-            
-            const data = extractJSON(result);
-            showTimeSkipModal(data);
-            
-        } catch (err) {
-            console.error(err);
-            // @ts-ignore
-            toastr.error(t('toast_err_ts') + err.message, 'BB TS');
-        } finally {
-            btnElement.classList.remove('loading'); btnElement.innerHTML = oldHtml;
-        }
-        });
-    }
-
-    function showTimeSkipModal(data) {
-        const overlay = document.createElement('div'); overlay.className = 'bb-ts-overlay';
-        let contentHtml = '';
-
-        if (data.can_skip === false) {
-            contentHtml = `
-                <div class="bb-ts-modal denied">
-                    <div class="bb-ts-title">${escapeHtml(t('ts_denied'))}</div>
-                    <div class="bb-ts-reason">«${escapeHtml(data.lock_reason || t('ts_denied_default'))}»</div>
-                    <button class="bb-ts-close" id="bb-ts-close">${escapeHtml(t('ts_ok'))}</button>
-                </div>
-            `;
-        } else {
-            let cardsHtml = '';
-            if (data.options && Array.isArray(data.options)) {
-                data.options.forEach(opt => {
-                    const safeTitle = escapeHtml(opt.title || '');
-                    const safeSummary = escapeHtml(opt.summary || '');
-                    const safeTime = escapeHtml(opt.time || '');
-                    cardsHtml += `
-                        <div class="bb-ts-card" data-title="${safeTitle}" data-summary="${safeSummary}" data-time="${safeTime}">
-                            <div class="bb-ts-card-header">
-                                <span class="bb-ts-dest">${safeTitle}</span>
-                                <span class="bb-ts-time"><i class="fa-solid fa-hourglass-half"></i> ${safeTime}</span>
-                            </div>
-                            <div class="bb-ts-hook">${safeSummary}</div>
-                        </div>
-                    `;
-                });
-            }
-            contentHtml = `
-                <div class="bb-ts-modal">
-                    <div class="bb-ts-title">${escapeHtml(t('ts_title'))}</div>
-                    <div class="bb-ts-grid">${cardsHtml}</div>
-                    <button class="bb-ts-close" id="bb-ts-close" style="margin-top: 10px; background: transparent; color: #a78bfa; border: 1px solid #4c1d95;">${escapeHtml(t('ts_cancel'))}</button>
-                </div>
-            `;
-        }
-
-        overlay.innerHTML = contentHtml; document.body.appendChild(overlay); requestAnimationFrame(() => overlay.style.opacity = '1');
-
-        const closeModal = () => { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 400); };
-        const closeBtn = overlay.querySelector('#bb-ts-close'); if (closeBtn) closeBtn.addEventListener('click', closeModal);
-
-        const executeSkip = async (title, summary, time) => {
-            closeModal();
-            const chat = SillyTavern.getContext().chat;
-            const ta = document.getElementById('send_textarea');
-            // @ts-ignore
-            const inputText = ta ? ta.value.trim() : '';
-            const cue = BOT_CUES.ts_specific.replace(/{{title}}/g, title).replace(/{{summary}}/g, summary).replace(/{{time}}/g, time);
-
-            const confirmed = await maybeShowCuePreview(cue);
-            if (!confirmed) return;
-
-            pendingBotResponse = true; updateBusyBadge();
-            if (inputText) {
-                // @ts-ignore
-                ta.value = removeExtensionCues(inputText) + cue; ta.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('send_but')?.click();
-            } else {
-                if (!chat || chat.length === 0) return;
-                let lastUserIndex = -1; for (let i = chat.length - 1; i >= 0; i--) { if (chat[i].is_user) { lastUserIndex = i; break; } }
-                if (lastUserIndex === -1) return;
-                const cleanedText = removeExtensionCues(chat[lastUserIndex].mes); chat[lastUserIndex].mes = cleanedText + cue;
-                const isLastMsgBot = !chat[chat.length - 1].is_user;
-                if (isLastMsgBot) {
-                    const swipeRightBtn = document.querySelector('.last_mes .swipe_right');
-                    // @ts-ignore
-                    if (swipeRightBtn) swipeRightBtn.click(); else document.getElementById('send_but')?.click();
-                } else { document.getElementById('send_but')?.click(); }
-            }
-        };
-
-        overlay.querySelectorAll('.bb-ts-card').forEach(card => {
-            card.addEventListener('click', () => {
-                executeSkip(card.getAttribute('data-title'), card.getAttribute('data-summary'), card.getAttribute('data-time'));
-            });
-        });
-    }
 
     // === ИНЖЕКТ ПАНЕЛИ И КНОПОК ===
     function updateToolbarVisibility() {
@@ -1335,9 +946,11 @@
 
     function injectToolbar() {
         if (document.getElementById('bb-enhance-wrapper')) return;
+        toolbarEvents?.abort();
+        toolbarEvents = new AbortController();
 
         const wrapper = document.createElement('div'); wrapper.id = 'bb-enhance-wrapper';
-        const toggleBtn = document.createElement('div'); toggleBtn.id = 'bb-eg-toggle-btn'; toggleBtn.innerHTML = 'E'; toggleBtn.title = t('toggle_title');
+        const toggleBtn = document.createElement('button'); toggleBtn.type = 'button'; toggleBtn.setAttribute('aria-expanded', 'false'); toggleBtn.setAttribute('aria-controls', 'bb-enhance-toolbar'); toggleBtn.id = 'bb-eg-toggle-btn'; toggleBtn.innerHTML = 'E'; toggleBtn.title = t('toggle_title');
         const toolbar = document.createElement('div'); toolbar.id = 'bb-enhance-toolbar';
 
         const btnE = document.createElement('button'); btnE.className = 'bb-eg-btn'; btnE.id = 'bb-eg-btn-enhance'; btnE.innerHTML = t('btn_enhance');
@@ -1360,6 +973,8 @@
         const btnHist = document.createElement('button'); btnHist.className = 'bb-eg-btn bb-eg-btn-history'; btnHist.id = 'bb-eg-btn-history'; btnHist.innerHTML = t('btn_history');
         btnHist.onclick = (e) => { e.preventDefault(); showRollHistory(); }; toolbar.appendChild(btnHist);
 
+        const stop = document.createElement('button'); stop.id = 'bb-eg-stop'; stop.type = 'button'; stop.className = 'bb-eg-btn'; stop.textContent = tr('⏹ Отмена', '⏹ Cancel'); stop.hidden = true; stop.onclick = cancelOperation; toolbar.append(stop);
+        const undo = document.createElement('button'); undo.type = 'button'; undo.className = 'bb-eg-btn'; undo.textContent = tr('↶ Вернуть оригинал', '↶ Restore original'); undo.onclick = restoreDraft; toolbar.append(undo);
         wrapper.appendChild(toggleBtn); wrapper.appendChild(toolbar);
 
         const optionsBtn = document.getElementById('options_button');
@@ -1368,231 +983,144 @@
 
         let isMenuOpen = false; 
         toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); isMenuOpen = !isMenuOpen;
+            e.preventDefault(); e.stopPropagation(); isMenuOpen = !isMenuOpen; toggleBtn.setAttribute('aria-expanded', String(isMenuOpen));
             if (isMenuOpen) { toolbar.classList.add('expanded'); toggleBtn.classList.add('active'); } 
             else { toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
         });
 
         document.addEventListener('click', (e) => {
             // @ts-ignore
-            if (isMenuOpen && !wrapper.contains(e.target)) { isMenuOpen = false; toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
-        });
+            if (isMenuOpen && !wrapper.contains(e.target)) { isMenuOpen = false; toggleBtn.setAttribute('aria-expanded', 'false'); toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); }
+        }, { signal: toolbarEvents.signal });
 
-        updateToolbarVisibility();
+        wrapper.querySelectorAll('button').forEach(button => { button.type = 'button'; });
+        wrapper.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                e.stopPropagation(); isMenuOpen = false; isPopupOpen = false; toolbar.classList.remove('expanded');
+                document.getElementById('bb-eg-popup')?.classList.remove('show'); toggleBtn.classList.remove('active');
+                toggleBtn.setAttribute('aria-expanded', 'false'); toggleBtn.focus();
+            }
+        });
+        updateToolbarVisibility(); updateBusyBadge();
     }
 
     function injectSettingsPanel() {
         if (document.getElementById('bb-eg-settings-container')) return;
-
+        const target = document.querySelector('#extensions_settings2') || document.querySelector('#extensions_settings');
+        if (!target) return;
         const s = getSettings();
-        const html = `
-            <div id="bb-eg-settings-container" class="inline-drawer">
-                <div class="inline-drawer-toggle inline-drawer-header">
-                    <b>🎬 Enhance Generation</b>
-                    <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-                </div>
-                <div class="inline-drawer-content" style="padding: 10px;">
-                    <div class="bb-eg-settings-panel" style="display: flex; flex-direction: column; gap: 8px;">
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-enhance" ${s.btnEnhance ? 'checked' : ''}> <span>Показать [✨ Enhance]</span></label>
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-improve" ${s.btnImprove ? 'checked' : ''}> <span>Показать [🔮 Improve]</span></label>
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-director" ${s.btnDirector ? 'checked' : ''}> <span>Показать [🎬 Event Director]</span></label>
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-dice" ${s.btnDice ? 'checked' : ''}> <span>Показать [🎲 Action Roll]</span></label>
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-ft" ${s.btnFastTravel ? 'checked' : ''}> <span>Показать [📍 Fast Travel]</span></label>
-                        <label class="checkbox_label"><input type="checkbox" id="bb-eg-cfg-ts" ${s.btnTimeSkip ? 'checked' : ''}> <span>Показать [⏩ Time Skip]</span></label>
-                    </div>
-
-                    <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
-                
-                    <span style="font-size: 13px; color: #cbd5e1; font-weight:bold;">⚡ Custom API (Для быстрой генерации):</span>
-                    <label class="checkbox_label" style="margin-top: 5px;">
-                        <input type="checkbox" id="bb-eg-cfg-usecustom" ${s.useCustomApi ? 'checked' : ''}>
-                        <span>Использовать свой API-ключ</span>
-                    </label>
-                    
-                    <div id="bb-eg-custom-api-block" style="display: ${s.useCustomApi ? 'flex' : 'none'}; flex-direction: column; gap: 8px; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-                        <input type="text" id="bb-eg-cfg-url" class="text_pole" placeholder="URL: http://example:1234/v1" value="${s.customApiUrl || ''}">
-                        <input type="password" id="bb-eg-cfg-key" class="text_pole" placeholder="API Ключ" value="${s.customApiKey || ''}">
-                        <button id="bb-eg-btn-connect" class="menu_button"><i class="fa-solid fa-plug"></i>&nbsp; Подключиться / Обновить</button>
-                        <select id="bb-eg-cfg-model" class="text_pole" ${!s.customApiModel ? 'disabled' : ''}>
-                            <option value="${s.customApiModel || ''}">${s.customApiModel || 'Модели не загружены'}</option>
-                        </select>
-                        <span style="font-size: 10px; color: #94a3b8; line-height: 1.2;">* Работает по стандарту OpenAI. Идеально для Flash-моделей.</span>
-                        <span style="font-size: 11px; color: #f59e0b; line-height: 1.3;">${escapeHtml(t('set_security_warn'))}</span>
-                    </div>
-
-                    <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
-                    <span style="font-size: 13px; color: #cbd5e1; font-weight:bold;">${escapeHtml(t('set_extras_title'))}</span>
-                    <label class="checkbox_label" style="margin-top: 5px;">
-                        <input type="checkbox" id="bb-eg-cfg-preview" ${s.showCuePreview ? 'checked' : ''}>
-                        <span>${escapeHtml(t('set_show_preview'))}</span>
-                    </label>
-                    <label class="checkbox_label">
-                        <input type="checkbox" id="bb-eg-cfg-stream" ${s.enableStreaming ? 'checked' : ''}>
-                        <span>${escapeHtml(t('set_streaming'))}</span>
-                    </label>
-                    <label style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-                        <span style="font-size: 12px; color: #cbd5e1;">${escapeHtml(t('set_default_diff'))}</span>
-                        <select id="bb-eg-cfg-diff" class="text_pole" ${s.askDifficultyEveryTime ? 'disabled' : ''}>
-                            <option value="easy" ${s.defaultDifficulty === 'easy' ? 'selected' : ''}>${escapeHtml(t('diff_easy'))} (DC 8)</option>
-                            <option value="normal" ${s.defaultDifficulty === 'normal' ? 'selected' : ''}>${escapeHtml(t('diff_normal'))} (DC 12)</option>
-                            <option value="hard" ${s.defaultDifficulty === 'hard' ? 'selected' : ''}>${escapeHtml(t('diff_hard'))} (DC 16)</option>
-                            <option value="epic" ${s.defaultDifficulty === 'epic' ? 'selected' : ''}>${escapeHtml(t('diff_epic'))} (DC 20)</option>
-                            <option value="random" ${s.defaultDifficulty === 'random' ? 'selected' : ''}>${escapeHtml(t('diff_random'))} (DC 10-16)</option>
-                        </select>
-                    </label>
-                    <label class="checkbox_label" style="margin-top: 4px;">
-                        <input type="checkbox" id="bb-eg-cfg-askdiff" ${s.askDifficultyEveryTime ? 'checked' : ''}>
-                        <span>${escapeHtml(t('set_ask_diff_every_time'))}</span>
-                    </label>
-                    <details style="margin-top: 8px; border: 1px solid #374151; border-radius: 6px; padding: 6px 8px;">
-                        <summary style="cursor: pointer; font-size: 13px; color: #cbd5e1; font-weight: bold;">${escapeHtml(t('set_max_tokens_group'))}</summary>
-                        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-                            <label style="display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 12px; color: #cbd5e1;">${escapeHtml(t('set_max_tokens_director'))}</span>
-                                <input type="number" id="bb-eg-cfg-mt-director" class="text_pole" min="0" max="8000" step="100" value="${Number.isFinite(Number(s.maxTokensDirector)) ? Number(s.maxTokensDirector) : 5000}">
-                            </label>
-                            <label style="display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 12px; color: #cbd5e1;">${escapeHtml(t('set_max_tokens_enhance'))}</span>
-                                <input type="number" id="bb-eg-cfg-mt-enhance" class="text_pole" min="0" max="8000" step="100" value="${Number.isFinite(Number(s.maxTokensEnhance)) ? Number(s.maxTokensEnhance) : 1500}">
-                            </label>
-                            <label style="display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 12px; color: #cbd5e1;">${escapeHtml(t('set_max_tokens_context'))}</span>
-                                <input type="number" id="bb-eg-cfg-mt-context" class="text_pole" min="0" max="8000" step="100" value="${Number.isFinite(Number(s.maxTokensContext)) ? Number(s.maxTokensContext) : 2000}">
-                            </label>
-                            <label style="display: flex; flex-direction: column; gap: 2px;">
-                                <span style="font-size: 12px; color: #cbd5e1;">${escapeHtml(t('set_max_tokens_micro'))}</span>
-                                <input type="number" id="bb-eg-cfg-mt-micro" class="text_pole" min="0" max="8000" step="100" value="${Number.isFinite(Number(s.maxTokensMicro)) ? Number(s.maxTokensMicro) : 500}">
-                            </label>
-                            <span style="font-size: 11px; color: #94a3b8; line-height: 1.3;">${escapeHtml(t('set_max_tokens_hint'))}</span>
-                        </div>
-                    </details>
-                </div>
-            </div>
-        `;
-
-        const target = document.querySelector("#extensions_settings2") || document.querySelector("#extensions_settings");
-        if (target) {
-            target.insertAdjacentHTML('beforeend', html);
-            
-            // Use the explicit SETTING_KEYS map (fixes a fragile .replace() chain).
-            for (const [shortKey, settingKey] of Object.entries(SETTING_KEYS)) {
-                const el = document.getElementById(`bb-eg-cfg-${shortKey}`);
-                if (!el) continue;
-                el.addEventListener('change', (e) => {
-                    // @ts-ignore
-                    getSettings()[settingKey] = e.target.checked;
-                    saveSettings();
-                    updateToolbarVisibility();
-                });
-            }
-
-            // Настройки кастомного API
-            $('#bb-eg-cfg-usecustom').on('change', function() {
-                const isChecked = $(this).is(':checked');
-                getSettings().useCustomApi = isChecked;
-                if (isChecked) $('#bb-eg-custom-api-block').slideDown(200);
-                else $('#bb-eg-custom-api-block').slideUp(200);
-                saveSettings();
-            });
-
-            $('#bb-eg-cfg-url, #bb-eg-cfg-key').on('change input', function() {
-                getSettings().customApiUrl = $('#bb-eg-cfg-url').val();
-                getSettings().customApiKey = $('#bb-eg-cfg-key').val();
-                saveSettings();
-            });
-            
-            $(document).on('change', '#bb-eg-cfg-model', function() {
-                getSettings().customApiModel = $(this).val();
-                saveSettings();
-            });
-
-            // Extras (1.1.0)
-            $('#bb-eg-cfg-preview').on('change', function() {
-                getSettings().showCuePreview = $(this).is(':checked'); saveSettings();
-            });
-            $('#bb-eg-cfg-stream').on('change', function() {
-                getSettings().enableStreaming = $(this).is(':checked'); saveSettings();
-            });
-            $('#bb-eg-cfg-diff').on('change', function() {
-                getSettings().defaultDifficulty = String($(this).val()); saveSettings();
-            });
-            $('#bb-eg-cfg-askdiff').on('change', function() {
-                const checked = $(this).is(':checked');
-                getSettings().askDifficultyEveryTime = checked;
-                // When 'ask every time' is on, the default difficulty value is unused — disable the select to make it clear.
-                $('#bb-eg-cfg-diff').prop('disabled', checked);
-                saveSettings();
-            });
-            // Per-purpose max_tokens fields. 0 = unlimited, otherwise clamped to [64..8000].
-            const MT_FIELDS = [
-                { id: '#bb-eg-cfg-mt-director', key: 'maxTokensDirector', def: 5000 },
-                { id: '#bb-eg-cfg-mt-enhance',  key: 'maxTokensEnhance',  def: 1500 },
-                { id: '#bb-eg-cfg-mt-context',  key: 'maxTokensContext',  def: 2000 },
-                { id: '#bb-eg-cfg-mt-micro',    key: 'maxTokensMicro',    def: 500  },
-            ];
-            for (const f of MT_FIELDS) {
-                $(f.id).on('change input', function() {
-                    let v = parseInt(String($(this).val()), 10);
-                    if (!Number.isFinite(v)) v = f.def;
-                    if (v <= 0) v = 0;
-                    else v = Math.max(64, Math.min(8000, v));
-                    getSettings()[f.key] = v;
-                    saveSettings();
-                });
-            }
-
-
-            $('#bb-eg-btn-connect').on('click', async function() {
-                const btn = $(this);
-                // @ts-ignore
-                const url = $('#bb-eg-cfg-url').val().replace(/\/$/, '');
-                const key = $('#bb-eg-cfg-key').val();
-                btn.html('<i class="fa-solid fa-spinner fa-spin"></i>&nbsp; ' + escapeHtml(t('loading')));
-
-                try {
-                    const response = await fetch(url + '/models', {
-                        method: 'GET', headers: { 'Authorization': `Bearer ${key}` }
-                    });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-
-                    if (data && data.data && Array.isArray(data.data)) {
-                        const select = $('#bb-eg-cfg-model');
-                        select.empty();
-                        data.data.forEach(m => select.append(`<option value="${escapeHtml(m.id)}">${escapeHtml(m.id)}</option>`));
-                        select.prop('disabled', false);
-
-                        if (getSettings().customApiModel && select.find(`option[value="${getSettings().customApiModel}"]`).length) {
-                            select.val(getSettings().customApiModel);
-                        } else {
-                            getSettings().customApiModel = select.val();
-                        }
-                        // @ts-ignore
-                        toastr.success(t('toast_models_loaded'), 'BB Enhance');
-                        saveSettings();
-                    } else throw new Error('No models in response.');
-                } catch (e) {
-                    console.error(e);
-                    // @ts-ignore
-                    toastr.error(t('toast_err_generic') + e.message, 'BB Enhance');
-                } finally {
-                    btn.html('<i class="fa-solid fa-plug"></i>&nbsp; Connect / Refresh');
-                }
-            });
+        const panel = document.createElement('details'); panel.id = 'bb-eg-settings-container'; panel.className = 'bb-eg-settings';
+        const heading = document.createElement('summary'); heading.textContent = '🎬 Enhance Generation ' + VERSION; panel.append(heading);
+        function group(label) {
+            const section = document.createElement('fieldset'); const legend = document.createElement('legend'); legend.textContent = label; section.append(legend); panel.append(section); return section;
         }
+        function select(parent, label, key, options) {
+            const wrap = document.createElement('label'); wrap.className = 'bb-eg-field';
+            const caption = document.createElement('span'); caption.textContent = label;
+            const el = document.createElement('select'); el.className = 'text_pole'; el.dataset.setting = key;
+            for (const [value, text] of options) { const option = document.createElement('option'); option.value = value; option.textContent = text; el.append(option); }
+            el.value = String(s[key]);
+            el.onchange = () => {
+                getSettings()[key] = el.value; saveSettings();
+                if (key === 'uiLanguage') {
+                    panel.remove(); document.getElementById('bb-enhance-wrapper')?.remove();
+                    injectToolbar(); injectSettingsPanel(); document.getElementById('bb-eg-settings-container').open = true;
+                }
+            };
+            wrap.append(caption, el); parent.append(wrap); return el;
+        }
+        function check(parent, label, key, change) {
+            const wrap = document.createElement('label'); wrap.className = 'checkbox_label';
+            const el = document.createElement('input'); el.type = 'checkbox'; el.checked = !!s[key]; el.dataset.setting = key;
+            el.onchange = () => { getSettings()[key] = el.checked; saveSettings(); change?.(el.checked); };
+            wrap.append(el, document.createTextNode(' ' + label)); parent.append(wrap); return el;
+        }
+        function number(parent, label, key, min, max) {
+            const el = textField(parent, label, String(s[key])); el.type = 'number'; el.min = String(min); el.max = String(max); el.step = '1'; el.dataset.setting = key;
+            el.onchange = () => {
+                let value = Number(el.value);
+                if (!Number.isFinite(value) || !el.value) value = DEFAULT_SETTINGS[key];
+                value = Math.max(min, Math.min(max, Math.floor(value)));
+                if (key.startsWith('maxTokens') && value > 0) value = Math.max(64, value);
+                el.value = String(value); getSettings()[key] = value; saveSettings();
+            };
+        }
+        const general = group(tr('Панель и язык', 'Toolbar and language'));
+        select(general, tr('Язык интерфейса', 'Interface language'), 'uiLanguage', [['auto',tr('Как в браузере','Browser language')],['ru','Русский'],['en','English']]);
+        for (const [short, key] of Object.entries(SETTING_KEYS)) check(general, tr('Показать: ', 'Show: ') + t('btn_' + short), key);
+        const writing = group(tr('Редактирование текста', 'Writing'));
+        select(writing, tr('Расширение Enhance', 'Enhance expansion'), 'expansion', [['1.5','×1.5'],['2','×2'],['3','×3']]);
+        check(writing, tr('Сохранять реплики дословно', 'Preserve dialogue verbatim'), 'preserveDialogue');
+        select(writing, tr('Лицо повествования', 'Narrative person'), 'narrativePerson', [['preserve',tr('Как в оригинале','Match original')],['first',tr('Первое','First person')],['third',tr('Третье','Third person')]]);
+        select(writing, tr('Язык результата', 'Output language'), 'outputLanguage', [['auto',tr('Как в тексте / чате','Match draft / chat')],['ru','Русский'],['en','English']]);
+        const director = group(tr('Контекст и режиссура', 'Context and direction'));
+        number(director, tr('Последних сообщений', 'Recent messages'), 'contextDepth', 1, 40);
+        number(director, tr('Бюджет контекста (символы)', 'Context budget (characters)'), 'contextBudget', 4000, 60000);
+        select(director, tr('Интенсивность событий', 'Event intensity'), 'eventIntensity', [['subtle',tr('Лёгкий намёк','Subtle hint')],['noticeable',tr('Заметное событие','Noticeable event')],['turning',tr('Перелом сцены','Turning point')]]);
+        select(director, tr('Тип напряжения', 'Tension type'), 'tensionType', [['romantic',tr('Романтическое','Romantic')],['conflict',tr('Конфликтное','Conflict')],['anxious',tr('Тревожное','Suspense')]]);
+        check(director, t('set_show_preview'), 'showCuePreview');
+        const dice = group('🎲 Action Roll');
+        const difficulty = select(dice, t('set_default_diff'), 'defaultDifficulty', ['easy','normal','hard','epic','random'].map(key => [key, t('diff_' + key)]));
+        difficulty.disabled = !!s.askDifficultyEveryTime;
+        check(dice, t('set_ask_diff_every_time'), 'askDifficultyEveryTime', checked => { difficulty.disabled = checked; });
+        check(dice, tr('Вводить вопрос вручную (без запроса модели)', 'Enter question manually (no model request)'), 'manualRoll');
+        check(dice, tr('Без анимации броска', 'Skip dice animation'), 'skipAnimation');
+        const api = group('Custom API');
+        check(api, tr('Использовать отдельный API', 'Use a separate API'), 'useCustomApi');
+        for (const [key, label] of [['customApiUrl','URL'],['customApiKey','API key']]) {
+            const el = textField(api,label,s[key] || ''); el.dataset.setting = key;
+            if (key === 'customApiKey') { el.type = 'password'; el.autocomplete = 'off'; }
+            el.onchange = () => { getSettings()[key] = el.value.trim(); customApiWarnedThisSession = false; saveSettings(); };
+        }
+        const model = textField(api, tr('Модель (можно ввести вручную)', 'Model (manual entry allowed)'), s.customApiModel || ''); model.dataset.setting = 'customApiModel';
+        model.onchange = () => { getSettings().customApiModel = model.value.trim(); saveSettings(); };
+        const list = document.createElement('datalist'); list.id = 'bb-eg-model-list'; model.setAttribute('list', list.id); api.append(list);
+        const connect = document.createElement('button'); connect.type = 'button'; connect.className = 'menu_button'; connect.textContent = tr('Подключиться / Обновить модели', 'Connect / Refresh models'); api.append(connect);
+        connect.onclick = async () => {
+            if (connect.disabled) return;
+            connect.disabled = true;
+            const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+                const current = getSettings();
+                const response = await fetch(String(current.customApiUrl).trim().replace(/\/+$/, '') + '/models', { headers: { Authorization: `Bearer ${current.customApiKey || ''}` }, signal: controller.signal });
+                if (!response.ok) { const error = new GenerationError('http'); error.status = response.status; throw error; }
+                const data = await response.json();
+                if (!Array.isArray(data.data)) throw new GenerationError('provider_error');
+                list.replaceChildren();
+                data.data.filter(m => typeof m?.id === 'string').forEach(m => { const option = document.createElement('option'); option.value = m.id; list.append(option); });
+                toastr.success(t('toast_models_loaded'), 'BB Enhance');
+            } catch (error) { toastr.error(errorText(error), 'BB Enhance'); }
+            finally { clearTimeout(timer); connect.disabled = false; }
+        };
+        check(api, tr('Стриминг в окне предпросмотра', 'Stream into preview'), 'enableStreaming');
+        check(api, tr('При ошибке переключаться на основную модель', 'Fall back to the main model on failure'), 'fallbackToMain');
+        number(api, tr('Тайм-аут запроса (секунды)', 'Request timeout (seconds)'), 'requestTimeout', 15, 600);
+        const warning = document.createElement('p'); warning.textContent = t('set_security_warn'); api.append(warning);
+        const limits = group(t('set_max_tokens_group'));
+        for (const [key,label] of [['maxTokensDirector','set_max_tokens_director'],['maxTokensEnhance','set_max_tokens_enhance'],['maxTokensContext','set_max_tokens_context'],['maxTokensMicro','set_max_tokens_micro']]) number(limits,t(label),key,0,8000);
+        const hint = document.createElement('p'); hint.textContent = tr('0 — не задавать лимит в запросе; ограничения провайдера остаются.', '0 omits the request limit; provider limits still apply.'); limits.append(hint);
+        target.append(panel);
     }
 
-    jQuery(async () => {
-        try {
-            const { eventSource, event_types } = SillyTavern.getContext();
-            eventSource.on(event_types.APP_READY, () => { injectToolbar(); injectSettingsPanel(); });
-            // Clear the busy badge when the bot's response arrives or generation ends.
-            const clearBusy = () => { pendingBotResponse = false; updateBusyBadge(); };
-            if (event_types.MESSAGE_RECEIVED) eventSource.on(event_types.MESSAGE_RECEIVED, clearBusy);
-            if (event_types.GENERATION_ENDED) eventSource.on(event_types.GENERATION_ENDED, clearBusy);
-            if (event_types.GENERATION_STOPPED) eventSource.on(event_types.GENERATION_STOPPED, clearBusy);
-            injectToolbar(); injectSettingsPanel();
-        } catch (e) { console.error(`[${MODULE_NAME}] Startup error:`, e); }
+    jQuery(() => {
+        const ctx = SillyTavern.getContext();
+        const events = ctx.eventTypes || ctx.event_types;
+        ctx.eventSource.on(events.APP_READY, () => { injectToolbar(); injectSettingsPanel(); });
+        ctx.eventSource.on(events.CHAT_CHANGED, () => {
+            chatEpoch++; undoDraft = null; customDirectorText = ''; isPopupOpen = false;
+            document.getElementById('bb-eg-popup')?.classList.remove('show'); cancelOperation();
+        });
+        ctx.eventSource.on(events.GENERATION_STARTED, (_type, _options, dryRun) => {
+            if (dryRun) return;
+            if (activeOperation && !activeOperation.mainRequest) cancelOperation();
+            mainGenerating = true; updateBusyBadge();
+        });
+        ctx.eventSource.on(events.GENERATION_ENDED, () => { mainGenerating = false; updateBusyBadge(); });
+        ctx.eventSource.on(events.GENERATION_STOPPED, () => {
+            mainGenerating = false;
+            if (activeOperation?.mainRequest && !activeOperation.controller.signal.aborted) activeOperation.controller.abort(new DOMException('Stopped', 'AbortError'));
+            updateBusyBadge();
+        });
+        injectToolbar(); injectSettingsPanel();
     });
-
 })();
