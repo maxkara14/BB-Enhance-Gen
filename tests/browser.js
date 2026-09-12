@@ -303,6 +303,24 @@ await test('profile list, selected profile and request options do not change the
     assert(requests===before&&sends.length===0&&key===currentId,'no direct fetch or main generation');
     click('Apply');await idle();assert(ta().value==='Profile result','profile output applied');settings.maxTokensEnhance=beforeLimit;
 });
+await test('profile transitions distinguish reasoning-only from empty and accept final answers', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';
+    for (const streaming of [false,true]) {
+        settings.enableStreaming=streaming;
+        for (const reasoning of ['', 'PRIVATE reasoning marker']) {
+            profileHandler=async()=>streaming?async function*(){yield {text:'',state:{reasoning}};}:{content:'',reasoning};
+            const before=notifications.length;
+            document.getElementById('bb-eg-btn-ft').click();await idle();
+            const message=notifications.slice(before).map(n=>n.message).join(' ');
+            assert(message.includes(reasoning?'reasoning only':'no text'),'accurate empty response classification');
+            assert(!message.includes('PRIVATE') && !dialog() && sends.length===0 && ta().value==='Original draft','reasoning not exposed or applied');
+        }
+        profileHandler=async()=>streaming?async function*(){yield {text:'',state:{reasoning:'PRIVATE'}};yield {text:JSON.stringify(travel),state:{reasoning:'PRIVATE'}};}:{content:JSON.stringify(travel),reasoning:'PRIVATE'};
+        document.getElementById('bb-eg-btn-ft').click();await until(()=>button('Apply transition'));
+        assert(dialog().querySelectorAll('.bb-eg-option').length===3,'final answer with reasoning remains usable');
+        click('Cancel');await idle();
+    }
+});
 await test('missing or unsupported profile cannot silently fall back to another model', async () => {
     settings.generationSource='profile';settings.connectionProfileId='missing';settings.fallbackToMain=true;
     let native=0;mainHandler=async()=>{native++;return 'Wrong model';};const before=requests;

@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.2';
+    const VERSION = '1.4.3';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -251,6 +251,7 @@ import { createD20 } from './d20.js';
             stream_error: ['Ответ оборвался. Неполный текст не применён.', 'The response was interrupted. Partial text was not applied.'],
             truncated: ['Достигнут лимит ответа. Увеличьте лимит и повторите.', 'Response limit reached. Increase the limit and retry.'],
             empty_response: ['Модель не вернула текст.', 'The model returned no text.'],
+            reasoning_only: ['Модель вернула только рассуждения, без итогового ответа. Проверьте лимит токенов для этой операции и настройки рассуждений в профиле.', 'The model returned reasoning only, without a final answer. Check the token limit for this operation and the profile reasoning settings.'],
             provider_error: ['Провайдер не смог завершить ответ.', 'The provider could not complete the response.'],
             timeout: ['Истекло время ожидания. Повторите запрос.', 'Request timed out. Retry the request.'],
             busy: ['SillyTavern уже генерирует ответ.', 'SillyTavern is already generating.'],
@@ -658,18 +659,22 @@ import { createD20 } from './d20.js';
                 { stream: !!s.enableStreaming, signal: controller.signal, extractData: true, includePreset: true, includeInstruct: true });
             controller.signal.throwIfAborted();
             assertCurrent(op);
-            let text;
+            let text, hasReasoning = false;
             if (typeof response === 'function') {
                 text = '';
                 for await (const chunk of response()) {
                     controller.signal.throwIfAborted(); assertCurrent(op);
                     if (typeof chunk?.text !== 'string') throw new GenerationError('stream_error');
                     text = chunk.text; // Connection Manager yields accumulated text, not deltas.
+                    hasReasoning ||= typeof chunk.state?.reasoning === 'string' && !!chunk.state.reasoning.trim();
                     onChunk?.('', text);
                 }
                 controller.signal.throwIfAborted(); assertCurrent(op);
-            } else text = typeof response === 'string' ? response : response?.content;
-            if (typeof text !== 'string' || !text.trim()) throw new GenerationError('empty_response');
+            } else {
+                text = typeof response === 'string' ? response : response?.content;
+                hasReasoning = typeof response?.reasoning === 'string' && !!response.reasoning.trim();
+            }
+            if (typeof text !== 'string' || !text.trim()) throw new GenerationError(hasReasoning ? 'reasoning_only' : 'empty_response');
             return text;
         } catch (error) {
             throw controller.signal.aborted ? controller.signal.reason : error;
