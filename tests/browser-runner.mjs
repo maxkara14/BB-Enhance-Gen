@@ -65,7 +65,7 @@ try {
     if(process.env.ENHANCE_SCREENSHOT){
         const views = process.env.ENHANCE_VIEW === 'review' ? ['settings', 'menu'] : [process.env.ENHANCE_VIEW || 'preview'];
         for (const view of views) {
-            const show = { settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy' }[view] || '__showPreview';
+            const show = { settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy', history: '__showHistory' }[view] || '__showPreview';
             const opened = await command('Runtime.evaluate',{expression:`window.${show}()`,awaitPromise:true});
             assert.ok(!opened.exceptionDetails, 'Screenshot view opened');
             const shot=await command('Page.captureScreenshot',{format:'png'});

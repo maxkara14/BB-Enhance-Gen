@@ -5,7 +5,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.3.2';
+    const VERSION = '1.3.3';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -475,10 +475,10 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             isBusy = false; pendingBotResponse = false; updateBusyBadge();
         }
     }
-    function loadRollHistory(legacy = false) {
+    function loadRollHistory() {
         try {
-            const storage = legacy ? localStorage : SillyTavern.getContext().accountStorage;
-            const key = legacy ? HISTORY_KEY : HISTORY_KEY + ':' + chatKey();
+            const storage = SillyTavern.getContext().accountStorage;
+            const key = HISTORY_KEY + ':' + chatKey();
             const parsed = JSON.parse(storage?.getItem(key) || '[]');
             return Array.isArray(parsed) ? parsed.filter(h => h && typeof h.question === 'string' && Number.isInteger(h.roll) && h.roll >= 1 && h.roll <= 20 && Number.isInteger(h.dc)).slice(0, HISTORY_MAX) : [];
         } catch { return []; }
@@ -577,24 +577,29 @@ import { narrativeContext, validateNarrative } from './narrative.js';
         });
     }
 
-    /** Show a modal with the latest roll history entries from localStorage. */
+    /** Show only the current chat's roll history. */
     function showRollHistory() {
         return withBusyLock(async op => {
-            const view = openModal(t('history_title'), { signal: op.controller.signal, cancelLabel: t('history_close') });
-            function render(legacy = false) {
+            const view = openModal(t('history_title'), { signal: op.controller.signal, cancelLabel: t('history_close'), closeInHeader: true });
+            view.box.classList.add('bb-eg-history');
+            const clear = view.button(tr('Очистить историю', 'Clear history'), () => {
+                assertCurrent(op); clearRollHistory(); render(); view.box.querySelector('.bb-eg-close').focus();
+            });
+            function render() {
                 view.body.replaceChildren();
-                const history = loadRollHistory(legacy);
-                if (!history.length) { view.status.textContent = t('history_empty'); return; }
-                view.status.textContent = legacy ? tr('Старая общая история — только чтение.', 'Legacy shared history — read only.') : '';
+                const history = loadRollHistory();
+                clear.hidden = !history.length; view.actions.hidden = !history.length;
+                view.status.textContent = '';
+                if (!history.length) {
+                    const empty = document.createElement('p'); empty.className = 'bb-history-empty';
+                    empty.textContent = tr('В этом чате ещё не было бросков.', 'No rolls in this chat yet.'); view.body.append(empty); return;
+                }
                 for (const h of history) {
                     const item = document.createElement('p'); item.className = 'bb-history-item';
                     item.textContent = `${new Date(h.timestamp || 0).toLocaleString()} · ${h.question}\n${h.roll} / DC ${h.dc} · ${h.outcomeKey ? t('outcome_' + h.outcomeKey) : String(h.outcome || '')}`; view.body.append(item);
                 }
             }
             render();
-            view.button(tr('Этот чат', 'This chat'), () => render());
-            view.button(tr('Старая общая история', 'Legacy shared history'), () => render(true));
-            view.button(tr('Очистить историю этого чата', 'Clear this chat history'), () => { assertCurrent(op); clearRollHistory(); render(); });
             await view.result;
         });
     }

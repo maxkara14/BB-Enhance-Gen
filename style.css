@@ -347,6 +347,46 @@
 #bb-eg-popup.show { visibility: visible; }
 #bb-eg-popup .bb-eg-vibe-btn { white-space: nowrap; }
 #bb-eg-popup :focus-visible { outline: 2px solid #d4af37; outline-offset: -2px; }
+/* Raised dark surfaces with a restrained gold highlight. */
+.bb-eg-btn, #bb-eg-popup button:not(.bb-eg-back-btn), .bb-eg-dialog .bb-modal-cancel,
+.bb-eg-dialog .bb-modal-ok, .bb-eg-dialog .bb-diff-btn, .bb-eg-dialog .bb-eg-option {
+    background: linear-gradient(180deg, #302b25, #201d19);
+    border: 1px solid #746044; color: #f2e7d4;
+    box-shadow: inset 0 1px 0 #ffffff12, 0 2px 4px #0005;
+    transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .12s ease;
+}
+.bb-eg-btn:hover, #bb-eg-popup button:not(.bb-eg-back-btn):hover,
+.bb-eg-dialog .bb-modal-cancel:hover, .bb-eg-dialog .bb-modal-ok:hover,
+.bb-eg-dialog .bb-diff-btn:hover, .bb-eg-dialog .bb-eg-option:hover {
+    background: linear-gradient(180deg, #443824, #2c251b);
+    color: #ffe2a3; border-color: #c6a05b;
+    box-shadow: inset 0 1px 0 #ffe3a322, 0 0 9px #d4af3720;
+}
+.bb-eg-btn:active, #bb-eg-popup button:not(.bb-eg-back-btn):active,
+.bb-eg-dialog .bb-modal-cancel:active, .bb-eg-dialog .bb-modal-ok:active,
+.bb-eg-dialog .bb-diff-btn:active, .bb-eg-dialog .bb-eg-option:active {
+    transform: translateY(1px); box-shadow: inset 0 2px 4px #0006;
+}
+.bb-eg-dialog .bb-modal-ok { border-color: #c6a05b; color: #ffe2a3; }
+.bb-eg-btn-history { color: #dec6ff; }
+.bb-eg-dialog [hidden] { display: none !important; }
+.bb-eg-dialog .bb-eg-status:empty { display: none; }
+.bb-eg-dialog .bb-eg-history { position: relative; padding: 22px; }
+.bb-eg-dialog .bb-eg-history > .bb-modal-title {
+    margin: 0 34px 20px; padding: 0; border: 0; background: none;
+    box-shadow: none; text-shadow: none; line-height: 1.5; letter-spacing: 1.5px;
+}
+.bb-eg-dialog .bb-eg-history > .bb-modal-title::before,
+.bb-eg-dialog .bb-eg-history > .bb-modal-title::after { content: none; }
+.bb-eg-dialog .bb-eg-close {
+    position: absolute; top: 13px; right: 13px; width: 32px; height: 32px;
+    padding: 0; border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: #c6baa5; font: 24px/1 sans-serif;
+    cursor: pointer; transition: background .16s ease, color .16s ease;
+}
+.bb-eg-dialog .bb-eg-close:hover { background: #d4af3718; color: #ffe2a3; border-color: #746044; }
+.bb-eg-dialog .bb-history-empty { margin: 0; padding: 24px 0 30px; color: #c6baa5; font-style: normal; line-height: 1.6; }
+.bb-eg-dialog .bb-history-item { white-space: pre-wrap; line-height: 1.6; }
 @media (max-width: 600px) {
     .bb-eg-dialog .bb-modal-box { padding: 14px; max-width: 100%; }
     .bb-eg-dialog .bb-modal-title { letter-spacing: 1px; }

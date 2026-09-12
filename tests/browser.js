@@ -50,7 +50,7 @@ async function until(predicate, label = 'condition') { for (let i=0;i<200;i++) {
 function assert(value, label) { if (!value) throw new Error(label); }
 const ta = () => document.getElementById('send_textarea');
 const dialog = () => document.querySelector('.bb-eg-dialog');
-const button = text => [...document.querySelectorAll('.bb-eg-dialog button')].find(btn => btn.textContent === text);
+const button = text => [...document.querySelectorAll('.bb-eg-dialog button')].find(btn => btn.textContent === text || btn.getAttribute('aria-label') === text);
 const click = text => { const el = button(text); assert(el && !el.disabled, 'Enabled button: '+text); el.click(); };
 async function idle() { await until(() => document.getElementById('bb-eg-stop').hidden, 'idle'); }
 async function reset() {
@@ -497,6 +497,30 @@ await test('profile stream failure restores draft and user edits during stream a
     ta().value='My edit';release();await idle();assert(ta().value==='My edit','typing wins over stream');
 });
 
+await test('history has a header close, no legacy tabs and hides clear when empty', async () => {
+    key='history-design';chat=[];emit(events.CHAT_CHANGED);
+    const historyKey='bb-enhance-gen.rollHistory:'+JSON.stringify(['character','character.png',key]);
+    const anotherKey='bb-enhance-gen.rollHistory:other';memory.set(anotherKey,'retained');
+    const theme=document.createElement('style');theme.textContent='h3 {border-left:3px solid white;padding-left:12px}';document.head.append(theme);
+    try {
+        document.getElementById('bb-eg-btn-history').click();await until(()=>dialog());
+        const close=dialog().querySelector('.bb-eg-close');assert(close&&close.getAttribute('aria-label')==='Close','accessible header close');
+        assert(!button('This chat')&&!button('Legacy shared history'),'no obsolete tabs');
+        assert(button('Clear history').hidden,'no empty clear action');
+        assert(getComputedStyle(dialog().querySelector('h3')).borderLeftWidth==='0px','theme title stripe isolated');
+        assert(document.activeElement===close,'close receives focus');
+        close.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));assert(document.activeElement===close,'hidden clear excluded from focus trap');
+        click('Close');await idle();
+        memory.set(historyKey,JSON.stringify([{question:'A saved roll',roll:12,dc:10,timestamp:1,outcome:'Success'}]));
+        document.getElementById('bb-eg-btn-history').click();await until(()=>dialog());
+        assert(!button('Clear history').hidden&&dialog().textContent.includes('A saved roll'),'records and clear shown');
+        click('Clear history');assert(button('Clear history').hidden&&!dialog().textContent.includes('A saved roll'),'clear updates empty state');
+        assert(document.activeElement===dialog().querySelector('.bb-eg-close'),'focus leaves hidden clear button');
+        assert(memory.get(anotherKey)==='retained','other history preserved');
+        dialog().dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await idle();assert(!dialog(),'Escape closes history');
+    } finally {theme.remove();}
+});
+
 window.__showSettings = async () => {
     await reset();document.getElementById('results').hidden=true;
     const language=document.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
@@ -532,6 +556,12 @@ window.__showDirection = async () => {
     root.querySelector('[data-section=connection]').open=false;root.querySelector('[data-section=direction]').open=true;
     document.getElementById('send_form').hidden=true;
     root.querySelector('[data-setting=eventIntensity]').parentElement.scrollIntoView();
+};
+window.__showHistory = async () => {
+    await window.__showSettings();document.getElementById('bb-eg-settings-container').hidden=true;
+    document.getElementById('send_form').hidden=true;
+    key='empty-history-screenshot';chat=[];emit(events.CHAT_CHANGED);
+    document.getElementById('bb-eg-btn-history').click();await until(()=>dialog());
 };
 window.__showPreview = async () => {
     await reset();

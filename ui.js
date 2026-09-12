@@ -1,5 +1,5 @@
 // One modal lifecycle: cancellation, focus restoration, keyboard access and cleanup.
-export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false } = {}) {
+export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false, closeInHeader = false } = {}) {
     const previousFocus = document.activeElement;
     const overlay = document.createElement('div');
     overlay.className = 'bb-modal-overlay bb-eg-dialog';
@@ -37,7 +37,12 @@ export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false 
         el.className = primary ? 'bb-modal-ok' : 'bb-modal-cancel'; el.textContent = label;
         el.addEventListener('click', handler); actions.append(el); return el;
     }
-    button(cancelLabel, () => close());
+    if (closeInHeader) {
+        const closeButton = document.createElement('button'); closeButton.type = 'button';
+        closeButton.className = 'bb-eg-close'; closeButton.textContent = '×';
+        closeButton.setAttribute('aria-label', cancelLabel); closeButton.title = cancelLabel;
+        closeButton.onclick = () => close(); heading.after(closeButton);
+    } else button(cancelLabel, () => close());
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
     overlay.addEventListener('keydown', e => {
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
