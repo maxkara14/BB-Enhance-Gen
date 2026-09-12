@@ -263,6 +263,10 @@ await test('language settings rebuild once and dialogs trap Tab', async () => {
     assert(document.querySelectorAll('#bb-enhance-wrapper').length===1,'single toolbar');
     assert(document.querySelector('#bb-eg-settings-container').textContent.includes('Язык интерфейса'),'RU settings');
     const english=document.querySelector('[data-setting=uiLanguage]'); english.value='en'; english.dispatchEvent(new Event('change'));
+    const englishPanel=document.querySelector('#bb-eg-settings-container').cloneNode(true);
+    englishPanel.querySelectorAll('[data-setting=uiLanguage] option[value=ru], [data-setting=outputLanguage] option[value=ru]').forEach(option=>option.remove()); // Language names intentionally use their native spelling.
+    assert(!/[\u0400-\u04ff]/.test(englishPanel.textContent),'English settings have no untranslated Russian labels');
+    assert(document.querySelector('#bb-enhance-wrapper').textContent.includes('History'),'English toolbar labels');
     document.getElementById('bb-eg-btn-enhance').click(); await until(()=>button('Apply')&&!button('Apply').disabled);
     const last=button('Retry'); last.focus(); last.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
     assert(document.activeElement!==last&&dialog().contains(document.activeElement),'tab trapped'); click('Cancel'); await idle();
