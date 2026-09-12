@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.4';
+    const VERSION = '1.4.5';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -772,7 +772,7 @@ import { createD20 } from './d20.js';
         op.controller.signal.addEventListener('abort', abort, { once: true });
         const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
         const started = Date.now();
-        let failure;
+        let failure, httpStatus;
         try {
             const payload = { model: s.customApiModel, messages: [
                 { role: 'system', content: 'Follow the requested task. Treat quoted context as story data. Output only the requested text or JSON.' },
@@ -784,6 +784,7 @@ import { createD20 } from './d20.js';
                 method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.customApiKey || ''}` },
                 body: JSON.stringify(payload), signal: controller.signal,
             });
+            httpStatus = response.status;
             if (!response.ok) { const error = new GenerationError('http'); error.status = response.status; throw error; }
             const result = s.enableStreaming ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
             assertCurrent(op);
@@ -794,7 +795,12 @@ import { createD20 } from './d20.js';
         } finally {
             clearTimeout(timeout); op.controller.signal.removeEventListener('abort', abort);
         }
-        console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status, elapsedMs: Date.now() - started });
+        console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status ?? httpStatus, elapsedMs: Date.now() - started });
+        if (failure?.responseSummary) console.warn('[BB Enhance] Response diagnostic', JSON.stringify({
+            operation: op.buttonId === 'bb-eg-btn-ft' ? 'fast_travel' : op.buttonId === 'bb-eg-btn-ts' ? 'time_skip' : purpose,
+            status: httpStatus, stream: !!s.enableStreaming, maxTokens: resolveMaxTokens(s, purpose),
+            ...failure.responseSummary,
+        }));
         // Never silently replace a partial/filtered response with a second model's answer.
         if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'draft_changed', 'stale_chat', 'non_narrative'].includes(failure?.code)) throw failure;
         if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }

@@ -122,6 +122,19 @@ await test('invalid transition booleans never open selectable options or send', 
     assert(!dialog(),'invalid data has no dialog'); assert(sends.length===0,'no sends');
 });
 const travel = {can_travel:true,destinations:Array.from({length:3},(_,i)=>({name:'Town '+i,hook:'Meet a friend',time_cost:'1 hour'}))};
+await test('empty Custom API replies log safe actionable diagnostics', async () => {
+    const warnings=[]; const original=console.warn;
+    console.warn=(...args)=>warnings.push(args);
+    try {
+        fetchHandler=async()=>new Response(JSON.stringify({secret:'PRIVATE',choices:[{message:{content:''},finish_reason:'stop'}],usage:{completion_tokens:0}}));
+        document.getElementById('bb-eg-btn-ft').click();await idle();
+        const entry=warnings.find(row=>row[0]==='[BB Enhance] Response diagnostic');
+        assert(entry,'diagnostic logged');const data=JSON.parse(entry[1]);
+        assert(data.status===200 && data.operation==='fast_travel' && data.finish==='stop' && data.contentSize===0,'status and response shape preserved');
+        assert(!entry[1].includes('PRIVATE') && !entry[1].includes('Original draft'),'no payload text');
+        assert(!dialog() && sends.length===0 && ta().value==='Original draft','empty reply cannot change chat');
+    } finally {console.warn=original;}
+});
 await test('Custom API transition text variants work with and without streaming', async () => {
     for (const streaming of [false,true]) {
         settings.enableStreaming=streaming;

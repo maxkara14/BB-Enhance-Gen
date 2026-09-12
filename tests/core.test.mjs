@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanNarrative, fillTemplate, parseTransition, readStream, recentContext, responseContent, stripCues } from '../core.js';
+import { cleanNarrative, fillTemplate, parseTransition, readStream, recentContext, responseContent, responseSummary, stripCues } from '../core.js';
 
 const event = data => `data: ${JSON.stringify(data)}\n\n`;
 const delta = text => event({ choices: [{ delta: { content: text } }] });
@@ -14,6 +14,16 @@ function response(chunks) {
 const valid = kind => kind === 'ft'
     ? { can_travel: true, destinations: Array.from({ length: 3 }, () => ({ name: 'Town', hook: 'Meet a friend', time_cost: '1 hour' })) }
     : { can_skip: true, options: Array.from({ length: 3 }, () => ({ title: 'Morning', summary: 'Wake up', time: '8 hours' })) };
+
+test('response diagnostics expose only safe shape metadata for JSON and SSE', async () => {
+    const data = {secret:'PRIVATE',choices:[{message:{content:'',reasoning_content:'PRIVATE',tool_calls:[{arguments:'PRIVATE'}]},finish_reason:'PRIVATE'}],usage:{completion_tokens:123,completion_tokens_details:{reasoning_tokens:123}}};
+    const summary=responseSummary(data);
+    assert.equal(summary.finish,'other'); assert.equal(summary.toolCalls,1); assert.equal(summary.reasoningTokens,123);
+    assert.equal(JSON.stringify(summary).includes('PRIVATE'),false);
+    assert.throws(()=>responseContent(data),error=>error.code==='reasoning_only' && error.responseSummary.contentSize===0);
+    await assert.rejects(readStream(response([event(data),stop]),()=>{}),error=>error.code==='reasoning_only' && error.responseSummary.events===2 && error.responseSummary.reasoningPresent && !JSON.stringify(error.responseSummary).includes('PRIVATE'));
+    assert.equal(responseContent({choices:[{message:{content:'Valid prose'}}]}),'Valid prose');
+});
 
 test('FT/TS accept complete options and explicit denials', () => {
     for (const kind of ['ft', 'ts']) {

@@ -70,12 +70,36 @@ function hasReasoning(message) {
     return ['reasoning', 'reasoning_content'].some(key => typeof message?.[key] === 'string' && !!message[key].trim());
 }
 
+// Only fixed labels, booleans and counts: never include provider/chat text or keys.
+export function responseSummary(data) {
+    const choice = data?.choices?.[0];
+    const message = choice?.message ?? choice?.delta;
+    const shape = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+    const count = value => typeof value === 'string' ? value.length : Array.isArray(value) ? value.length : 0;
+    const number = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
+    const finish = choice?.finish_reason;
+    return {
+        rootType: shape(data), choices: Array.isArray(data?.choices) ? data.choices.length : 0,
+        contentType: shape(message?.content), contentSize: count(message?.content),
+        extractedChars: completionText(message?.content ?? choice?.text ?? data?.content ?? data?.text).length,
+        reasoningPresent: hasReasoning(message), toolCalls: count(message?.tool_calls),
+        finish: finish == null ? 'missing' : ['stop', 'length', 'content_filter', 'tool_calls', 'function_call'].includes(finish) ? finish : 'other',
+        candidates: Array.isArray(data?.candidates) ? data.candidates.length : 0,
+        errorPresent: !!data?.error,
+        completionTokens: number(data?.usage?.completion_tokens),
+        reasoningTokens: number(data?.usage?.completion_tokens_details?.reasoning_tokens),
+    };
+}
+
 export function responseContent(data) {
     const choice = data?.choices?.[0];
     const text = completionText(choice?.message?.content ?? choice?.text ?? data?.content ?? data?.text);
     if (choice?.finish_reason === 'length') throw new GenerationError('truncated', typeof text === 'string' ? text : '');
     if (data?.error || choice?.finish_reason === 'content_filter') throw new GenerationError('provider_error');
-    if (!text.trim()) throw new GenerationError(hasReasoning(choice?.message) ? 'reasoning_only' : 'empty_response');
+    if (!text.trim()) {
+        const error = new GenerationError(hasReasoning(choice?.message) ? 'reasoning_only' : 'empty_response');
+        error.responseSummary = responseSummary(data); throw error;
+    }
     return text;
 }
 
@@ -84,6 +108,7 @@ export async function readStream(response, onChunk, signal) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '', result = '', completed = false, reasoning = false;
+    let events = 0, lastSummary;
     const onAbort = () => { void reader.cancel().catch(() => {}); };
     signal?.addEventListener('abort', onAbort, { once: true });
     function line(raw) {
@@ -93,6 +118,7 @@ export async function readStream(response, onChunk, signal) {
         if (payload === '[DONE]') { completed = true; return; }
         let data;
         try { data = JSON.parse(payload); } catch { throw new GenerationError('stream_error', result); }
+        events++; if (data?.choices?.length || !lastSummary) lastSummary = responseSummary(data);
         if (data.error) throw new GenerationError('provider_error', result);
         const choice = data.choices?.[0];
         const valueText = choice?.delta?.content ?? choice?.message?.content ?? choice?.text ?? '';
@@ -121,7 +147,10 @@ export async function readStream(response, onChunk, signal) {
         return result;
     } catch (error) {
         if (signal?.aborted) throw signal.reason;
-        if (error instanceof GenerationError) throw error;
+        if (error instanceof GenerationError) {
+            error.responseSummary = { ...lastSummary, events, extractedChars: result.length, reasoningPresent: reasoning, completed };
+            throw error;
+        }
         throw new GenerationError('stream_error', result);
     } finally {
         signal?.removeEventListener('abort', onAbort);
