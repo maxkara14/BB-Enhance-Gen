@@ -5,7 +5,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.3.1';
+    const VERSION = '1.3.2';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -232,7 +232,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
     function assertCurrent(op, checkDraft = false) {
         op.controller.signal.throwIfAborted();
         if (!op.key || op.key !== chatKey() || op.epoch !== chatEpoch || op.chat !== SillyTavern.getContext().chat) throw new GenerationError('stale_chat');
-        if (checkDraft && (document.getElementById('send_textarea')?.value || '') !== op.input) throw new GenerationError('draft_changed');
+        if (checkDraft && (document.getElementById('send_textarea')?.value || '') !== (op.renderedInput ?? op.input)) throw new GenerationError('draft_changed');
     }
 
     function cancelOperation() {
@@ -374,6 +374,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 
     async function handleTransition(kind) {
         return withBusyLock(async op => {
+            op.buttonId = kind === 'ft' ? 'bb-eg-btn-ft' : 'bb-eg-btn-ts'; updateBusyBadge();
             let refresh = true;
             while (refresh) {
                 assertCurrent(op);
@@ -561,8 +562,19 @@ import { narrativeContext, validateNarrative } from './narrative.js';
         const toggle = document.getElementById('bb-eg-toggle-btn');
         toggle?.classList.toggle('bb-busy', isBusy || pendingBotResponse);
         const stop = document.getElementById('bb-eg-stop');
-        if (stop) stop.hidden = !isBusy;
-        document.querySelectorAll('#bb-enhance-toolbar > button:not(#bb-eg-stop), #bb-eg-btn-director').forEach(btn => { btn.disabled = isBusy || mainGenerating; });
+        const stopping = isBusy && activeOperation?.controller.signal.aborted;
+        if (stop) {
+            stop.hidden = !isBusy; stop.disabled = !!stopping;
+            stop.textContent = stopping ? tr('⏳ Остановка…', '⏳ Stopping…') : tr('⏹ Остановить', '⏹ Stop');
+        }
+        document.querySelectorAll('#bb-enhance-toolbar > button:not(#bb-eg-stop), #bb-eg-btn-director').forEach(btn => {
+            btn.disabled = !isBusy && mainGenerating;
+            btn.setAttribute('aria-disabled', String(isBusy || mainGenerating));
+            const active = isBusy && btn.id === activeOperation?.buttonId;
+            btn.classList.toggle('loading', active && !stopping);
+            btn.classList.toggle('bb-stopping', active && !!stopping);
+            btn.setAttribute('aria-busy', String(active));
+        });
     }
 
     /** Show a modal with the latest roll history entries from localStorage. */
@@ -597,7 +609,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
         } catch { throw new GenerationError('profiles_unavailable'); }
     }
 
-    async function runProfileGen(promptText, purpose, op) {
+    async function runProfileGen(promptText, purpose, op, onChunk) {
         const s = { ...getSettings() };
         const service = await profileService();
         assertCurrent(op);
@@ -613,10 +625,20 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             const response = await service.sendRequest(s.connectionProfileId,
                 [{ role: 'system', content: 'Follow the task and output only the requested text or JSON.' }, { role: 'user', content: promptText }],
                 resolveMaxTokens(s, purpose) || undefined,
-                { stream: false, signal: controller.signal, extractData: true, includePreset: true, includeInstruct: true });
+                { stream: !!s.enableStreaming, signal: controller.signal, extractData: true, includePreset: true, includeInstruct: true });
             controller.signal.throwIfAborted();
             assertCurrent(op);
-            const text = typeof response === 'string' ? response : response?.content;
+            let text;
+            if (typeof response === 'function') {
+                text = '';
+                for await (const chunk of response()) {
+                    controller.signal.throwIfAborted(); assertCurrent(op);
+                    if (typeof chunk?.text !== 'string') throw new GenerationError('stream_error');
+                    text = chunk.text; // Connection Manager yields accumulated text, not deltas.
+                    onChunk?.('', text);
+                }
+                controller.signal.throwIfAborted(); assertCurrent(op);
+            } else text = typeof response === 'string' ? response : response?.content;
             if (typeof text !== 'string' || !text.trim()) throw new GenerationError('empty_response');
             return text;
         } catch (error) {
@@ -707,7 +729,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
     async function generateEnhanceFast(promptText, onChunk, purpose = 'micro', op = activeOperation) {
         assertCurrent(op);
         const s = getSettings();
-        if (s.generationSource === 'profile') return runProfileGen(promptText, purpose, op);
+        if (s.generationSource === 'profile') return runProfileGen(promptText, purpose, op, onChunk);
         if (s.generationSource !== 'custom') return runMainGen(promptText, purpose, op);
         if (!s.customApiUrl || !s.customApiModel) return runMainGen(promptText, purpose, op);
         const controller = new AbortController();
@@ -739,7 +761,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
         }
         console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status, elapsedMs: Date.now() - started });
         // Never silently replace a partial/filtered response with a second model's answer.
-        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error'].includes(failure?.code)) throw failure;
+        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'draft_changed', 'stale_chat', 'non_narrative'].includes(failure?.code)) throw failure;
         if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }
         return runMainGen(promptText, purpose, op);
     }
@@ -747,18 +769,39 @@ import { narrativeContext, validateNarrative } from './narrative.js';
     // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
     async function handleGeneration(type) {
         return withBusyLock(async op => {
+            op.buttonId = type.startsWith('dir_') ? 'bb-eg-btn-director' : type === 'enhance' ? 'bb-eg-btn-enhance' : 'bb-eg-btn-improve';
+            updateBusyBadge();
             if ((type === 'enhance' || type === 'improve') && !op.input.trim()) { toastr.warning(t('toast_need_input'), 'BB Enhance'); return; }
             const direction = customDirectorText;
             if (type.startsWith('dir_')) {
-                const prompt = await makePrompt(type, op.input.trim(), direction);
-                const result = await generateEnhanceFast(prompt, undefined, 'director', op);
-                assertCurrent(op, true);
-                const text = stripLeadingUserName(validateNarrative(result));
-                if (!text.trim()) throw new GenerationError('empty_response');
-                const ta = document.getElementById('send_textarea');
-                undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: text };
-                ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
-                ta.focus({ preventScroll: true });
+                const restore = () => {
+                    const ta = document.getElementById('send_textarea');
+                    if (op.renderedInput !== undefined && op.key === chatKey() && op.epoch === chatEpoch
+                        && op.chat === SillyTavern.getContext().chat && ta?.value === op.renderedInput) {
+                        ta.value = op.input; op.renderedInput = undefined;
+                        ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                };
+                op.controller.signal.addEventListener('abort', restore, { once: true });
+                try {
+                    const prompt = await makePrompt(type, op.input.trim(), direction);
+                    const result = await generateEnhanceFast(prompt, (_delta, total) => {
+                        assertCurrent(op, true);
+                        const text = stripLeadingUserName(validateNarrative(total));
+                        if (!text) return;
+                        const ta = document.getElementById('send_textarea');
+                        op.renderedInput = text; ta.value = text;
+                        ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    }, 'director', op);
+                    assertCurrent(op, true);
+                    const text = stripLeadingUserName(validateNarrative(result));
+                    if (!text.trim()) throw new GenerationError('empty_response');
+                    const ta = document.getElementById('send_textarea');
+                    undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: text };
+                    ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.focus({ preventScroll: true });
+                } catch (error) { restore(); throw error; }
+                finally { op.controller.signal.removeEventListener('abort', restore); }
                 return;
             }
             const view = openModal(tr('Предпросмотр текста', 'Text preview'), { signal: op.controller.signal, cancelLabel: tr('Отмена', 'Cancel'), wide: true });
@@ -844,6 +887,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 
     async function handleSkillCheck() {
         return withBusyLock(async op => {
+            op.buttonId = 'bb-eg-btn-dice'; updateBusyBadge();
             const target = op.input.trim() || removeExtensionCues([...op.chat].reverse().find(m => m.is_user)?.mes);
             if (!target) throw new GenerationError('no_action');
             const s = getSettings();
@@ -874,6 +918,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
     // === РЕЖИССЕР (DIRECTOR) ===
     async function handleBotGeneration(type) {
         return withBusyLock(async op => {
+            op.buttonId = 'bb-eg-btn-director'; updateBusyBadge();
             const instructions = {
                 dir_disaster: 'Introduce a dramatic disruption or danger grounded in the setting. Do not resolve it yet.',
                 dir_blessing: 'Introduce unexpected luck or comfort grounded in the setting.',
@@ -1258,7 +1303,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             } catch (error) { toastr.error(errorText(error), 'BB Enhance'); }
             finally { clearTimeout(timer); connect.disabled = false; }
         };
-        check(api, tr('Стриминг в окне предпросмотра', 'Stream into preview'), 'enableStreaming');
+        check(connection, tr('Потоковый вывод (профили / Custom API)', 'Streaming (profiles / Custom API)'), 'enableStreaming');
         check(api, tr('При ошибке переключаться на основную модель', 'Fall back to the main model on failure'), 'fallbackToMain');
         number(connection, tr('Тайм-аут запроса (секунды)', 'Request timeout (seconds)'), 'requestTimeout', 15, 600);
         const warning = document.createElement('p'); warning.textContent = t('set_security_warn'); api.append(warning);

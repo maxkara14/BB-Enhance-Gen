@@ -297,10 +297,12 @@ await test('profile names are text and unavailable saved profile stays visible',
 await test('event flyout opens sideways without moving toolbar items and remains inside the viewport', async () => {
     const toggle=document.getElementById('bb-eg-toggle-btn');if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))toggle.click();
     await new Promise(resolve=>setTimeout(resolve,240));
+    const toolbar=document.getElementById('bb-enhance-toolbar');toolbar.getBoundingClientRect();
+    await until(()=>toolbar.getAnimations().length===0,'toolbar opening animation finished');
     const dice=document.getElementById('bb-eg-btn-dice'),before=dice.getBoundingClientRect();
     document.getElementById('bb-eg-btn-director').click();await new Promise(resolve=>setTimeout(resolve,200));
     const popup=document.getElementById('bb-eg-popup'),rect=popup.getBoundingClientRect(),after=dice.getBoundingClientRect();
-    assert(Math.abs(before.top-after.top)<1,'toolbar items do not shift');
+    assert(Math.abs(before.top-after.top)<1,`toolbar items do not shift: ${before.top} → ${after.top}`);
     assert(rect.left>=0&&rect.right<=document.documentElement.clientWidth+1&&rect.top>=0&&rect.bottom<=innerHeight+1,'flyout inside viewport');
     const anchor=document.getElementById('bb-eg-btn-director').getBoundingClientRect();
     if(innerWidth>=700)assert(rect.left>=anchor.right||rect.right<=anchor.left,'desktop flyout opens sideways');
@@ -460,6 +462,41 @@ await test('custom empty direction stays open and blank draft can be restored af
     undo.click();await idle();assert(ta().value==='','empty original restored');
 });
 
+await test('profile streams accumulated text into chat, highlights only active tool and restores original', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';settings.enableStreaming=true;
+    let release;const gate=new Promise(resolve=>{release=resolve;});
+    profileHandler=async(_id,_messages,_limit,options)=>{
+        assert(options.stream,'profile streaming requested');
+        return async function*(){yield {text:'First'};await gate;yield {text:'First sentence.'};};
+    };
+    document.getElementById('bb-eg-btn-director').click();document.querySelector('[data-vibe=dir_blessing]').click();document.querySelector('[data-target=me]').click();
+    await until(()=>ta().value==='First','first chunk in chat');
+    assert(!dialog()&&document.getElementById('bb-eg-btn-director').classList.contains('loading'),'active tool animates without popup');
+    const other=document.getElementById('bb-eg-btn-enhance');assert(!other.disabled&&!other.classList.contains('loading'),'other tools keep normal appearance');
+    other.click();assert(profileCalls.length===1,'busy guard still prevents parallel generation');
+    release();await idle();assert(ta().value==='First sentence.','accumulated chunks not duplicated');
+    assert(!document.getElementById('bb-eg-btn-director').classList.contains('loading'),'animation cleared');
+    [...document.querySelectorAll('#bb-enhance-toolbar button')].find(b=>b.textContent.includes('Restore original')).click();await idle();assert(ta().value==='Original draft','undo keeps original before stream');
+});
+await test('profile stream cancellation shows stopping, restores draft and preserves subsequent typing', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';settings.enableStreaming=true;
+    let release;const gate=new Promise(resolve=>{release=resolve;});
+    profileHandler=async()=>async function*(){yield {text:'Partial prose'};await gate;yield {text:'Late prose'};};
+    document.getElementById('bb-eg-btn-director').click();document.querySelector('[data-vibe=dir_blessing]').click();document.querySelector('[data-target=me]').click();
+    await until(()=>ta().value==='Partial prose');const stop=document.getElementById('bb-eg-stop');stop.click();
+    assert(stop.textContent.includes('Stopping')&&stop.disabled,'explicit stopping state');
+    assert(ta().value==='Original draft','draft restored immediately');ta().value='My next thought';
+    release();await idle();assert(ta().value==='My next thought'&&stop.hidden,'late stream cannot overwrite edits');
+});
+await test('profile stream failure restores draft and user edits during stream are retained', async () => {
+    settings.generationSource='profile';settings.connectionProfileId='profile-a';settings.enableStreaming=true;
+    const open=()=>{document.getElementById('bb-eg-btn-director').click();document.querySelector('[data-vibe=dir_blessing]').click();document.querySelector('[data-target=me]').click();};
+    profileHandler=async()=>async function*(){yield {text:'Partial'};throw new Error('transport failure');};open();await idle();assert(ta().value==='Original draft','stream failure rolls back');
+    let release;const gate=new Promise(resolve=>{release=resolve;});
+    profileHandler=async()=>async function*(){yield {text:'Partial'};await gate;yield {text:'Finished'};};open();await until(()=>ta().value==='Partial');
+    ta().value='My edit';release();await idle();assert(ta().value==='My edit','typing wins over stream');
+});
+
 window.__showSettings = async () => {
     await reset();document.getElementById('results').hidden=true;
     const language=document.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
@@ -480,6 +517,14 @@ window.__showCustom = async () => {
     document.querySelector('#bb-eg-settings-container .inline-drawer-content').style.display='none';
     await window.__showMenu();document.querySelector('#bb-eg-popup [data-vibe=dir_custom]').click();
     const field=document.querySelector('#bb-eg-popup textarea');field.value='';field.dispatchEvent(new Event('input',{bubbles:true}));
+};
+window.__showBusy = async () => {
+    await window.__showSettings();document.querySelector('#bb-eg-settings-container .inline-drawer-content').style.display='none';
+    await window.__showMenu();settings.generationSource='profile';settings.connectionProfileId='profile-a';settings.enableStreaming=true;
+    profileHandler=async(_id,_messages,_limit,options)=>async function*(){yield {text:'Я останавливаюсь у двери…'};await new Promise(resolve=>options.signal.addEventListener('abort',resolve,{once:true}));};
+    document.querySelector('#bb-eg-popup [data-vibe=dir_blessing]').click();document.querySelector('#bb-eg-popup [data-target=me]').click();
+    await until(()=>ta().value==='Я останавливаюсь у двери…');
+    await new Promise(resolve=>setTimeout(resolve,250));
 };
 window.__showDirection = async () => {
     await window.__showSettings();
