@@ -1,4 +1,4 @@
-import { GenerationError, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream } from './core.js';
+import { GenerationError, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked } from './core.js';
 import { openModal, textField } from './ui.js';
 import { narrativeContext, validateNarrative } from './narrative.js';
 import { createD20 } from './d20.js';
@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.6';
+    const VERSION = '1.4.7';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -253,6 +253,7 @@ import { createD20 } from './d20.js';
             empty_response: ['Модель не вернула текст.', 'The model returned no text.'],
             reasoning_only: ['Модель вернула только рассуждения, без итогового ответа. Проверьте лимит токенов для этой операции и настройки рассуждений используемого подключения.', 'The model returned reasoning only, without a final answer. Check the token limit for this operation and the connection reasoning settings.'],
             provider_error: ['Провайдер не смог завершить ответ.', 'The provider could not complete the response.'],
+            prompt_blocked: ['Провайдер заблокировал запрос.', 'The provider blocked the request.'],
             timeout: ['Истекло время ожидания. Повторите запрос.', 'Request timed out. Retry the request.'],
             busy: ['SillyTavern уже генерирует ответ.', 'SillyTavern is already generating.'],
             no_action: ['Напишите действие или выберите чат с сообщением игрока.', 'Write an action or select a chat with a player message.'],
@@ -704,6 +705,7 @@ import { createD20 } from './d20.js';
         try {
             const data = await ctx.generateRawData(params);
             assertCurrent(op);
+            if (isPromptBlocked(data)) throw new GenerationError('prompt_blocked');
             if (data?.error || data?.choices?.[0]?.finish_reason === 'content_filter') throw new GenerationError('provider_error');
             if (data?.choices?.[0]?.finish_reason === 'length') throw new GenerationError('truncated');
             let result = ctx.extractMessageFromData(data, api);
@@ -787,7 +789,13 @@ import { createD20 } from './d20.js';
                 body: JSON.stringify(payload), signal: controller.signal,
             });
             httpStatus = response.status;
-            if (!response.ok) { const error = new GenerationError('http'); error.status = response.status; throw error; }
+            if (!response.ok) {
+                // Read only the structured error code; never display or log the raw body.
+                let data;
+                try { data = await response.json(); } catch { /* Non-JSON errors retain HTTP status. */ }
+                const error = new GenerationError(isPromptBlocked(data) ? 'prompt_blocked' : 'http');
+                error.status = response.status; throw error;
+            }
             const result = stream ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
             assertCurrent(op);
             return result;
@@ -804,7 +812,7 @@ import { createD20 } from './d20.js';
             ...failure.responseSummary,
         }));
         // Never silently replace a partial/filtered response with a second model's answer.
-        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'draft_changed', 'stale_chat', 'non_narrative'].includes(failure?.code)) throw failure;
+        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'prompt_blocked', 'draft_changed', 'stale_chat', 'non_narrative'].includes(failure?.code)) throw failure;
         if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }
         return runMainGen(promptText, purpose, op);
     }

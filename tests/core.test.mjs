@@ -25,6 +25,15 @@ test('response diagnostics expose only safe shape metadata for JSON and SSE', as
     assert.equal(responseContent({choices:[{message:{content:'Valid prose'}}]}),'Valid prose');
 });
 
+test('explicit prompt blocking is distinguished from generic provider failures', async () => {
+    for (const field of ['code','type']) {
+        const data={error:{[field]:'prompt_blocked',message:'PRIVATE'}};
+        assert.throws(()=>responseContent(data),{code:'prompt_blocked'});
+        await assert.rejects(readStream(response([event(data)])),{code:'prompt_blocked'});
+    }
+    assert.throws(()=>responseContent({error:{code:'invalid_request',message:'prompt_blocked'}}),{code:'provider_error'});
+});
+
 test('FT/TS accept complete options and explicit denials', () => {
     for (const kind of ['ft', 'ts']) {
         assert.equal(parseTransition(JSON.stringify(valid(kind)), kind).options.length, 3);

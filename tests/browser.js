@@ -122,6 +122,19 @@ await test('invalid transition booleans never open selectable options or send', 
     assert(!dialog(),'invalid data has no dialog'); assert(sends.length===0,'no sends');
 });
 const travel = {can_travel:true,destinations:Array.from({length:3},(_,i)=>({name:'Town '+i,hook:'Meet a friend',time_cost:'1 hour'}))};
+await test('HTTP prompt blocking is clear, private and never falls back to another model', async () => {
+    settings.fallbackToMain=true;let native=0;mainHandler=async()=>{native++;return 'Wrong fallback';};
+    const before=notifications.length;
+    fetchHandler=async()=>new Response(JSON.stringify({error:{code:'prompt_blocked',type:'prompt_blocked',message:'PRIVATE PROHIBITED_CONTENT'}}),{status:400});
+    document.getElementById('bb-eg-btn-ft').click();await idle();
+    const message=notifications.slice(before).map(n=>n.message).join(' ');
+    assert(message.includes('The provider blocked the request.') && !message.includes('PRIVATE'),'clear error without raw provider text');
+    assert(native===0 && sends.length===0 && !dialog() && ta().value==='Original draft','blocked request preserves draft and does not fall back');
+    settings.fallbackToMain=false;
+    fetchHandler=async()=>new Response('Not JSON',{status:400});
+    const next=notifications.length;document.getElementById('bb-eg-btn-ft').click();await idle();
+    assert(notifications.slice(next).some(n=>n.message.includes('400')),'ordinary HTTP errors retain status');
+});
 await test('empty Custom API replies log safe actionable diagnostics', async () => {
     const warnings=[]; const original=console.warn;
     console.warn=(...args)=>warnings.push(args);

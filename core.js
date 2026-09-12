@@ -8,6 +8,10 @@ export class GenerationError extends Error {
     }
 }
 
+export function isPromptBlocked(data) {
+    return data?.error?.code === 'prompt_blocked' || data?.error?.type === 'prompt_blocked';
+}
+
 export function stripCues(text) {
     return String(text || '').replace(/(?:\r?\n)*> (?:💥|🎁|❤️|🃏|💀|📝|✏️|⏩|🎲|📍|⚡)[^\n]*?<span style="display:none;">[\s\S]*?<\/span>/g, '').trim();
 }
@@ -92,6 +96,7 @@ export function responseSummary(data) {
 }
 
 export function responseContent(data) {
+    if (isPromptBlocked(data)) throw new GenerationError('prompt_blocked');
     const choice = data?.choices?.[0];
     const text = completionText(choice?.message?.content ?? choice?.text ?? data?.content ?? data?.text);
     if (choice?.finish_reason === 'length') throw new GenerationError('truncated', typeof text === 'string' ? text : '');
@@ -119,6 +124,7 @@ export async function readStream(response, onChunk, signal) {
         let data;
         try { data = JSON.parse(payload); } catch { throw new GenerationError('stream_error', result); }
         events++; if (data?.choices?.length || !lastSummary) lastSummary = responseSummary(data);
+        if (isPromptBlocked(data)) throw new GenerationError('prompt_blocked');
         if (data.error) throw new GenerationError('provider_error', result);
         const choice = data.choices?.[0];
         const valueText = choice?.delta?.content ?? choice?.message?.content ?? choice?.text ?? '';
