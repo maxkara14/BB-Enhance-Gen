@@ -22,6 +22,21 @@ test('FT/TS accept complete options and explicit denials', () => {
         assert.equal(parseTransition(JSON.stringify(denial), kind).allowed, false);
     }
 });
+
+test('Custom API accepts text blocks and completion text without exposing reasoning', async () => {
+    const blocks = [{ type: 'reasoning', text: 'PRIVATE' }, { type: 'text', text: 'Hello' }, { text: ' world' }];
+    for (const data of [{choices:[{message:{content:blocks}}]}, {choices:[{text:'Hello world'}]}, {content:blocks}]) {
+        assert.equal(responseContent(data), 'Hello world');
+    }
+    for (const data of [{choices:[{delta:{content:blocks}}]}, {choices:[{text:'Hello world'}]}]) {
+        assert.equal(await readStream(response([event(data),stop]),()=>{}), 'Hello world');
+    }
+    const reasoning = {reasoning_content:'PRIVATE'};
+    assert.throws(()=>responseContent({choices:[{message:reasoning}]}),{code:'reasoning_only'});
+    await assert.rejects(readStream(response([event({choices:[{delta:reasoning}]}),stop]),()=>{}),{code:'reasoning_only'});
+    assert.throws(()=>responseContent({choices:[{message:{content:blocks},finish_reason:'length'}]}),{code:'truncated'});
+    await assert.rejects(readStream(response([event({choices:[{delta:{content:blocks},finish_reason:'content_filter'}]})]),()=>{}),{code:'provider_error'});
+});
 test('FT/TS reject false strings, absent flags, null items, wrong counts and huge fields', () => {
     for (const kind of ['ft', 'ts']) {
         const flag = kind === 'ft' ? 'can_travel' : 'can_skip';

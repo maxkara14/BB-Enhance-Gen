@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.3';
+    const VERSION = '1.4.4';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -251,7 +251,7 @@ import { createD20 } from './d20.js';
             stream_error: ['Ответ оборвался. Неполный текст не применён.', 'The response was interrupted. Partial text was not applied.'],
             truncated: ['Достигнут лимит ответа. Увеличьте лимит и повторите.', 'Response limit reached. Increase the limit and retry.'],
             empty_response: ['Модель не вернула текст.', 'The model returned no text.'],
-            reasoning_only: ['Модель вернула только рассуждения, без итогового ответа. Проверьте лимит токенов для этой операции и настройки рассуждений в профиле.', 'The model returned reasoning only, without a final answer. Check the token limit for this operation and the profile reasoning settings.'],
+            reasoning_only: ['Модель вернула только рассуждения, без итогового ответа. Проверьте лимит токенов для этой операции и настройки рассуждений используемого подключения.', 'The model returned reasoning only, without a final answer. Check the token limit for this operation and the connection reasoning settings.'],
             provider_error: ['Провайдер не смог завершить ответ.', 'The provider could not complete the response.'],
             timeout: ['Истекло время ожидания. Повторите запрос.', 'Request timed out. Retry the request.'],
             busy: ['SillyTavern уже генерирует ответ.', 'SillyTavern is already generating.'],

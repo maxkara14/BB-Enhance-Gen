@@ -122,6 +122,24 @@ await test('invalid transition booleans never open selectable options or send', 
     assert(!dialog(),'invalid data has no dialog'); assert(sends.length===0,'no sends');
 });
 const travel = {can_travel:true,destinations:Array.from({length:3},(_,i)=>({name:'Town '+i,hook:'Meet a friend',time_cost:'1 hour'}))};
+await test('Custom API transition text variants work with and without streaming', async () => {
+    for (const streaming of [false,true]) {
+        settings.enableStreaming=streaming;
+        for (const blocks of [false,true]) {
+            ta().value='Travel draft';
+            const text=JSON.stringify(travel);
+            const chunk=blocks?{content:[{type:'reasoning',text:'PRIVATE'},{type:'text',text}]}:null;
+            fetchHandler=async()=>streaming
+                ?new Response('data: '+JSON.stringify({choices:[chunk?{delta:chunk}:{text}]})+'\n\ndata: '+JSON.stringify({choices:[{finish_reason:'stop'}]})+'\n\n')
+                :completion(text);
+            if (!streaming) fetchHandler=async()=>new Response(JSON.stringify({choices:[chunk?{message:chunk,finish_reason:'stop'}:{text,finish_reason:'stop'}]}));
+            document.getElementById('bb-eg-btn-ft').click();await until(()=>button('Apply transition'));
+            assert(dialog().querySelectorAll('.bb-eg-option').length===3 && !dialog().textContent.includes('PRIVATE'),'text extracted without reasoning');
+            dialog().querySelector('.bb-eg-option').click();click('Apply transition');await idle();
+        }
+    }
+    assert(sends.length===4 && sends.every(send=>send.input.includes('Town 0')&&!send.input.includes('PRIVATE')),'selected transition safely sent');
+});
 await test('FT and TS accept their own prompt examples through selection and denial', async () => {
     for (const kind of ['ft','ts']) {
         for (const denied of [false,true]) {

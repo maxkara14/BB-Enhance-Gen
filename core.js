@@ -58,12 +58,24 @@ export function fillTemplate(template, values) {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => Object.hasOwn(values, key) ? String(values[key]) : match);
 }
 
+// Match text variants accepted by the installed SillyTavern extractor.
+// Reasoning/tool/image blocks are not final text.
+function completionText(value) {
+    if (typeof value === 'string') return value;
+    if (!Array.isArray(value)) return '';
+    return value.filter(part => part && (part.type === 'text' || part.type === undefined) && typeof part.text === 'string').map(part => part.text).join('');
+}
+
+function hasReasoning(message) {
+    return ['reasoning', 'reasoning_content'].some(key => typeof message?.[key] === 'string' && !!message[key].trim());
+}
+
 export function responseContent(data) {
     const choice = data?.choices?.[0];
-    const text = choice?.message?.content;
+    const text = completionText(choice?.message?.content ?? choice?.text ?? data?.content ?? data?.text);
     if (choice?.finish_reason === 'length') throw new GenerationError('truncated', typeof text === 'string' ? text : '');
     if (data?.error || choice?.finish_reason === 'content_filter') throw new GenerationError('provider_error');
-    if (typeof text !== 'string' || !text.trim()) throw new GenerationError('empty_response');
+    if (!text.trim()) throw new GenerationError(hasReasoning(choice?.message) ? 'reasoning_only' : 'empty_response');
     return text;
 }
 
@@ -71,7 +83,7 @@ export async function readStream(response, onChunk, signal) {
     if (!response.body?.getReader) throw new GenerationError('stream_error');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '', result = '', completed = false;
+    let buffer = '', result = '', completed = false, reasoning = false;
     const onAbort = () => { void reader.cancel().catch(() => {}); };
     signal?.addEventListener('abort', onAbort, { once: true });
     function line(raw) {
@@ -83,8 +95,10 @@ export async function readStream(response, onChunk, signal) {
         try { data = JSON.parse(payload); } catch { throw new GenerationError('stream_error', result); }
         if (data.error) throw new GenerationError('provider_error', result);
         const choice = data.choices?.[0];
-        const delta = choice?.delta?.content ?? choice?.message?.content ?? '';
-        if (typeof delta !== 'string') throw new GenerationError('stream_error', result);
+        const valueText = choice?.delta?.content ?? choice?.message?.content ?? choice?.text ?? '';
+        if (typeof valueText !== 'string' && !Array.isArray(valueText)) throw new GenerationError('stream_error', result);
+        const delta = completionText(valueText);
+        reasoning ||= hasReasoning(choice?.delta) || hasReasoning(choice?.message);
         if (delta) { result += delta; onChunk?.(delta, result); }
         if (choice?.finish_reason === 'length') throw new GenerationError('truncated', result);
         if (choice?.finish_reason === 'content_filter') throw new GenerationError('provider_error', result);
@@ -103,7 +117,7 @@ export async function readStream(response, onChunk, signal) {
             if (completed) break;
         }
         if (!completed) throw new GenerationError('stream_error', result);
-        if (!result.trim()) throw new GenerationError('empty_response');
+        if (!result.trim()) throw new GenerationError(reasoning ? 'reasoning_only' : 'empty_response');
         return result;
     } catch (error) {
         if (signal?.aborted) throw signal.reason;
