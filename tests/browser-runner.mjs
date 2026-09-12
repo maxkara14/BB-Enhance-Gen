@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const chrome = process.env.CHROME_PATH || ['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 if (!chrome) throw new Error('Set CHROME_PATH to a Chromium browser executable.');
-const files = new Set(['/index.js','/core.js','/ui.js','/narrative.js','/style.css','/tests/browser.html','/tests/browser.js']);
+const files = new Set(['/index.js','/core.js','/ui.js','/narrative.js','/d20.js','/style.css','/tests/browser.html','/tests/browser.js']);
 // Use the installed Sorter's actual discovery/title functions, not a guessed selector.
 const sorterSource = await readFile(resolve(root, '../BB-Extension-Sorter/index.js'), 'utf8');
 const sorterContract = ['normalizeText', 'cleanTitle', 'isRealExtension', 'getTitle', 'getExtensionKey'].map(name => {
@@ -65,7 +65,7 @@ try {
     if(process.env.ENHANCE_SCREENSHOT){
         const views = process.env.ENHANCE_VIEW === 'review' ? ['settings', 'menu'] : [process.env.ENHANCE_VIEW || 'preview'];
         for (const view of views) {
-            const show = { settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy', history: '__showHistory' }[view] || '__showPreview';
+            const show = { settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy', history: '__showHistory', dice: '__showDice', travel: '__showTravel', time: '__showTime' }[view] || '__showPreview';
             const opened = await command('Runtime.evaluate',{expression:`window.${show}()`,awaitPromise:true});
             assert.ok(!opened.exceptionDetails, 'Screenshot view opened');
             const shot=await command('Page.captureScreenshot',{format:'png'});

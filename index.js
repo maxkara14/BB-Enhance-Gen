@@ -1,11 +1,12 @@
 import { GenerationError, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream } from './core.js';
 import { openModal, textField } from './ui.js';
 import { narrativeContext, validateNarrative } from './narrative.js';
+import { createD20 } from './d20.js';
 
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.3.3';
+    const VERSION = '1.4.0';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -100,7 +101,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             toast_custom_fallback: 'Custom API недоступен, используется основная модель.',
             toast_models_loaded: 'Модели загружены!', toast_err_dice: 'Ошибка Кубика: ',
             toast_err_ft: 'Ошибка Fast Travel: ', toast_err_ts: 'Ошибка Time Skip: ', toast_err_generic: 'Ошибка: ',
-            dice_title: '🎲 Проверка Навыка', dice_dc: 'СЛОЖНОСТЬ:',
+            dice_title: 'Проверка действия', dice_dc: 'СЛОЖНОСТЬ:',
             outcome_crit_success: 'КРИТИЧЕСКИЙ УСПЕХ', outcome_success: 'УСПЕХ',
             outcome_failure: 'ПРОВАЛ', outcome_crit_failure: 'КРИТИЧЕСКИЙ ПРОВАЛ',
             diff_title: 'Выберите сложность броска', diff_easy: 'Лёгкая', diff_normal: 'Средняя',
@@ -113,10 +114,10 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             dir_custom: '✏️ Своё',
             dir_custom_placeholder: 'Опишите направление для сюжета...',
             dir_custom_empty: 'Введите текст направления!',
-            ft_title: '📍 БЫСТРОЕ ПЕРЕМЕЩЕНИЕ', ft_denied: '🚫 ДОСТУП ЗАКРЫТ',
+            ft_title: 'Куда отправимся?', ft_denied: '🚫 ДОСТУП ЗАКРЫТ',
             ft_denied_default: 'Вы не можете покинуть это место прямо сейчас.',
             ft_surprise: 'Случайное событие (Surprise me)', ft_cancel: 'Отмена', ft_ok: 'Понятно',
-            ts_title: '⏩ ТАЙМСКИП (ВЫБОР ГЛАВЫ)', ts_denied: '🚫 СКИП НЕВОЗМОЖЕН',
+            ts_title: 'Пропустить время', ts_denied: '🚫 СКИП НЕВОЗМОЖЕН',
             ts_denied_default: 'События слишком важны, чтобы их пропускать.',
             ts_cancel: 'Отмена', ts_ok: 'Ясно',
             preview_title: 'Превью cue',
@@ -163,10 +164,10 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             dir_custom: '✏️ Custom',
             dir_custom_placeholder: 'Describe the narrative direction...',
             dir_custom_empty: 'Enter direction text first!',
-            ft_title: '📍 FAST TRAVEL', ft_denied: '🚫 ACCESS DENIED',
+            ft_title: 'Where shall we go?', ft_denied: '🚫 ACCESS DENIED',
             ft_denied_default: 'You cannot leave this place right now.',
             ft_surprise: 'Random event (Surprise me)', ft_cancel: 'Cancel', ft_ok: 'Got it',
-            ts_title: '⏩ TIME SKIP (CHOOSE A CHAPTER)', ts_denied: '🚫 SKIP IMPOSSIBLE',
+            ts_title: 'Skip time', ts_denied: '🚫 SKIP IMPOSSIBLE',
             ts_denied_default: 'These events are too important to skip.',
             ts_cancel: 'Cancel', ts_ok: 'Got it',
             preview_title: 'Cue preview',
@@ -383,15 +384,23 @@ import { narrativeContext, validateNarrative } from './narrative.js';
                 assertCurrent(op);
                 const view = openModal(kind === 'ft' ? t('ft_title') : t('ts_title'), { signal: op.controller.signal, cancelLabel: t('diff_cancel') });
                 const note = document.createElement('p'); note.textContent = data.allowed ? tr('Выберите вариант или задайте свой.', 'Choose an option or write your own.') : data.reason; view.body.append(note);
-                const title = textField(view.body, kind === 'ft' ? tr('Место', 'Destination') : tr('Глава', 'Chapter'));
-                const time = textField(view.body, tr('Через сколько / время в пути', 'Time skip / travel time'));
-                const summary = textField(view.body, tr('Направление сцены', 'Scene direction'), '', true);
+                const editor = document.createElement('details'); editor.className = 'bb-eg-transition-editor'; editor.open = !data.allowed;
+                const editorLabel = document.createElement('summary'); editorLabel.textContent = tr('Изменить или задать своё', 'Edit or write your own'); editor.append(editorLabel); view.body.append(editor);
+                const title = textField(editor, kind === 'ft' ? tr('Место', 'Destination') : tr('Глава', 'Chapter'));
+                const time = textField(editor, tr('Через сколько / время в пути', 'Time skip / travel time'));
+                const summary = textField(editor, tr('Направление сцены', 'Scene direction'), '', true);
                 for (const field of [title, time, summary]) { field.required = true; field.maxLength = 1200; }
                 for (const option of data.options) {
                     const card = document.createElement('button'); card.type = 'button'; card.className = 'bb-eg-option';
-                    card.textContent = `${option.title} · ${option.time}\n${option.summary}`;
-                    card.onclick = () => { title.value = option.title; time.value = option.time; summary.value = option.summary; title.focus(); };
-                    view.body.insertBefore(card, title.parentElement);
+                    const name = document.createElement('strong'); name.className = 'bb-eg-option-title'; name.textContent = option.title;
+                    const duration = document.createElement('span'); duration.className = 'bb-eg-option-time'; duration.textContent = option.time;
+                    const description = document.createElement('span'); description.className = 'bb-eg-option-summary'; description.textContent = option.summary;
+                    card.append(name, duration, description); card.setAttribute('aria-pressed', 'false');
+                    card.onclick = () => {
+                        view.body.querySelectorAll('.bb-eg-option').forEach(el => el.setAttribute('aria-pressed', String(el === card)));
+                        title.value = option.title; time.value = option.time; summary.value = option.summary;
+                    };
+                    view.body.insertBefore(card, editor);
                 }
                 let override;
                 if (!data.allowed) {
@@ -403,7 +412,9 @@ import { narrativeContext, validateNarrative } from './narrative.js';
                 view.button(tr('Применить переход', 'Apply transition'), () => {
                     if (override && !override.checked) { view.status.textContent = tr('Подтвердите авторское решение.', 'Confirm the override.'); return; }
                     const fields = [title, time, summary];
-                    for (const field of fields) { if (!field.value.trim() || field.value.trim().length > 1200 || !field.reportValidity()) { field.focus(); return; } }
+                    for (const field of fields) {
+                        if (!field.value.trim() || field.value.trim().length > 1200 || !field.checkValidity()) { editor.open = true; field.focus(); field.reportValidity(); return; }
+                    }
                     view.close({ title: title.value.trim(), time: time.value.trim(), summary: summary.value.trim() });
                 }, true);
                 const selected = await view.result;
@@ -859,23 +870,18 @@ import { narrativeContext, validateNarrative } from './narrative.js';
     async function showDiceModal(question, dc, finalRoll, outcomeText) {
         const view = openModal(t('dice_title'), { signal: activeOperation.controller.signal, cancelLabel: tr('Отменить действие', 'Cancel action') });
         const text = document.createElement('p'); text.textContent = question; view.body.append(text);
-        const scene = document.createElement('div'); scene.className = 'bb-dice-scene';
-        const cube = document.createElement('div'); cube.className = 'bb-dice-cube'; cube.setAttribute('aria-hidden', 'true');
-        for (const side of ['front','back','left','right','top','bottom']) {
-            const face = document.createElement('div'); face.className = 'bb-cube-face bb-face-' + side; face.textContent = '?'; cube.append(face);
-        }
-        scene.append(cube); view.body.append(scene);
-        const result = document.createElement('p'); view.body.append(result);
+        const die = createD20(finalRoll); view.body.append(die.element);
+        const result = document.createElement('p'); result.className = 'bb-eg-roll-result'; result.setAttribute('role','status'); view.body.append(result);
         let timer;
         function reveal() {
-            clearTimeout(timer); cube.classList.add('stopped'); cube.querySelector('.bb-face-front').textContent = String(finalRoll);
+            clearTimeout(timer); die.reveal();
             result.textContent = `${outcomeText} · ${finalRoll} / DC ${dc}`; next.disabled = false; skip.hidden = true;
         }
         const next = view.button(tr('Продолжить', 'Continue'), () => view.close(true), true); next.disabled = true;
         const skip = view.button(tr('Пропустить анимацию', 'Skip animation'), reveal);
         if (getSettings().skipAnimation || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) reveal();
-        else { timer = setTimeout(reveal, 1200); }
-        view.cleanup.add(() => clearTimeout(timer));
+        else { die.start(); timer = setTimeout(reveal, 1200); }
+        view.cleanup.add(() => { clearTimeout(timer); die.destroy(); });
         return (await view.result) === true;
     }
 
@@ -1122,6 +1128,12 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 
         const stop = document.createElement('button'); stop.id = 'bb-eg-stop'; stop.type = 'button'; stop.className = 'bb-eg-btn'; stop.textContent = tr('⏹ Отмена', '⏹ Cancel'); stop.hidden = true; stop.onclick = cancelOperation; toolbar.append(stop);
         const undo = document.createElement('button'); undo.type = 'button'; undo.className = 'bb-eg-btn'; undo.textContent = tr('↶ Вернуть оригинал', '↶ Restore original'); undo.onclick = restoreDraft; toolbar.append(undo);
+        const icons = ['✧', '◈', '▤', '⬡', '↗', '◷', '≡', '↶'];
+        [btnE, btnI, toolbar.querySelector('#bb-eg-btn-director'), btnDice, btnFT, btnTS, btnHist, undo].forEach((button, i) => {
+            const label = button.textContent.replace(/^[^\p{L}\p{N}]+/u, '');
+            const icon = document.createElement('span'); icon.className = 'bb-eg-tool-icon'; icon.textContent = icons[i]; icon.setAttribute('aria-hidden', 'true');
+            button.replaceChildren(icon, document.createTextNode(label));
+        });
         wrapper.appendChild(toggleBtn); wrapper.appendChild(toolbar);
 
         const optionsBtn = document.getElementById('options_button');

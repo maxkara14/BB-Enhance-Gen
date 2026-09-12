@@ -392,6 +392,83 @@
     .bb-eg-dialog .bb-modal-title { letter-spacing: 1px; }
     .bb-eg-dialog .bb-preview-actions { flex-direction: column; }
 }
+/* Shared black-glass / carmine theme, approved in the design preview. */
+#bb-enhance-wrapper, #bb-eg-popup, .bb-eg-dialog, .bb-eg-settings {
+    --bb-eg-accent: #c65a65; --bb-eg-panel: #0c0d10;
+    --bb-eg-border: #ffffff12; --bb-eg-text: #e3e3e7; --bb-eg-muted: #9697a0;
+    font-family: system-ui, sans-serif; color: var(--bb-eg-text);
+}
+#bb-enhance-toolbar, #bb-eg-popup, .bb-eg-dialog .bb-modal-box {
+    background: rgba(12,13,16,.9); border: 1px solid #ffffff12; border-radius: 12px;
+    box-shadow: 0 18px 50px #0005; backdrop-filter: blur(16px);
+}
+#bb-enhance-toolbar { min-width: 210px; transition: opacity .16s ease, visibility .16s ease; }
+#bb-enhance-toolbar, #bb-enhance-toolbar.expanded, #bb-eg-popup, #bb-eg-popup.show { transform: none; }
+#bb-eg-popup { transition: opacity .16s ease, visibility .16s ease; border-left: 2px solid #8d3441; }
+#bb-enhance-toolbar .bb-eg-btn, #bb-eg-popup button:not(.bb-eg-back-btn),
+.bb-eg-dialog .bb-modal-cancel, .bb-eg-dialog .bb-modal-ok,
+.bb-eg-dialog .bb-diff-btn, .bb-eg-dialog .bb-eg-option {
+    font-family: system-ui, sans-serif; font-weight: 400; font-size: 13px;
+    text-transform: none; letter-spacing: 0; color: #cccdd3;
+    background: #ffffff03; border: 1px solid #ffffff0d; border-radius: 6px;
+    box-shadow: none; transform: none;
+    transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+#bb-enhance-toolbar .bb-eg-btn { padding: 12px 11px; background: transparent; border-color: transparent; gap: 12px; }
+.bb-eg-tool-icon { width: 20px; flex-shrink: 0; color: #9697a0; font-size: 17px; text-align: center; }
+#bb-enhance-toolbar .bb-eg-btn:hover, #bb-eg-popup button:not(.bb-eg-back-btn):hover,
+.bb-eg-dialog .bb-modal-cancel:hover, .bb-eg-dialog .bb-diff-btn:hover,
+.bb-eg-dialog .bb-eg-option:hover { background: #ab425115; color: #f3e6e8; border-color: #b5526040; box-shadow: none; transform: none; }
+#bb-enhance-toolbar button:active, #bb-eg-popup button:active, .bb-eg-dialog button:active { transform: none; box-shadow: none; }
+#bb-enhance-toolbar .bb-eg-btn:active, #bb-eg-popup button:not(.bb-eg-back-btn):active { background: #ab425125; }
+#bb-enhance-toolbar .bb-eg-btn.loading { color: #e5b9c0; border-color: #b5526040; box-shadow: inset 2px 0 #c65a65; animation: bb-eg-carmine-pulse 1.5s ease-in-out infinite; }
+#bb-enhance-toolbar .bb-stopping { color: #c99fa7; border-color: #b552602c; }
+#bb-enhance-toolbar #bb-eg-stop { background: #ffffff03; border-color: #ffffff13; color: #c99fa7; }
+#bb-enhance-toolbar .bb-eg-btn-history { border-top: 1px solid #ffffff12; color: #cccdd3; margin-top: 8px; }
+#bb-eg-toggle-btn { background: #0c0d10d9; border-color: #ffffff20; color: #b4b5be; box-shadow: none; }
+#bb-eg-toggle-btn:hover, #bb-eg-toggle-btn.active { background: #8d344125; border-color: #b5526060; color: #e8c7cd; box-shadow: none; }
+#bb-eg-toggle-btn.bb-busy { border-color: #c65a65; animation: bb-eg-carmine-pulse 1.5s ease-in-out infinite; }
+@keyframes bb-eg-carmine-pulse { 0%,100% { background-color: #ab425110; } 50% { background-color: #ab42512c; } }
+#bb-eg-popup .bb-eg-popup-header { color: #b7a8ae; border-color: #ffffff12; letter-spacing: 1px; font: 12px/1.5 system-ui,sans-serif; text-transform: none; }
+#bb-eg-popup .bb-eg-back-btn { color: #9697a0; font-family: system-ui,sans-serif; letter-spacing: 0; text-transform: none; }
+#bb-eg-popup .bb-eg-back-btn:hover { color: #e5b9c0; }
+#bb-eg-popup .bb-eg-vibe-custom { color: #d49ba5 !important; }
+#bb-eg-popup .bb-eg-custom-textarea, .bb-eg-dialog .text_pole, .bb-eg-settings .text_pole {
+    background: #06070970; border: 1px solid #ffffff20; color: #d0d0d7;
+    font: 13px/1.65 system-ui,sans-serif; padding: 10px 12px; border-radius: 6px; box-shadow: none;
+}
+#bb-eg-popup .bb-eg-custom-textarea::placeholder { color: #868790; font-style: normal; }
+.bb-eg-dialog .bb-modal-box { position: relative; padding: 23px; color: #e3e3e7; }
+.bb-eg-dialog .bb-modal-box > .bb-modal-title { margin: 0 32px 20px 0; padding: 0; border: 0; background: none; box-shadow: none; text-shadow: none; text-align: left; font: 550 16px/1.5 system-ui,sans-serif; text-transform: none; letter-spacing: 0; }
+.bb-eg-dialog .bb-modal-title::before, .bb-eg-dialog .bb-modal-title::after { content: none; }
+.bb-eg-dialog .bb-eg-close { color: #9697a0; }
+.bb-eg-dialog .bb-eg-close:hover { background: #ab425115; color: #e5b9c0; border-color: #b5526040; }
+.bb-eg-dialog .bb-modal-ok, #bb-eg-popup .bb-eg-target-btn[data-target="me"] { background: #7d303d; border-color: #a04a57; color: #f5e7ea; }
+.bb-eg-dialog .bb-modal-ok:hover, #bb-eg-popup .bb-eg-target-btn[data-target="me"]:hover { background: #963d4b; border-color: #bc6571; color: #f5e7ea; box-shadow: none; }
+.bb-eg-dialog .bb-diff-btn.default { border-color: #b5526060; background: #ab425115; box-shadow: none; }
+.bb-eg-dialog .bb-diff-dc, .bb-eg-dialog .bb-eg-status { color: #c99fa7; }
+.bb-eg-dialog .bb-history-empty { color: #9697a0; }
+.bb-eg-dialog .bb-history-item, .bb-eg-dialog .bb-preview-code { background: #ffffff03; border-color: #ffffff12; color: #cccdd3; }
+.bb-eg-dialog .bb-eg-option { line-height: 1.65; padding: 15px; }
+.bb-eg-dialog .bb-eg-option[aria-pressed="true"] { background: #ab425115; border-color: #b5526040; }
+.bb-eg-option-title { font-weight: 550; }
+.bb-eg-option-time { margin-left: 12px; font-size: 11px; color: #b38b94; }
+.bb-eg-option-summary { display: block; margin-top: 5px; font-size: 12px; color: #9697a0; }
+.bb-eg-transition-editor { margin-top: 16px; color: #cccdd3; }
+.bb-eg-transition-editor > summary { padding: 8px 0; cursor: pointer; font-size: 12px; color: #b89aa1; }
+.bb-eg-dialog .bb-eg-d20 { display: block; width: 240px; max-width: 100%; height: auto; margin: 12px auto; filter: drop-shadow(0 12px 19px #0007); }
+.bb-eg-d20 polygon { stroke: #95505d; stroke-width: .8px; stroke-linejoin: round; }
+.bb-eg-d20 text { font-family: system-ui,sans-serif; pointer-events: none; }
+.bb-eg-dialog .bb-eg-roll-result { text-align: center; color: #e1d4d7; font-size: 17px; margin: 0 0 18px; }
+.bb-eg-dialog { background: rgba(5,6,8,.58); backdrop-filter: blur(5px); }
+.bb-eg-dialog .bb-modal-box > .bb-modal-title { color: #e3e3e7; }
+.bb-eg-settings .bb-eg-settings-intro, .bb-eg-settings .bb-eg-settings-section { background: #0c0d10d9; border-color: #ffffff12; }
+.bb-eg-settings .bb-eg-version { color: #c99fa7; border-color: #b5526030; }
+.bb-eg-settings .menu_button { background: #ffffff04; border-color: #ffffff16; color: #cccdd3; }
+.bb-eg-settings .menu_button:hover { background: #ab425115; border-color: #b5526040; }
+.bb-eg-settings input[type="checkbox"] { accent-color: #a94e5e; }
+#bb-enhance-wrapper button:focus-visible, #bb-eg-popup :focus-visible, .bb-eg-dialog :focus-visible, .bb-eg-settings :focus-visible { outline: 2px solid #cd7c86; outline-offset: -2px; }
+@media (max-width: 600px) { .bb-eg-dialog .bb-modal-box { padding: 18px; } }
 @media (prefers-reduced-motion: reduce) {
     #bb-enhance-wrapper *, #bb-eg-popup, #bb-eg-popup *, .bb-eg-settings *, .bb-eg-dialog * { animation: none !important; transition: none !important; }
 }

@@ -1,5 +1,5 @@
 // One modal lifecycle: cancellation, focus restoration, keyboard access and cleanup.
-export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false, closeInHeader = false } = {}) {
+export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false, closeInHeader = true } = {}) {
     const previousFocus = document.activeElement;
     const overlay = document.createElement('div');
     overlay.className = 'bb-modal-overlay bb-eg-dialog';
@@ -10,7 +10,7 @@ export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false,
     box.setAttribute('aria-label', title);
     box.tabIndex = -1;
     const heading = document.createElement('h3');
-    heading.className = 'bb-modal-title'; heading.textContent = title;
+    heading.className = 'bb-modal-title'; heading.textContent = title.replace(/^[^\p{L}\p{N}]+/u, '');
     const body = document.createElement('div'); body.className = 'bb-eg-dialog-body';
     const status = document.createElement('p'); status.className = 'bb-eg-status'; status.setAttribute('role', 'status');
     const actions = document.createElement('div'); actions.className = 'bb-preview-actions';
@@ -44,10 +44,16 @@ export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false,
         closeButton.onclick = () => close(); heading.after(closeButton);
     } else button(cancelLabel, () => close());
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    const visibleControls = () => [...box.querySelectorAll('button, input, textarea, select, summary, [tabindex="0"]')]
+        .filter(el => {
+            const collapsed = el.closest('details:not([open])');
+            return !el.disabled && !el.hidden && (!collapsed || collapsed.querySelector(':scope > summary') === el)
+                && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+        });
     overlay.addEventListener('keydown', e => {
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
         if (e.key !== 'Tab') return;
-        const focusable = [...box.querySelectorAll('button, input, textarea, select, [tabindex="0"]')].filter(el => !el.disabled && !el.hidden);
+        const focusable = visibleControls();
         const first = focusable[0], last = focusable.at(-1);
         if (!first) { e.preventDefault(); box.focus(); }
         else if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); }
@@ -57,7 +63,7 @@ export function openModal(title, { signal, cancelLabel = 'Cancel', wide = false,
     else {
         document.body.append(overlay); overlay.style.opacity = '1';
         signal?.addEventListener('abort', abort, { once: true });
-        queueMicrotask(() => { if (!closed) (box.querySelector('input, textarea, button') || box).focus(); });
+        queueMicrotask(() => { if (!closed) { const controls=visibleControls(); (controls.find(el=>el.matches('input, textarea')) || controls[0] || box).focus(); } });
     }
     return { overlay, box, body, status, actions, button, close, result, cleanup, get closed() { return closed; } };
 }

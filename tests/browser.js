@@ -521,6 +521,60 @@ await test('history has a header close, no legacy tabs and hides clear when empt
     } finally {theme.remove();}
 });
 
+await test('D20 renders every result on the front face and destroys its animation', async () => {
+    const {createD20}=await import('/d20.js');
+    for(let value=1;value<=20;value++){
+        const die=createD20(value);die.reveal();
+        assert(die.element.querySelectorAll('polygon').length===20,'twenty triangular faces');
+        assert(new Set([...die.element.querySelectorAll('text')].map(el=>el.textContent)).size===20,'unique face numbers');
+        assert(die.element.lastElementChild.querySelector('text').textContent===String(value),'front face matches roll');
+        assert(die.element.dataset.result===String(value),'result preserved');die.destroy();
+    }
+    const die=createD20(17);document.body.append(die.element);die.start();
+    await new Promise(resolve=>requestAnimationFrame(resolve));die.destroy();const stopped=die.element.innerHTML;
+    await new Promise(resolve=>requestAnimationFrame(resolve));assert(die.element.innerHTML===stopped,'no frames after destroy');die.element.remove();
+});
+await test('animated D20 can be skipped and cancelled without sending a turn', async () => {
+    settings.manualRoll=true;settings.skipAnimation=false;
+    document.getElementById('bb-eg-btn-dice').click();await until(()=>button('Roll'));dialog().querySelector('input').value='Can I pass the guard?';click('Roll');
+    await until(()=>dialog()?.querySelector('.bb-eg-d20'));
+    assert(button('Continue').disabled,'continue waits for result');
+    click('Skip animation');const die=dialog().querySelector('.bb-eg-d20');
+    assert(!button('Continue').disabled&&Number(die.dataset.result)>=1&&Number(die.dataset.result)<=20,'skip reveals actual roll');
+    click('Cancel action');await idle();assert(!dialog()&&sends.length===0,'cancel sends nothing');
+});
+await test('reduced motion reveals D20 immediately and theme buttons do not translate', async () => {
+    const original=window.matchMedia;
+    window.matchMedia=query=>query.includes('prefers-reduced-motion')?{matches:true}:original.call(window,query);
+    try {
+        settings.manualRoll=true;settings.skipAnimation=false;
+        document.getElementById('bb-eg-btn-dice').click();await until(()=>button('Roll'));dialog().querySelector('input').value='Can I pass the guard?';click('Roll');
+        await until(()=>dialog()?.querySelector('.bb-eg-d20'));
+        assert(!button('Continue').disabled&&button('Skip animation').hidden,'reduced motion skips animation');
+        const buttonStyle=getComputedStyle(button('Continue'));assert(buttonStyle.transform==='none'&&!buttonStyle.transitionProperty.includes('transform'),'action buttons have no motion transition');
+        click('Cancel action');await idle();
+        assert(getComputedStyle(document.getElementById('bb-eg-btn-director')).transform==='none','toolbar button stays in place');
+    } finally {window.matchMedia=original;}
+});
+
+await test('compact transitions preserve editing, selection and validation focus', async () => {
+    fetchHandler=async()=>completion(JSON.stringify(travel));document.getElementById('bb-eg-btn-ft').click();await until(()=>button('Apply transition'));
+    const editor=dialog().querySelector('.bb-eg-transition-editor');assert(!editor.open,'editor initially collapsed');
+    assert(document.activeElement===dialog().querySelector('.bb-eg-close'),'hidden fields not focused');
+    click('Apply transition');assert(editor.open&&document.activeElement===editor.querySelector('input'),'invalid selection reveals editor');
+    const card=dialog().querySelector('.bb-eg-option');card.click();
+    assert(card.getAttribute('aria-pressed')==='true'&&editor.querySelector('input').value==='Town 0','card selects and fills editor');
+    editor.open=false;click('Apply transition');await idle();assert(sends.length===1,'selected values submit while editor collapsed');
+});
+await test('D20 animation completes automatically with the computed result', async () => {
+    settings.manualRoll=true;settings.skipAnimation=false;
+    document.getElementById('bb-eg-btn-dice').click();await until(()=>button('Roll'));dialog().querySelector('input').value='Will I succeed?';click('Roll');
+    await until(()=>dialog()?.querySelector('.bb-eg-d20'));const die=dialog().querySelector('.bb-eg-d20');
+    await until(()=>!button('Continue').disabled,'automatic dice reveal');
+    assert(die.dataset.result&&dialog().querySelector('.bb-eg-roll-result').textContent.includes(die.dataset.result),'visual matches announced result');
+    click('Cancel action');await idle();
+});
+
 window.__showSettings = async () => {
     await reset();document.getElementById('results').hidden=true;
     const language=document.querySelector('[data-setting=uiLanguage]');language.value='ru';language.dispatchEvent(new Event('change'));
@@ -562,6 +616,21 @@ window.__showHistory = async () => {
     document.getElementById('send_form').hidden=true;
     key='empty-history-screenshot';chat=[];emit(events.CHAT_CHANGED);
     document.getElementById('bb-eg-btn-history').click();await until(()=>dialog());
+};
+async function showTransitionDesign(kind) {
+    await window.__showSettings();document.getElementById('bb-eg-settings-container').hidden=true;document.getElementById('send_form').hidden=true;
+    settings.generationSource='custom';
+    const data=kind==='ft'?{can_travel:true,destinations:[{name:'Старый причал',time_cost:'20 минут',hook:'У воды ещё горит свет. Кто-то ждёт последнюю лодку.'},{name:'Лесная тропа',time_cost:'1 час',hook:'Следы ведут к заброшенной башне.'},{name:'Ночная площадь',time_cost:'10 минут',hook:'За аркой слышны голоса.'}]}:{can_skip:true,options:[{title:'Тихая ночь',time:'До рассвета',summary:'Отдохнуть и вернуться к разговору утром.'},{title:'Дождаться вестей',time:'Несколько часов',summary:'Остаться поблизости.'},{title:'Новый день',time:'Сутки',summary:'Завершить дела и встретиться снова.'}]};
+    fetchHandler=async()=>completion(JSON.stringify(data));document.getElementById('bb-eg-btn-'+kind).click();await until(()=>dialog()?.querySelector('.bb-eg-option'));
+}
+window.__showTravel = () => showTransitionDesign('ft');
+window.__showTime = () => showTransitionDesign('ts');
+window.__showDice = async () => {
+    await window.__showSettings();document.getElementById('bb-eg-settings-container').hidden=true;document.getElementById('send_form').hidden=true;
+    settings.manualRoll=true;settings.skipAnimation=true;
+    document.getElementById('bb-eg-btn-dice').click();await until(()=>button('Бросить'));
+    dialog().querySelector('input').value='Удастся ли незаметно пройти мимо стражи?';click('Бросить');
+    await until(()=>dialog()?.querySelector('.bb-eg-d20'));
 };
 window.__showPreview = async () => {
     await reset();

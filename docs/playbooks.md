@@ -14,7 +14,8 @@ Runner загружает реальный jQuery и функции распоз
 node --check index.js
 node --check core.js
 node --check ui.js
-node --test tests/core.test.mjs
+node --check d20.js
+node --test tests/core.test.mjs tests/d20.test.mjs
 node tests/browser-runner.mjs
 git diff --check
 ```
@@ -132,6 +133,13 @@ Director «Мне» проверяется без модального окна:
 во время запроса. Enhance/Improve сохраняют отдельный предпросмотр.
 
 ## Рабочая ветка
+
+Новый стиль: `ENHANCE_VIEW=custom`, `travel`, `time`, `dice`, `settings` дают снимки
+меню, переходов, d20 и настроек. `ENHANCE_MOBILE=1` включает узкий экран.
+Геометрия d20 проверяется отдельно: 12 вершин, 30 равных рёбер, 20 треугольных граней,
+по две грани на ребро. Браузер проверяет все 20 результатов на передней грани,
+пропуск/завершение анимации, reduced motion и прекращение кадров после destroy.
+Переходы проверяют также закрытый редактор, выбор карточки и раскрытие при ошибке валидации.
 
 Снимок пустой истории: `ENHANCE_VIEW=history` вместе с `ENHANCE_SCREENSHOT`.
 Проверяются крестик с доступным названием, Escape/Tab, отсутствие переключателей
