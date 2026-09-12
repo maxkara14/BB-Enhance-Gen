@@ -122,6 +122,30 @@ await test('invalid transition booleans never open selectable options or send', 
     assert(!dialog(),'invalid data has no dialog'); assert(sends.length===0,'no sends');
 });
 const travel = {can_travel:true,destinations:Array.from({length:3},(_,i)=>({name:'Town '+i,hook:'Meet a friend',time_cost:'1 hour'}))};
+await test('FT and TS accept their own prompt examples through selection and denial', async () => {
+    for (const kind of ['ft','ts']) {
+        for (const denied of [false,true]) {
+            fetchHandler=async(_url,options)=>{
+                const prompt=JSON.parse(options.body).messages[1].content;
+                const tag=denied?'denied_format':'format';
+                const match=prompt.match(new RegExp('<'+tag+'>\\s*([\\s\\S]*?)\\s*</'+tag+'>'));
+                assert(match,'explicit JSON example for '+tag);
+                return completion(match[1]);
+            };
+            document.getElementById('bb-eg-btn-'+kind).click();
+            await until(()=>dialog() || document.getElementById('bb-eg-stop').hidden);
+            assert(dialog(),'model following the example opens the transition window');
+            if (denied) {
+                assert(button('Check again') && !dialog().querySelector('.bb-eg-option'),'denial stays a denial');
+                click('Cancel'); await idle();
+            } else {
+                assert(dialog().querySelectorAll('.bb-eg-option').length===3,'example provides three complete choices');
+                dialog().querySelector('.bb-eg-option').click(); click('Apply transition'); await idle();
+            }
+        }
+    }
+    assert(sends.length===2,'only selected allowed transitions are sent');
+});
 await test('FT refresh, editing, cue preview and double-click protection', async () => {
     settings.showCuePreview=true; let analyses=0; fetchHandler=async()=>{analyses++;return completion(JSON.stringify(travel));};
     document.getElementById('bb-eg-btn-ft').click(); await until(()=>button('Refresh options')); click('Refresh options'); await until(()=>analyses===2&&button('Apply transition'));
