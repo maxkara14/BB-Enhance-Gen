@@ -5,7 +5,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.3.0';
+    const VERSION = '1.3.1';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -112,7 +112,6 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             dir_tragedy: '💀 Tragedy (Трагедия)',
             dir_custom: '✏️ Своё',
             dir_custom_placeholder: 'Опишите направление для сюжета...',
-            dir_custom_next: 'Далее',
             dir_custom_empty: 'Введите текст направления!',
             ft_title: '📍 БЫСТРОЕ ПЕРЕМЕЩЕНИЕ', ft_denied: '🚫 ДОСТУП ЗАКРЫТ',
             ft_denied_default: 'Вы не можете покинуть это место прямо сейчас.',
@@ -163,7 +162,6 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             dir_absurd: '🃏 Absurd', dir_tragedy: '💀 Tragedy',
             dir_custom: '✏️ Custom',
             dir_custom_placeholder: 'Describe the narrative direction...',
-            dir_custom_next: 'Next',
             dir_custom_empty: 'Enter direction text first!',
             ft_title: '📍 FAST TRAVEL', ft_denied: '🚫 ACCESS DENIED',
             ft_denied_default: 'You cannot leave this place right now.',
@@ -751,6 +749,18 @@ import { narrativeContext, validateNarrative } from './narrative.js';
         return withBusyLock(async op => {
             if ((type === 'enhance' || type === 'improve') && !op.input.trim()) { toastr.warning(t('toast_need_input'), 'BB Enhance'); return; }
             const direction = customDirectorText;
+            if (type.startsWith('dir_')) {
+                const prompt = await makePrompt(type, op.input.trim(), direction);
+                const result = await generateEnhanceFast(prompt, undefined, 'director', op);
+                assertCurrent(op, true);
+                const text = stripLeadingUserName(validateNarrative(result));
+                if (!text.trim()) throw new GenerationError('empty_response');
+                const ta = document.getElementById('send_textarea');
+                undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: text };
+                ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.focus({ preventScroll: true });
+                return;
+            }
             const view = openModal(tr('Предпросмотр текста', 'Text preview'), { signal: op.controller.signal, cancelLabel: tr('Отмена', 'Cancel'), wide: true });
             const original = textField(view.body, tr('Оригинал', 'Original'), op.input, true); original.readOnly = true;
             const output = textField(view.body, tr('Результат — можно отредактировать', 'Result — editable'), '', true);
@@ -888,7 +898,10 @@ import { narrativeContext, validateNarrative } from './narrative.js';
             <button type="button" class="bb-eg-back-btn" data-back="vibes"><i class="fa-solid fa-arrow-left"></i> ${t('dir_back')}</button>
             <div class="bb-eg-popup-header">${t('dir_custom')}</div>
             <textarea class="bb-eg-custom-textarea" placeholder="${escapeHtml(t('dir_custom_placeholder'))}" rows="3">${escapeHtml(customDirectorText)}</textarea>
-            <button type="button" class="bb-eg-custom-next-btn">${t('dir_custom_next')}</button>
+            <div class="bb-eg-target-grid">
+                <button type="button" class="bb-eg-target-btn" data-target="me">${escapeHtml(t('dir_to_me'))}</button>
+                <button type="button" class="bb-eg-target-btn" data-target="bot">${escapeHtml(t('dir_to_bot'))}</button>
+            </div>
         `;
     }
 
@@ -947,18 +960,6 @@ import { narrativeContext, validateNarrative } from './narrative.js';
                     popup.innerHTML = renderPopupTargets();
                 }
             }
-            else if (target.classList.contains('bb-eg-custom-next-btn')) {
-                const ta = popup.querySelector('.bb-eg-custom-textarea');
-                // @ts-ignore
-                const val = ta ? ta.value.trim() : '';
-                if (!val) {
-                    // @ts-ignore
-                    toastr.warning(t('dir_custom_empty'), 'BB Director');
-                    return;
-                }
-                customDirectorText = val;
-                popup.innerHTML = renderPopupTargets();
-            }
             else if (target.classList.contains('bb-eg-back-btn')) {
                 if (target.getAttribute('data-back') === 'vibes') {
                     popup.innerHTML = renderPopupVibes();
@@ -974,6 +975,11 @@ import { narrativeContext, validateNarrative } from './narrative.js';
                 }
             }
             else if (target.classList.contains('bb-eg-target-btn')) {
+                if (activeDirectorVibe === 'dir_custom') {
+                    const input = popup.querySelector('textarea');
+                    customDirectorText = input ? input.value : customDirectorText;
+                    if (!customDirectorText.trim()) { toastr.warning(t('dir_custom_empty'), 'BB Director'); return; }
+                }
                 const targetType = target.getAttribute('data-target'); popup.classList.remove('show'); isPopupOpen = false;
                 if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }

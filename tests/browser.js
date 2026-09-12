@@ -308,7 +308,7 @@ await test('event flyout opens sideways without moving toolbar items and remains
     document.getElementById('bb-eg-btn-director').click();toggle.click();assert(!popup.classList.contains('show'),'toolbar collapse closes flyout');
 });
 
-await test('custom direction fits the flyout and preserves text through target selection', async () => {
+await test('custom direction fits the flyout and preserves text through back navigation', async () => {
     const toggle=document.getElementById('bb-eg-toggle-btn');
     if(!document.getElementById('bb-enhance-toolbar').classList.contains('expanded'))toggle.click();
     await new Promise(resolve=>setTimeout(resolve,240));
@@ -326,9 +326,9 @@ await test('custom direction fits the flyout and preserves text through target s
     fits();assert(document.activeElement===field,'custom input focused');
     const value='A mysterious visitor arrives. '+ 'LongDirection'.repeat(50);
     field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));fits();
-    popup.querySelector('.bb-eg-custom-next-btn').click();
     assert(popup.querySelectorAll('.bb-eg-target-btn').length===2,'both targets preserved');
     popup.querySelector('.bb-eg-back-btn').click();
+    popup.querySelector('[data-vibe=dir_custom]').click();
     assert(popup.querySelector('textarea').value===value,'text preserved on back');fits();
     popup.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));toggle.click();
 });
@@ -368,14 +368,19 @@ await test('custom for me uses explicit direction and raw main response without 
     document.getElementById('bb-eg-btn-director').click();
     const popup=document.getElementById('bb-eg-popup');popup.querySelector('[data-vibe=dir_custom]').click();
     const field=popup.querySelector('textarea');field.value='Open the door slowly. Literal {{lastMessage}}';field.dispatchEvent(new Event('input',{bubbles:true}));
-    popup.querySelector('.bb-eg-custom-next-btn').click();popup.querySelector('[data-target=me]').click();
-    await until(()=>button('Apply')&&!button('Apply').disabled);
+    popup.querySelector('[data-target=me]').click();
+    await idle();
     assert(captured.api==='openai'&&!('quietPrompt' in captured),'raw request uses current connection');
     assert(captured.prompt.includes('Open the door slowly.')&&captured.prompt.includes('have NOT happened yet'),'direction is a future action to enact');
     assert(captured.prompt.includes('The door is shut.')&&!captured.prompt.includes('HUD_SECRET')&&!captured.prompt.includes('widget()'),'only story context supplied');
     assert(!captured.prompt.includes('{{lastMessage}}'),'native second macro expansion blocked');
-    assert(ta().value==='Original draft','draft unchanged before Apply');
-    click('Apply');await idle();assert(ta().value==='I open the door. ⟦North⟧','raw prose and unknown marker preserved');
+    assert(!dialog()&&ta().value==='I open the door. ⟦North⟧','raw prose inserted directly without preview');
+    document.body.click();assert(ta().value==='I open the door. ⟦North⟧','outside click cannot discard result');
+    const undo=[...document.querySelectorAll('#bb-enhance-toolbar button')].find(b=>b.textContent.includes('Restore original'));
+    undo.click();await idle();assert(ta().value==='Original draft','original draft restored');
+    document.getElementById('bb-eg-btn-director').click();popup.querySelector('[data-vibe=dir_custom]').click();
+    assert(popup.querySelector('textarea').value==='Open the door slowly. Literal {{lastMessage}}','direction kept for reuse');
+    popup.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
 });
 await test('technical output and limited main responses cannot be applied; retry preserves prose', async () => {
     settings.generationSource='main';mainHandler=async()=>'<script>widget()</script>Story';
@@ -425,6 +430,34 @@ await test('main response respects native reasoning parsing and missing raw API 
         document.getElementById('bb-eg-btn-enhance').click();await until(()=>button('Retry')&&!button('Retry').disabled);
         assert(button('Apply').disabled&&ta().value==='Story without reasoning.','no silent quiet fallback');click('Cancel');await idle();
     } finally {ctx.generateRawData=raw;delete ctx.powerUserSettings;delete ctx.parseReasoningFromString;}
+});
+
+await test('direct Director preserves draft on failure, edits and cancellation, and permits retry', async () => {
+    const open=()=>{
+        document.getElementById('bb-eg-btn-director').click();
+        document.querySelector('#bb-eg-popup [data-vibe=dir_blessing]').click();
+        document.querySelector('#bb-eg-popup [data-target=me]').click();
+    };
+    fetchHandler=async()=>completion('<script>widget()</script>');open();await idle();
+    assert(!dialog()&&ta().value==='Original draft','technical response leaves draft intact without modal');
+    let resolve,started=false;
+    fetchHandler=()=>{started=true;return new Promise(done=>{resolve=done;});};open();await until(()=>started);
+    assert(ta().value==='Original draft','original visible during request');ta().value='Edited while waiting';
+    resolve(completion('Late prose'));await idle();assert(ta().value==='Edited while waiting','new edits preserved');
+    started=false;open();await until(()=>started);document.getElementById('bb-eg-stop').click();resolve(completion('Cancelled prose'));await idle();
+    assert(ta().value==='Edited while waiting','cancel preserves draft');
+    fetchHandler=async()=>completion('New prose');open();await idle();assert(!dialog()&&ta().value==='New prose','one click retries and inserts');
+});
+await test('custom empty direction stays open and blank draft can be restored after direct generation', async () => {
+    ta().value='';document.getElementById('bb-eg-btn-director').click();
+    const popup=document.getElementById('bb-eg-popup');popup.querySelector('[data-vibe=dir_custom]').click();
+    const field=popup.querySelector('textarea');field.value=' ';field.dispatchEvent(new Event('input',{bubbles:true}));
+    const before=requests;popup.querySelector('[data-target=me]').click();await idle();
+    assert(popup.classList.contains('show')&&requests===before,'empty direction not submitted');
+    field.value='Walk to the door';field.dispatchEvent(new Event('input',{bubbles:true}));popup.querySelector('[data-target=me]').click();await idle();
+    assert(ta().value==='A polished draft.'&&!dialog(),'empty draft supports direct generation');
+    const undo=[...document.querySelectorAll('#bb-enhance-toolbar button')].find(b=>b.textContent.includes('Restore original'));
+    undo.click();await idle();assert(ta().value==='','empty original restored');
 });
 
 window.__showSettings = async () => {

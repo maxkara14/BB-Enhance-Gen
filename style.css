@@ -128,15 +128,6 @@
 }
 .bb-eg-custom-textarea::placeholder { color: #6b7280; font-style: italic; }
 .bb-eg-custom-textarea:focus { outline: none; border-color: rgba(212, 175, 55, 0.5); }
-.bb-eg-custom-next-btn {
-    width: 100%; min-width: 0; box-sizing: border-box; margin-top: 6px;
-    background: rgba(212, 175, 55, 0.12); border: 1px solid rgba(212, 175, 55, 0.4);
-    color: #d4af37; padding: 7px 10px; border-radius: 6px;
-    cursor: pointer; font-size: 11px; font-family: 'Georgia', serif;
-    font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px;
-    transition: all 0.2s ease;
-}
-.bb-eg-custom-next-btn:hover { background: #d4af37; color: #1a0f0f; box-shadow: 0 0 12px rgba(212, 175, 55, 0.35); }
 .bb-eg-vibe-custom { color: #d4af37 !important; }
 
 /* =========================================
