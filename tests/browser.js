@@ -136,10 +136,27 @@ await test('FT window cannot send into another chat', async () => {
 });
 await test('TS explicit author override sends edited intention', async () => {
     fetchHandler=async()=>completion('{"can_skip":false,"lock_reason":"Conversation in progress"}');
-    document.getElementById('bb-eg-btn-ts').click(); await until(()=>button('Apply transition'));
+    document.getElementById('bb-eg-btn-ts').click(); await until(()=>button('Check again'));
+    assert(!dialog().querySelector('details').open && button('Apply my transition').hidden,'manual form initially hidden');
+    dialog().querySelector('summary').click(); await until(()=>!button('Apply my transition').hidden);
     const fields=dialog().querySelectorAll('input:not([type=checkbox]),textarea'); fields[0].value='Dawn'; fields[1].value='8 hours'; fields[2].value='End the conversation';
-    click('Apply transition'); assert(dialog(),'override required'); dialog().querySelector('[type=checkbox]').checked=true; click('Apply transition'); await idle();
+    click('Apply my transition'); assert(dialog() && sends.length===0,'override required');
+    const before=requests; dialog().querySelector('[type=checkbox]').click();
+    assert(requests===before && sends.length===0,'checkbox does not generate or send');
+    fields[0].value=''; click('Apply my transition'); assert(document.activeElement===fields[0] && sends.length===0,'empty manual title rejected');
+    fields[0].value='Dawn'; click('Apply my transition'); await idle();
     assert(sends.length===1&&sends[0].input.includes('End the conversation'),'override direction sent');
+});
+await test('denied travel can be checked again for generated options', async () => {
+    let calls=0; fetchHandler=async()=>completion(JSON.stringify(++calls<=2?{can_travel:false,lock_reason:'Conversation in progress'}:travel));
+    document.getElementById('bb-eg-btn-ft').click(); await until(()=>button('Check again'));
+    assert(!dialog().querySelector('.bb-eg-option'),'no invented options after refusal');
+    click('Check again'); await until(()=>calls===2 && button('Check again'));
+    assert(!dialog().querySelector('details').open && sends.length===0,'repeated refusal stays clear and sends nothing');
+    click('Check again'); await until(()=>button('Apply transition'));
+    assert(calls===3 && dialog().querySelectorAll('.bb-eg-option').length===3,'retry returns selectable options');
+    dialog().querySelector('.bb-eg-option').click(); click('Apply transition'); await idle();
+    assert(sends.length===1 && sends[0].input.includes('Town 0'),'generated choice still works');
 });
 await test('manual roll bypasses model, history is scoped by chat, and markup is escaped', async () => {
     settings.manualRoll=true; const before=requests; document.getElementById('bb-eg-btn-dice').click(); await until(()=>button('Roll'));
@@ -617,14 +634,15 @@ window.__showHistory = async () => {
     key='empty-history-screenshot';chat=[];emit(events.CHAT_CHANGED);
     document.getElementById('bb-eg-btn-history').click();await until(()=>dialog());
 };
-async function showTransitionDesign(kind) {
+async function showTransitionDesign(kind, denied = false) {
     await window.__showSettings();document.getElementById('bb-eg-settings-container').hidden=true;document.getElementById('send_form').hidden=true;
     settings.generationSource='custom';
     const data=kind==='ft'?{can_travel:true,destinations:[{name:'Старый причал',time_cost:'20 минут',hook:'У воды ещё горит свет. Кто-то ждёт последнюю лодку.'},{name:'Лесная тропа',time_cost:'1 час',hook:'Следы ведут к заброшенной башне.'},{name:'Ночная площадь',time_cost:'10 минут',hook:'За аркой слышны голоса.'}]}:{can_skip:true,options:[{title:'Тихая ночь',time:'До рассвета',summary:'Отдохнуть и вернуться к разговору утром.'},{title:'Дождаться вестей',time:'Несколько часов',summary:'Остаться поблизости.'},{title:'Новый день',time:'Сутки',summary:'Завершить дела и встретиться снова.'}]};
-    fetchHandler=async()=>completion(JSON.stringify(data));document.getElementById('bb-eg-btn-'+kind).click();await until(()=>dialog()?.querySelector('.bb-eg-option'));
+    fetchHandler=async()=>completion(JSON.stringify(denied?{can_skip:false,lock_reason:'Идёт активный разговор: Доран только что передал еду и задал прямой вопрос о тезисе курсовой работы, ожидая ответа.'}:data));document.getElementById('bb-eg-btn-'+kind).click();await until(()=>dialog()?.querySelector('details'));
 }
 window.__showTravel = () => showTransitionDesign('ft');
 window.__showTime = () => showTransitionDesign('ts');
+window.__showDenied = () => showTransitionDesign('ts', true);
 window.__showDice = async () => {
     await window.__showSettings();document.getElementById('bb-eg-settings-container').hidden=true;document.getElementById('send_form').hidden=true;
     settings.manualRoll=true;settings.skipAnimation=true;

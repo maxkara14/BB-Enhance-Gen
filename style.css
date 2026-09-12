@@ -472,3 +472,6 @@
 @media (prefers-reduced-motion: reduce) {
     #bb-enhance-wrapper *, #bb-eg-popup, #bb-eg-popup *, .bb-eg-settings *, .bb-eg-dialog * { animation: none !important; transition: none !important; }
 }
+.bb-eg-dialog .bb-eg-transition-warning { padding: 12px 14px; border-left: 2px solid #c65a65; background: #c65a650d; border-radius: 4px; }
+.bb-eg-dialog .bb-eg-transition-help { color: #9697a0; font-size: 12px; line-height: 1.5; }
+.bb-eg-dialog .bb-eg-transition-confirm { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }

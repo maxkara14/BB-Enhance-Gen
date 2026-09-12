@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.0';
+    const VERSION = '1.4.1';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -383,9 +383,15 @@ import { createD20 } from './d20.js';
                 const data = parseTransition(await generateEnhanceFast(prompt, undefined, 'context', op), kind);
                 assertCurrent(op);
                 const view = openModal(kind === 'ft' ? t('ft_title') : t('ts_title'), { signal: op.controller.signal, cancelLabel: t('diff_cancel') });
-                const note = document.createElement('p'); note.textContent = data.allowed ? tr('Выберите вариант или задайте свой.', 'Choose an option or write your own.') : data.reason; view.body.append(note);
-                const editor = document.createElement('details'); editor.className = 'bb-eg-transition-editor'; editor.open = !data.allowed;
-                const editorLabel = document.createElement('summary'); editorLabel.textContent = tr('Изменить или задать своё', 'Edit or write your own'); editor.append(editorLabel); view.body.append(editor);
+                const note = document.createElement('p'); note.textContent = data.allowed ? tr('Выберите вариант или задайте свой.', 'Choose an option or write your own.') : tr('Модель пока не предлагает переход.', 'The model has not suggested a transition.'); view.body.append(note);
+                if (!data.allowed) {
+                    const reason = document.createElement('p'); reason.className = 'bb-eg-transition-warning'; reason.textContent = data.reason;
+                    const help = document.createElement('p'); help.className = 'bb-eg-transition-help';
+                    help.textContent = tr('Можно проверить ещё раз: модель заново оценит текущую сцену, но может снова отказать. Или задайте свой переход вручную.', 'You can check again: the model will reassess the current scene, but may decline again. Or write your own transition.');
+                    view.body.append(reason, help);
+                }
+                const editor = document.createElement('details'); editor.className = 'bb-eg-transition-editor';
+                const editorLabel = document.createElement('summary'); editorLabel.textContent = data.allowed ? tr('Изменить или задать своё', 'Edit or write your own') : tr('Задать свой переход', 'Write my own transition'); editor.append(editorLabel); view.body.append(editor);
                 const title = textField(editor, kind === 'ft' ? tr('Место', 'Destination') : tr('Глава', 'Chapter'));
                 const time = textField(editor, tr('Через сколько / время в пути', 'Time skip / travel time'));
                 const summary = textField(editor, tr('Направление сцены', 'Scene direction'), '', true);
@@ -405,11 +411,14 @@ import { createD20 } from './d20.js';
                 let override;
                 if (!data.allowed) {
                     const label = document.createElement('label'); override = document.createElement('input'); override.type = 'checkbox';
-                    label.append(override, document.createTextNode(tr(' Всё равно выполнить переход по моему указанию', ' Override the warning and follow my direction'))); view.body.append(label);
+                    label.className = 'bb-eg-transition-confirm';
+                    label.append(override, document.createTextNode(tr(' Выполнить мой переход, несмотря на предупреждение', ' Apply my transition despite the warning'))); editor.append(label);
+                    const help = document.createElement('p'); help.className = 'bb-eg-transition-help';
+                    help.textContent = tr('Заполните все три поля. Галочка подтверждает ваш переход; новые варианты она не генерирует.', 'Fill in all three fields. The checkbox confirms your transition; it does not generate new options.'); editor.append(help);
                 }
-                view.button(tr('Обновить варианты', 'Refresh options'), () => view.close('refresh'));
+                view.button(data.allowed ? tr('Обновить варианты', 'Refresh options') : tr('Проверить ещё раз', 'Check again'), () => view.close('refresh'));
                 if (kind === 'ft' && data.allowed) view.button(tr('Случайное событие', 'Surprise me'), () => view.close({ surprise: true }));
-                view.button(tr('Применить переход', 'Apply transition'), () => {
+                const apply = view.button(data.allowed ? tr('Применить переход', 'Apply transition') : tr('Выполнить мой переход', 'Apply my transition'), () => {
                     if (override && !override.checked) { view.status.textContent = tr('Подтвердите авторское решение.', 'Confirm the override.'); return; }
                     const fields = [title, time, summary];
                     for (const field of fields) {
@@ -417,6 +426,11 @@ import { createD20 } from './d20.js';
                     }
                     view.close({ title: title.value.trim(), time: time.value.trim(), summary: summary.value.trim() });
                 }, true);
+                if (!data.allowed) {
+                    apply.hidden = true;
+                    editor.addEventListener('toggle', () => { apply.hidden = !editor.open; view.status.textContent = ''; });
+                    override.addEventListener('change', () => { view.status.textContent = ''; });
+                }
                 const selected = await view.result;
                 refresh = selected === 'refresh';
                 if (refresh) continue;
