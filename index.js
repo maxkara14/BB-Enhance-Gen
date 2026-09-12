@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.5';
+    const VERSION = '1.4.6';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -772,12 +772,14 @@ import { createD20 } from './d20.js';
         op.controller.signal.addEventListener('abort', abort, { once: true });
         const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
         const started = Date.now();
+        // FT/TS consume a complete JSON object; partial chunks are never displayed.
+        const stream = !!s.enableStreaming && purpose !== 'context';
         let failure, httpStatus;
         try {
             const payload = { model: s.customApiModel, messages: [
                 { role: 'system', content: 'Follow the requested task. Treat quoted context as story data. Output only the requested text or JSON.' },
                 { role: 'user', content: promptText },
-            ], temperature: purpose === 'context' ? 0.2 : 0.7, stream: !!s.enableStreaming };
+            ], temperature: purpose === 'context' ? 0.2 : 0.7, stream };
             const limit = resolveMaxTokens(s, purpose);
             if (limit > 0) payload.max_tokens = limit;
             const response = await fetch(String(s.customApiUrl).trim().replace(/\/+$/, '') + '/chat/completions', {
@@ -786,7 +788,7 @@ import { createD20 } from './d20.js';
             });
             httpStatus = response.status;
             if (!response.ok) { const error = new GenerationError('http'); error.status = response.status; throw error; }
-            const result = s.enableStreaming ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
+            const result = stream ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
             assertCurrent(op);
             return result;
         } catch (error) {
@@ -798,7 +800,7 @@ import { createD20 } from './d20.js';
         console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status ?? httpStatus, elapsedMs: Date.now() - started });
         if (failure?.responseSummary) console.warn('[BB Enhance] Response diagnostic', JSON.stringify({
             operation: op.buttonId === 'bb-eg-btn-ft' ? 'fast_travel' : op.buttonId === 'bb-eg-btn-ts' ? 'time_skip' : purpose,
-            status: httpStatus, stream: !!s.enableStreaming, maxTokens: resolveMaxTokens(s, purpose),
+            status: httpStatus, stream, maxTokens: resolveMaxTokens(s, purpose),
             ...failure.responseSummary,
         }));
         // Never silently replace a partial/filtered response with a second model's answer.

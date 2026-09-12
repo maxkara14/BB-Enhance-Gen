@@ -135,17 +135,17 @@ await test('empty Custom API replies log safe actionable diagnostics', async () 
         assert(!dialog() && sends.length===0 && ta().value==='Original draft','empty reply cannot change chat');
     } finally {console.warn=original;}
 });
-await test('Custom API transition text variants work with and without streaming', async () => {
+await test('Custom API transitions request complete JSON regardless of prose streaming setting', async () => {
     for (const streaming of [false,true]) {
         settings.enableStreaming=streaming;
         for (const blocks of [false,true]) {
             ta().value='Travel draft';
             const text=JSON.stringify(travel);
             const chunk=blocks?{content:[{type:'reasoning',text:'PRIVATE'},{type:'text',text}]}:null;
-            fetchHandler=async()=>streaming
-                ?new Response('data: '+JSON.stringify({choices:[chunk?{delta:chunk}:{text}]})+'\n\ndata: '+JSON.stringify({choices:[{finish_reason:'stop'}]})+'\n\n')
-                :completion(text);
-            if (!streaming) fetchHandler=async()=>new Response(JSON.stringify({choices:[chunk?{message:chunk,finish_reason:'stop'}:{text,finish_reason:'stop'}]}));
+            fetchHandler=async(_url,options)=>{
+                assert(JSON.parse(options.body).stream===false,'analyzer requests non-streaming JSON');
+                return new Response(JSON.stringify({choices:[chunk?{message:chunk,finish_reason:'stop'}:{text,finish_reason:'stop'}]}));
+            };
             document.getElementById('bb-eg-btn-ft').click();await until(()=>button('Apply transition'));
             assert(dialog().querySelectorAll('.bb-eg-option').length===3 && !dialog().textContent.includes('PRIVATE'),'text extracted without reasoning');
             dialog().querySelector('.bb-eg-option').click();click('Apply transition');await idle();
@@ -154,10 +154,12 @@ await test('Custom API transition text variants work with and without streaming'
     assert(sends.length===4 && sends.every(send=>send.input.includes('Town 0')&&!send.input.includes('PRIVATE')),'selected transition safely sent');
 });
 await test('FT and TS accept their own prompt examples through selection and denial', async () => {
+    settings.enableStreaming=true;
     for (const kind of ['ft','ts']) {
         for (const denied of [false,true]) {
             fetchHandler=async(_url,options)=>{
                 const prompt=JSON.parse(options.body).messages[1].content;
+                assert(JSON.parse(options.body).stream===false,'both analyzers bypass proxy streaming');
                 const tag=denied?'denied_format':'format';
                 const match=prompt.match(new RegExp('<'+tag+'>\\s*([\\s\\S]*?)\\s*</'+tag+'>'));
                 assert(match,'explicit JSON example for '+tag);
