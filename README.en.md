@@ -4,7 +4,7 @@
 
 A **SillyTavern** panel for writing your character’s turns, editing drafts, directing events, rolling a d20 and moving between scenes. Open it with **E** next to the chat input.
 
-**Version 1.4.7**
+**Version 1.4.8**
 
 ## ✨ Features
 
@@ -33,7 +33,9 @@ If the old interface remains after updating, hard-refresh the page — **Ctrl+F5
 
 ### Edit a draft
 
-Write in the chat input and press **Enhance** or **Improve**. A separate editor shows the result beside the original. Edit it, retry generation or apply it. The draft stays unchanged until you apply the result.
+Write in the chat input and press **Enhance** or **Improve**. The result appears directly in that field, without a separate window or Apply step. It is not automatically sent.
+
+Use **Cancel** during generation. Afterwards, **Retry** and **Restore original** appear in the E panel. Retry generates another version from the original draft; cancelling a retry restores the previous version. Restore original brings back the text before processing. Manual edits are protected: retry and restore report a changed draft rather than overwrite it. Press Enhance or Improve again to process your edited text.
 
 Settings control dialogue preservation, narrative person, expansion and output language. These are model instructions, not guarantees of exact length or verbatim preservation.
 
@@ -78,8 +80,8 @@ Profiles and Custom API need not produce identical results: request assembly and
 
 - **Interface language:** browser language, Russian or English. Automatic mode selects Russian for a Russian browser locale, English otherwise.
 - **Output language:** separately configured to match the draft/chat, Russian or English. Switching the interface does not translate existing chats, your directions or profile names.
-- **Streaming:** profiles and Custom API can stream Enhance/Improve into the editor and Director “To me” into the chat input. The main connection returns completed text. FT/TS through Custom API always receive complete JSON without streaming.
-- **Cancellation:** Stop cancels the operation. If Director “To me” fails or is cancelled, the original draft is restored while preserving manual edits made during the request. Switching chats cancels the operation.
+- **Streaming:** profiles and Custom API stream Enhance, Improve and Director “To me” into the chat input. The main connection returns completed text. FT/TS through Custom API always receive complete JSON without streaming.
+- **Cancellation:** Cancel stops the operation. Failure or cancellation restores the text from before the request while preserving manual edits made during generation. Switching chats cancels the operation.
 - **Bot cue preview:** optionally inspect the direction before sending it.
 - **Visibility:** each of the six main tools can be hidden in settings.
 

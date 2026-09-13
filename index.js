@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.7';
+    const VERSION = '1.4.8';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -213,6 +213,7 @@ import { createD20 } from './d20.js';
     let mainGenerating = false;
     let chatEpoch = 0;
     let undoDraft = null;
+    let textAction = null;
     let toolbarEvents = null;
 
     function tr(ru, en) { return currentLang() === 'ru' ? ru : en; }
@@ -321,7 +322,7 @@ import { createD20 } from './d20.js';
             if (!undoDraft || undoDraft.key !== op.key || undoDraft.epoch !== op.epoch) { toastr.info(tr('Нет текста для возврата.', 'No text to restore.')); return; }
             if (op.input !== undoDraft.applied) throw new GenerationError('draft_changed');
             const ta = document.getElementById('send_textarea');
-            ta.value = undoDraft.original; ta.dispatchEvent(new Event('input', { bubbles: true })); undoDraft = null;
+            ta.value = undoDraft.original; ta.dispatchEvent(new Event('input', { bubbles: true })); undoDraft = null; textAction = null;
         });
     }
 
@@ -592,9 +593,9 @@ import { createD20 } from './d20.js';
         const stopping = isBusy && activeOperation?.controller.signal.aborted;
         if (stop) {
             stop.hidden = !isBusy; stop.disabled = !!stopping;
-            stop.textContent = stopping ? tr('⏳ Остановка…', '⏳ Stopping…') : tr('⏹ Остановить', '⏹ Stop');
+            stop.textContent = stopping ? tr('⏳ Остановка…', '⏳ Stopping…') : tr('⏹ Отменить', '⏹ Cancel');
         }
-        document.querySelectorAll('#bb-enhance-toolbar > button:not(#bb-eg-stop), #bb-eg-btn-director').forEach(btn => {
+        document.querySelectorAll('#bb-enhance-toolbar > button:not(#bb-eg-stop), #bb-eg-text-actions button, #bb-eg-btn-director').forEach(btn => {
             btn.disabled = !isBusy && mainGenerating;
             btn.setAttribute('aria-disabled', String(isBusy || mainGenerating));
             const active = isBusy && btn.id === activeOperation?.buttonId;
@@ -602,6 +603,12 @@ import { createD20 } from './d20.js';
             btn.classList.toggle('bb-stopping', active && !!stopping);
             btn.setAttribute('aria-busy', String(active));
         });
+        const actions = document.getElementById('bb-eg-text-actions');
+        if (actions) actions.hidden = isBusy || (!textAction && !undoDraft);
+        const retry = document.getElementById('bb-eg-retry');
+        if (retry) retry.hidden = !textAction;
+        const undo = document.getElementById('bb-eg-undo');
+        if (undo) undo.hidden = !undoDraft;
     }
 
     /** Show only the current chat's roll history. */
@@ -818,89 +825,50 @@ import { createD20 } from './d20.js';
     }
 
     // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
-    async function handleGeneration(type) {
+    async function handleGeneration(type, retryAction = null) {
         return withBusyLock(async op => {
+            if (retryAction && (retryAction !== textAction || retryAction.key !== op.key
+                || retryAction.epoch !== op.epoch || retryAction.expected !== op.input)) {
+                throw new GenerationError('draft_changed');
+            }
             op.buttonId = type.startsWith('dir_') ? 'bb-eg-btn-director' : type === 'enhance' ? 'bb-eg-btn-enhance' : 'bb-eg-btn-improve';
-            updateBusyBadge();
             if ((type === 'enhance' || type === 'improve') && !op.input.trim()) { toastr.warning(t('toast_need_input'), 'BB Enhance'); return; }
-            const direction = customDirectorText;
-            if (type.startsWith('dir_')) {
-                const restore = () => {
-                    const ta = document.getElementById('send_textarea');
-                    if (op.renderedInput !== undefined && op.key === chatKey() && op.epoch === chatEpoch
-                        && op.chat === SillyTavern.getContext().chat && ta?.value === op.renderedInput) {
-                        ta.value = op.input; op.renderedInput = undefined;
-                        ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                };
-                op.controller.signal.addEventListener('abort', restore, { once: true });
-                try {
-                    const prompt = await makePrompt(type, op.input.trim(), direction);
-                    const result = await generateEnhanceFast(prompt, (_delta, total) => {
-                        assertCurrent(op, true);
-                        const text = stripLeadingUserName(validateNarrative(total));
-                        if (!text) return;
-                        const ta = document.getElementById('send_textarea');
-                        op.renderedInput = text; ta.value = text;
-                        ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    }, 'director', op);
-                    assertCurrent(op, true);
-                    const text = stripLeadingUserName(validateNarrative(result));
-                    if (!text.trim()) throw new GenerationError('empty_response');
-                    const ta = document.getElementById('send_textarea');
-                    undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: text };
-                    ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    ta.focus({ preventScroll: true });
-                } catch (error) { restore(); throw error; }
-                finally { op.controller.signal.removeEventListener('abort', restore); }
-                return;
-            }
-            const view = openModal(tr('Предпросмотр текста', 'Text preview'), { signal: op.controller.signal, cancelLabel: tr('Отмена', 'Cancel'), wide: true });
-            const original = textField(view.body, tr('Оригинал', 'Original'), op.input, true); original.readOnly = true;
-            const output = textField(view.body, tr('Результат — можно отредактировать', 'Result — editable'), '', true);
-            let generating = false, hasResult = false, work = Promise.resolve();
-            const apply = view.button(tr('Применить', 'Apply'), () => {
-                try {
-                    assertCurrent(op, true);
-                    if (!hasResult || !output.value.trim()) return;
-                    const ta = document.getElementById('send_textarea');
-                    undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: output.value };
-                    ta.value = output.value; ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    clearCustomDirectorDraft(type); view.close('applied');
-                } catch (error) { view.status.textContent = errorText(error); }
-            }, true);
-            const retry = view.button(tr('Повторить', 'Retry'), () => { work = generate(); });
-            async function generate() {
-                if (generating || view.closed) return;
-                generating = true; hasResult = false; apply.disabled = true; retry.disabled = true; output.readOnly = true; output.value = '';
-                view.status.textContent = t('loading');
-                try {
-                    assertCurrent(op);
-                    const prompt = await makePrompt(type, op.input.trim(), direction);
-                    const result = await generateEnhanceFast(prompt, (_delta, total) => {
-                        if (!view.closed) output.value = cleanNarrative(total);
-                    }, type.startsWith('dir_') ? 'director' : 'enhance', op);
-                    assertCurrent(op);
-                    output.value = stripLeadingUserName(validateNarrative(result));
-                    if (!output.value.trim()) throw new GenerationError('empty_response');
-                    hasResult = true;
-                    view.status.textContent = tr('Текст готов. Черновик пока не изменён.', 'Ready. Your draft has not been changed.');
-                } catch (error) {
-                    if (error.partial) output.value = cleanNarrative(error.partial);
-                    view.status.textContent = errorText(error);
-                    if (view.closed && error?.code === 'timeout') toastr.error(errorText(error), 'BB Enhance');
-                } finally {
-                    generating = false; output.readOnly = false; apply.disabled = !hasResult; retry.disabled = op.controller.signal.aborted;
+            const source = retryAction ? retryAction.original : op.input;
+            const direction = retryAction ? retryAction.direction : customDirectorText;
+            const action = { key: op.key, epoch: op.epoch, original: source, expected: op.input, type, direction };
+            textAction = action;
+            updateBusyBadge();
+            const restore = () => {
+                const ta = document.getElementById('send_textarea');
+                if (op.renderedInput !== undefined && op.key === chatKey() && op.epoch === chatEpoch
+                    && op.chat === SillyTavern.getContext().chat && ta?.value === op.renderedInput) {
+                    ta.value = op.input; op.renderedInput = undefined;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
                 }
-            }
-            work = generate();
-            // Closing the preview cancels the transport and keeps the original draft.
-            await view.result;
-            if (generating) cancelOperation();
-            await work;
+            };
+            op.controller.signal.addEventListener('abort', restore, { once: true });
+            try {
+                const prompt = await makePrompt(type, source.trim(), direction);
+                const result = await generateEnhanceFast(prompt, (_delta, total) => {
+                    assertCurrent(op, true);
+                    const text = stripLeadingUserName(validateNarrative(total));
+                    if (!text) return;
+                    const ta = document.getElementById('send_textarea');
+                    op.renderedInput = text; ta.value = text;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                }, type.startsWith('dir_') ? 'director' : 'enhance', op);
+                assertCurrent(op, true);
+                const text = stripLeadingUserName(validateNarrative(result));
+                if (!text.trim()) throw new GenerationError('empty_response');
+                const ta = document.getElementById('send_textarea');
+                undoDraft = { key: op.key, epoch: op.epoch, original: source, applied: text };
+                action.expected = text;
+                ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.focus({ preventScroll: true });
+            } catch (error) { restore(); throw error; }
+            finally { op.controller.signal.removeEventListener('abort', restore); }
         });
     }
-
     // === КУБИК (DICE) ===
     async function showDiceModal(question, dc, finalRoll, outcomeText) {
         const view = openModal(t('dice_title'), { signal: activeOperation.controller.signal, cancelLabel: tr('Отменить действие', 'Cancel action') });
@@ -1072,7 +1040,7 @@ import { createD20 } from './d20.js';
                     if (!customDirectorText.trim()) { toastr.warning(t('dir_custom_empty'), 'BB Director'); return; }
                 }
                 const targetType = target.getAttribute('data-target'); popup.classList.remove('show'); isPopupOpen = false;
-                if (targetType === 'me') handleGeneration(activeDirectorVibe, mainBtn); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
+                if (targetType === 'me') handleGeneration(activeDirectorVibe); else if (targetType === 'bot') handleBotGeneration(activeDirectorVibe);
             }
             if (isPopupOpen) {
                 positionDirectorPopup();
@@ -1142,10 +1110,10 @@ import { createD20 } from './d20.js';
         const toolbar = document.createElement('div'); toolbar.id = 'bb-enhance-toolbar';
 
         const btnE = document.createElement('button'); btnE.className = 'bb-eg-btn'; btnE.id = 'bb-eg-btn-enhance'; btnE.innerHTML = t('btn_enhance');
-        btnE.onclick = (e) => { e.preventDefault(); handleGeneration('enhance', btnE); }; toolbar.appendChild(btnE);
+        btnE.onclick = (e) => { e.preventDefault(); handleGeneration('enhance'); }; toolbar.appendChild(btnE);
 
         const btnI = document.createElement('button'); btnI.className = 'bb-eg-btn'; btnI.id = 'bb-eg-btn-improve'; btnI.innerHTML = t('btn_improve');
-        btnI.onclick = (e) => { e.preventDefault(); handleGeneration('improve', btnI); }; toolbar.appendChild(btnI);
+        btnI.onclick = (e) => { e.preventDefault(); handleGeneration('improve'); }; toolbar.appendChild(btnI);
 
         toolbar.appendChild(buildDirectorPopup());
 
@@ -1162,7 +1130,11 @@ import { createD20 } from './d20.js';
         btnHist.onclick = (e) => { e.preventDefault(); showRollHistory(); }; toolbar.appendChild(btnHist);
 
         const stop = document.createElement('button'); stop.id = 'bb-eg-stop'; stop.type = 'button'; stop.className = 'bb-eg-btn'; stop.textContent = tr('⏹ Отмена', '⏹ Cancel'); stop.hidden = true; stop.onclick = cancelOperation; toolbar.append(stop);
-        const undo = document.createElement('button'); undo.type = 'button'; undo.className = 'bb-eg-btn'; undo.textContent = tr('↶ Вернуть оригинал', '↶ Restore original'); undo.onclick = restoreDraft; toolbar.append(undo);
+        const textActions = document.createElement('div'); textActions.id = 'bb-eg-text-actions'; textActions.hidden = true;
+        const retry = document.createElement('button'); retry.id = 'bb-eg-retry'; retry.type = 'button'; retry.className = 'bb-eg-btn'; retry.textContent = tr('Повторить', 'Retry'); retry.title = tr('Новый вариант из исходного черновика', 'New version from the original draft');
+        retry.onclick = () => { if (textAction) handleGeneration(textAction.type, textAction); };
+        const undo = document.createElement('button'); undo.id = 'bb-eg-undo'; undo.type = 'button'; undo.className = 'bb-eg-btn'; undo.textContent = tr('↶ Вернуть оригинал', '↶ Restore original'); undo.onclick = restoreDraft;
+        textActions.append(retry, undo); toolbar.append(textActions);
         const icons = ['✧', '◈', '▤', '⬡', '↗', '◷', '≡', '↶'];
         [btnE, btnI, toolbar.querySelector('#bb-eg-btn-director'), btnDice, btnFT, btnTS, btnHist, undo].forEach((button, i) => {
             const label = button.textContent.replace(/^[^\p{L}\p{N}]+/u, '');
@@ -1379,8 +1351,9 @@ import { createD20 } from './d20.js';
         const events = ctx.eventTypes || ctx.event_types;
         ctx.eventSource.on(events.APP_READY, () => { injectToolbar(); injectSettingsPanel(); });
         ctx.eventSource.on(events.CHAT_CHANGED, () => {
-            chatEpoch++; undoDraft = null; customDirectorText = ''; isPopupOpen = false;
+            chatEpoch++; undoDraft = null; textAction = null; customDirectorText = ''; isPopupOpen = false;
             document.getElementById('bb-eg-popup')?.classList.remove('show'); cancelOperation();
+            updateBusyBadge();
         });
         ctx.eventSource.on(events.GENERATION_STARTED, (_type, _options, dryRun) => {
             if (dryRun) return;

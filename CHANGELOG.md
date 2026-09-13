@@ -4,6 +4,13 @@
 
 ## Русский
 
+### 1.4.8 — 13 сентября 2026
+
+- Enhance и Improve работают прямо в поле чата, как Director «Мне», без отдельного окна и применения результата.
+- «Повторить» и «Вернуть оригинал» находятся в панели E; во время генерации доступна «Отменить».
+- Повтор использует исходный черновик. Отмена повтора восстанавливает предыдущий вариант; ручные правки защищены от перезаписи.
+- Сохранены потоковый вывод, обработка ошибок и защита при переключении чата.
+
 ### 1.4.7 — 13 сентября 2026
 
 Что изменилось по сравнению с **1.1.4**:
@@ -42,6 +49,13 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### 1.4.8 — September 13, 2026
+
+- Enhance and Improve work directly in the chat input, like Director “To me”, without a separate window or Apply step.
+- Retry and Restore original are in the E panel; Cancel is available during generation.
+- Retry uses the original draft. Cancelling a retry restores the previous version; manual edits are protected against overwriting.
+- Streaming, error handling and chat-switch protection are preserved.
 
 ### 1.4.7 — September 13, 2026
 
