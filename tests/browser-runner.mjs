@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const chrome = process.env.CHROME_PATH || ['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 if (!chrome) throw new Error('Set CHROME_PATH to a Chromium browser executable.');
-const files = new Set(['/index.js','/core.js','/ui.js','/narrative.js','/d20.js','/style.css','/tests/browser.html','/tests/browser.js']);
+const files = new Set(['/index.js','/core.js','/ui.js','/narrative.js','/d20.js','/writing.js','/writing-ui.js','/style.css','/tests/browser.html','/tests/browser.js']);
 // Use the installed Sorter's actual discovery/title functions, not a guessed selector.
 const sorterSource = await readFile(resolve(root, '../BB-Extension-Sorter/index.js'), 'utf8');
 const sorterContract = ['normalizeText', 'cleanTitle', 'isRealExtension', 'getTitle', 'getExtensionKey'].map(name => {
@@ -26,6 +26,13 @@ const rawContract = ['createRawPrompt', 'generateRawData', 'extractMessageFromDa
 }).join('\n');
 const server = createServer(async (req,res) => {
     const path = new URL(req.url,'http://localhost').pathname;
+    if (path === '/tests/browser.js' && process.env.ENHANCE_SUITE === 'writing') {
+        const legacy = await readFile(join(root, 'tests/browser.js'), 'utf8');
+        const marker = legacy.indexOf("const sorter = await import");
+        assert.ok(marker > 0, 'Shared synthetic browser setup found');
+        res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+        res.end(legacy.slice(0, marker) + '\n' + await readFile(join(root, 'tests/writing-browser.js'), 'utf8')); return;
+    }
     if (path === '/shared.js') { res.setHeader('Content-Type', 'text/javascript'); res.end('export const ConnectionManagerRequestService = globalThis.__profileService;'); return; }
     if (path === '/tests/sorter-contract.js') { res.setHeader('Content-Type', 'text/javascript'); res.end(sorterContract); return; }
     if (path === '/tests/raw-contract.js') {
@@ -65,7 +72,7 @@ try {
     if(process.env.ENHANCE_SCREENSHOT){
         const views = process.env.ENHANCE_VIEW === 'review' ? ['settings', 'menu'] : [process.env.ENHANCE_VIEW || 'preview'];
         for (const view of views) {
-            const show = { settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy', history: '__showHistory', dice: '__showDice', travel: '__showTravel', time: '__showTime', denied: '__showDenied' }[view] || '__showPreview';
+            const show = { writing: '__showWriting', editor: '__showEditor', settings: '__showSettings', menu: '__showMenu', custom: '__showCustom', direction: '__showDirection', busy: '__showBusy', history: '__showHistory', dice: '__showDice', travel: '__showTravel', time: '__showTime', denied: '__showDenied' }[view] || '__showPreview';
             const opened = await command('Runtime.evaluate',{expression:`window.${show}()`,awaitPromise:true});
             assert.ok(!opened.exceptionDetails, 'Screenshot view opened');
             const shot=await command('Page.captureScreenshot',{format:'png'});

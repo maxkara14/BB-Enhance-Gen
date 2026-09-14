@@ -4,7 +4,9 @@
 
 A **SillyTavern** panel for writing your character’s turns, editing drafts, directing events, rolling a d20 and moving between scenes. Open it with **E** next to the chat input.
 
-**Version 1.4.8**
+**Version 1.5.0**
+
+Test release on **`enhance-test`**: custom buttons and editable Enhance / Improve instructions. **1.4.9** is still the published version on `main`; 1.5.0 will move there after testing.
 
 ## ✨ Features
 
@@ -38,6 +40,18 @@ Write in the chat input and press **Enhance** or **Improve**. The result appears
 Use **Cancel** during generation. Afterwards, **Retry** and **Restore original** appear in the E panel. Retry generates another version from the original draft; cancelling a retry restores the previous version. Restore original brings back the text before processing. Manual edits are protected: retry and restore report a changed draft rather than overwrite it. Press Enhance or Improve again to process your edited text.
 
 Settings control dialogue preservation, narrative person, expansion and output language. These are model instructions, not guarantees of exact length or verbatim preservation.
+
+### Customize writing instructions and buttons (enhance-test)
+
+Open **Instructions and custom buttons** in the extension settings. Expand **Enhance** or **Improve** to edit its instruction, then press **Save**. **Restore default** restores and saves the built-in instruction. These editors do not change Director, Fast Travel, Time Skip or Action Roll.
+
+Use **Add button** to create a writing action with a name, a symbol or emoji, and a plain-text instruction. For example, “Shorten the draft while preserving its meaning and key actions.” Up to 20 buttons appear after Improve in the E menu. You can edit, disable or delete them; deletion asks for confirmation. Settings are shared across your chats.
+
+Custom actions require a non-empty draft. Context is added automatically, and the shared generation connection, Enhance / Improve response limit, streaming, Cancel and Restore original are used. Language, narrative person and dialogue-preservation settings take priority; the expansion multiplier applies only to Enhance. Instructions are plain text, not macro templates. The result stays in the chat input until you send it yourself.
+
+Retry uses the original draft and the instruction captured for that request, even if you edited the instruction afterwards. Start a new action to use the updated instruction. Disabling or deleting a custom button hides its Retry action; it does not cancel a request already in progress.
+
+Icons accept numbers, symbols and emoji. Letters, spaces and line breaks are removed during input; toolbar icons never wrap to another line.
 
 ### Write your character’s turn
 

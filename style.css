@@ -480,3 +480,16 @@
 #bb-eg-text-actions { display: flex; gap: 6px; }
 #bb-enhance-toolbar #bb-eg-text-actions .bb-eg-btn { flex: 1; min-width: 0; width: auto; padding: 8px 6px; font-size: 11px; display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; text-align: center; }
 #bb-eg-text-actions .bb-eg-tool-icon { display: none; }
+
+/* User-defined writing actions share the toolbar's existing button theme. */
+#bb-enhance-toolbar .bb-eg-custom-action { min-width: 0; white-space: normal; }
+#bb-enhance-toolbar .bb-eg-custom-label { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+#bb-enhance-toolbar .bb-eg-custom-action .bb-eg-tool-icon { overflow: hidden; white-space: nowrap; }
+.bb-eg-instruction-editor { border: 1px solid #ffffff12; border-radius: 6px; padding: 10px; }
+.bb-eg-instruction-editor > summary { cursor: pointer; color: #d7c3c8; }
+.bb-eg-instruction-editor textarea { min-height: 180px; }
+.bb-eg-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bb-eg-settings .bb-eg-editor-actions .menu_button { flex: 1 1 110px; width: auto; }
+.bb-eg-custom-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bb-eg-custom-row { border: 1px solid #ffffff12; border-radius: 6px; padding: 10px; min-width: 0; }
+.bb-eg-custom-row .checkbox_label { margin-bottom: 8px; }
