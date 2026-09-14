@@ -1,150 +1,95 @@
-# BB Enhance Generation — 1.4.7
+# BB Enhance Generation — обновления / changelog
 
-[Русский](#русский) · [English](#english) · [README](README.md)
+[Русский](#русский) · [English](#english)
 
 ## Русский
 
-Итоговые изменения **1.4.7 относительно 1.1.4 из main**.
+### 1.4.8 — 13 сентября 2026
 
-База сравнения проверена 2026-09-13: `main`, коммит
-[`ba81e79`](https://github.com/maxkara14/BB-Enhance-Gen/commit/ba81e79).
-Версия 1.4.7 пока находится в **`enhance-test`**; этот текст описывает готовое
-обновление, а не состоявшееся слияние в основную ветку.
+- Enhance и Improve работают прямо в поле чата, как Director «Мне», без отдельного окна и применения результата.
+- «Повторить» и «Вернуть оригинал» находятся в панели E; во время генерации доступна «Отменить».
+- Повтор использует исходный черновик. Отмена повтора восстанавливает предыдущий вариант; ручные правки защищены от перезаписи.
+- Сохранены потоковый вывод, обработка ошибок и защита при переключении чата.
 
-### 🎨 Обновлённый интерфейс
+### 1.4.7 — 13 сентября 2026
 
-- Панель, настройки, переходы и кубик приведены к общему полупрозрачному чёрному оформлению с красными акцентами.
-- Кнопки больше не дёргаются в сторону при наведении и нажатии.
-- Боковое меню событий учитывает границы экрана; поле собственного указания не создаёт горизонтальную прокрутку.
-- Настройки используют стандартный блок SillyTavern, поддерживают Extension-Sorter и сохраняют положение при смене языка.
-- Окна получили единое закрытие, управление с клавиатуры и возврат фокуса. Активная генерация и остановка обозначаются отдельно.
+Что изменилось по сравнению с **1.1.4**:
 
-### ✍️ Больше контроля над текстом
+**Интерфейс**
+- Общее полупрозрачное чёрное оформление с красными акцентами для панели, настроек и окон.
+- Кнопки без боковых сдвигов, адаптивное меню событий и поле «Своё» без горизонтальной прокрутки.
+- Стандартный блок настроек для Extension-Sorter, клавиатурная навигация и понятная индикация генерации и остановки.
 
-- Enhance и Improve показывают оригинал и результат в редакторе: можно исправить текст, повторить генерацию или применить его.
-- Добавлен возврат оригинального черновика с защитой последующих ручных правок.
-- Настраиваются расширение ×1.5/×2/×3, сохранение реплик, лицо повествования и язык результата.
-- «Своё» в Event Director сразу предлагает «Мне» и «Боту», без промежуточного шага «Далее».
-- Director «Мне» продолжает писать прямо в поле чата; улучшены отмена, потоковый вывод и сохранение указания для повторного запуска.
-- Инструкция для «Своё → Мне» требует разыграть заданные действия, а не считать их уже случившимися.
-- Основная модель получает отдельный служебный запрос через raw API: результат извлекается до regex-обработки сообщений бота. Очевидные технические блоки не применяются как художественный текст.
+**Текст и события**
+- Редактор оригинала и результата для Enhance/Improve: правка, повторная генерация, применение и возврат исходного черновика.
+- Выбор расширения ×1.5/×2/×3, сохранения реплик, лица повествования и языка результата.
+- «Своё» сразу предлагает «Мне» и «Боту», без шага «Далее». Director «Мне» пишет прямо в поле чата.
+- Улучшена обработка авторского указания, добавлены интенсивность событий и тип напряжения с пояснениями.
+- Отдельная генерация основной моделью до regex-обработки сообщений бота; очевидный технический вывод не применяется как художественный текст.
 
-### 🔌 Подключения и контекст
+**Подключения**
+- Профили Connection Manager с моделью, пресетом и instruct без переключения активного подключения.
+- Потоковый вывод профилей, расширенная поддержка форматов ответа Custom API.
+- Настраиваемая глубина и бюджет контекста.
 
-- Добавлены **профили Connection Manager**: модель, пресет и instruct выбранного профиля используются без смены активного подключения чата.
-- Потоковый вывод доступен и для профилей. Поддержка Custom API расширена текстовыми блоками и дополнительными формами ответа.
-- Добавлены глубина и бюджет контекста, общая сборка персоны, описания персонажа, сценария, Author’s Note, Summary и последних сообщений.
-- Добавлены интенсивность событий и выбор типа Tension: романтическое, конфликтное или тревожное, с пояснениями в настройках.
+**Переходы и d20**
+- Редактирование вариантов Fast Travel / Time Skip, повторный запрос и собственный переход с авторским подтверждением.
+- Проверка вариантов до отправки в чат; понятное объяснение рекомендации остаться в сцене.
+- Геометрический d20 с вращением и пропуском анимации; ручной вопрос без обращения к модели.
+- История бросков отдельно для каждого чата. Старый общий журнал убран из интерфейса без удаления сохранённых данных.
 
-### 📍 Переходы между сценами
+**Надёжность и язык**
+- Отмена, тайм-аут и защита черновика от поздних ответов, переключения чата и перезаписи ручных правок.
+- Понятные сообщения о пустом ответе, рассуждениях без результата, неверном формате и блокировке провайдером.
+- Ручной выбор языка интерфейса, расширенная локализация RU/EN, README на двух языках.
 
-- Варианты Fast Travel и Time Skip можно редактировать: место/глава, время и направление сцены.
-- Доступны повторный запрос вариантов и собственный переход.
-- Если модель рекомендует остаться, окно объясняет причину и разделяет повторную оценку и ручное авторское решение.
-- Ответ проверяется до применения; неверные или неполные варианты не отправляются в чат.
-- Анализаторы через Custom API получают полный JSON без стриминга; настройка потокового вывода прозы сохранена.
-
-### 🎲 Броски и история
-
-- Вместо прежнего куба отображается геометрический d20 с двадцатью треугольными гранями и анимацией вращения.
-- Вопрос для броска можно задать вручную без служебного запроса модели; анимацию можно пропустить.
-- История разделена по чатам. Очистка затрагивает только текущий чат.
-- Старый общий журнал убран из интерфейса; сохранённые ранее данные не удаляются.
-
-### 🛠️ Надёжность и язык
-
-- Добавлены отмена и тайм-аут операций, защита черновика от позднего ответа и привязка результатов к исходному чату.
-- Уточнена обработка пустых, оборванных и ограниченных ответов, рассуждений без итогового текста и HTTP-ошибок.
-- Явная блокировка отображается как **«Провайдер заблокировал запрос»**; автоматический переход на другую модель при такой ошибке не выполняется.
-- Диагностика Custom API показывает безопасные сведения о форме ответа, без переписки и ключей.
-- К автоматическому RU/EN добавлен ручной выбор языка интерфейса; локализованы дополнительные кнопки и окна. Язык результата задаётся отдельно.
-- README доступен на русском и английском.
-
-### Что важно после обновления
-
-Шесть основных инструментов, Custom API, RU/EN по языку браузера, отдельные лимиты
-ответа и выбор сложности кубика **уже были в 1.1.4**. Обновление развивает их,
-а не добавляет заново.
-
-Основная модель теперь используется через raw API: обычная полная сборка чата
-с World Info не подключается автоматически к служебному запросу. Профиль и
-Custom API могут давать разные результаты из-за различий запросов и параметров.
-
-Блокировка Gemini `prompt_blocked / PROHIBITED_CONTENT` на конкретном прокси
-подтверждена ответом сервера. Универсальное устранение блокировки не заявляется.
-
-Проверки: **14 unit-тестов, 56 браузерных сценариев** на изолированном стенде.
-Это не гарантия совместимости со всеми моделями, прокси и сторонними расширениями.
+**Важно**
+- Служебные запросы основной модели теперь используют raw API: полная обычная сборка чата с World Info не подключается автоматически.
+- Анализаторы Fast Travel / Time Skip через Custom API получают JSON целиком; стриминг художественного текста сохранён.
+- Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
 
-Final changes in **1.4.7 compared with 1.1.4 on main**.
+### 1.4.8 — September 13, 2026
 
-Baseline checked on 2026-09-13: `main`, commit
-[`ba81e79`](https://github.com/maxkara14/BB-Enhance-Gen/commit/ba81e79).
-Version 1.4.7 is still on **`enhance-test`**. These notes describe the completed
-update, not a merge into the default branch.
+- Enhance and Improve work directly in the chat input, like Director “To me”, without a separate window or Apply step.
+- Retry and Restore original are in the E panel; Cancel is available during generation.
+- Retry uses the original draft. Cancelling a retry restores the previous version; manual edits are protected against overwriting.
+- Streaming, error handling and chat-switch protection are preserved.
 
-### 🎨 Updated interface
+### 1.4.7 — September 13, 2026
 
-- The panel, settings, transitions and die share translucent black styling with red accents.
-- Buttons no longer shift sideways on hover or press.
-- The sideways event menu stays within the screen; custom input no longer introduces horizontal scrolling.
-- Settings use the standard SillyTavern drawer, support Extension-Sorter and retain their position when changing languages.
-- Dialogs share close controls, keyboard navigation and focus restoration. Generation and stopping have distinct indicators.
+Changes compared with **1.1.4**:
 
-### ✍️ More control over writing
+**Interface**
+- Shared translucent black styling with red accents across the panel, settings and dialogs.
+- Buttons no longer shift sideways; the event menu fits the screen and Custom input avoids horizontal scrolling.
+- Standard settings drawer for Extension-Sorter, keyboard navigation and clear generation/stopping indicators.
 
-- Enhance and Improve show the original and result in an editor: edit, retry or apply.
-- Original-draft restoration protects subsequent manual edits.
+**Writing and events**
+- Original/result editor for Enhance and Improve: edit, retry, apply and restore the original draft.
 - Configurable ×1.5/×2/×3 expansion, dialogue preservation, narrative person and output language.
-- Custom in Event Director offers “To me” and “To bot” immediately, without the intermediate Next step.
-- Director “To me” still writes into the chat input, with improved cancellation, streaming and direction retention for another run.
-- Custom directions instruct the model to depict the requested actions rather than treat them as already completed.
-- Main-model utility generation uses the raw API before assistant-message regex processing. Obvious technical output is rejected as narrative.
+- Custom offers “To me” and “To bot” immediately, without Next. Director “To me” writes directly into the chat input.
+- Improved handling of author directions; configurable event intensity and tension type with explanations.
+- Separate main-model generation before assistant-message regex processing; obvious technical output is rejected as narrative.
 
-### 🔌 Connections and context
+**Connections**
+- Connection Manager profiles with their model, preset and instruct settings, without switching the active connection.
+- Profile streaming and broader Custom API response-format support.
+- Configurable context depth and budget.
 
-- Added **Connection Manager profiles**, including their model, preset and instruct settings, without changing the active chat connection.
-- Streaming now supports profiles. Custom API accepts text blocks and additional response variants.
-- Added context depth and budget, with shared assembly of persona, character description, scenario, Author’s Note, Summary and recent messages.
-- Added event intensity and romantic, conflict or anxious Tension types with explanatory settings text.
+**Transitions and d20**
+- Editable Fast Travel / Time Skip options, refreshed suggestions and custom transitions with author confirmation.
+- Options validated before sending; clear explanations when the model recommends staying in the scene.
+- A geometric, rotating d20 with animation skipping and manually entered questions without a model call.
+- Per-chat roll history. The old shared journal is removed from the interface without deleting stored data.
 
-### 📍 Scene transitions
+**Reliability and language**
+- Cancellation, timeouts and draft protection against late responses, chat changes and overwriting manual edits.
+- Clear errors for empty, reasoning-only, malformed and provider-blocked responses.
+- Manual UI language selection, expanded RU/EN localization and bilingual documentation.
 
-- Edit Fast Travel and Time Skip options: destination/chapter, time and scene direction.
-- Request new options or write your own transition.
-- When the model recommends staying, the dialog explains why and separates reassessment from a manual author override.
-- Responses are validated before applying; invalid or incomplete options are not sent to chat.
-- Custom API analyzers request complete JSON without streaming; prose streaming remains configurable.
-
-### 🎲 Rolls and history
-
-- A geometric d20 with twenty triangular faces and rotation replaces the previous cube.
-- Enter a roll question manually without a utility model request; skip the animation if desired.
-- History is scoped to each chat, and clearing it affects only that chat.
-- The old shared journal is removed from the interface; previously stored data is not deleted.
-
-### 🛠️ Reliability and language
-
-- Added cancellation and timeouts, draft protection against late responses, and binding results to their original chat.
-- Clearer handling of empty, interrupted, length-limited, reasoning-only and HTTP error responses.
-- Explicit blocks display **“The provider blocked the request”** without automatically switching models.
-- Custom API diagnostics report safe response-shape information without chat text or keys.
-- Manual UI language selection supplements automatic RU/EN. Additional buttons and dialogs are localized; output language is separate.
-- Russian and English README pages.
-
-### Before updating
-
-The six main tools, Custom API, browser-based RU/EN, per-task response limits and
-die difficulty selection **already existed in 1.1.4**. This update improves them.
-
-Main-model utility requests now use the raw API rather than the regular full
-chat assembly with World Info. Profiles and Custom API may behave differently
-because their requests and parameters differ.
-
-A Gemini `prompt_blocked / PROHIBITED_CONTENT` response was confirmed on a
-specific proxy. This update does not claim to eliminate provider blocking.
-
-Validation: **14 unit tests and 56 browser scenarios** in an isolated harness,
-not a guarantee of compatibility with every model, proxy or third-party extension.
+**Important**
+- Main-model utility requests now use the raw API; regular full chat assembly with World Info is not included automatically.
+- Custom API Fast Travel / Time Skip analyzers request complete JSON; prose streaming is preserved.
+- The extension does not remove provider blocking. Explicit `prompt_blocked` responses are explained without automatically switching models.
