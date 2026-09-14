@@ -344,6 +344,8 @@
 #bb-enhance-toolbar { max-height: 80dvh; overflow-y: auto; max-width: calc(100vw - 32px); visibility: hidden; }
 #bb-enhance-toolbar.expanded { visibility: visible; }
 #bb-eg-popup { position: fixed; bottom: auto; width: 230px; min-width: 0; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); box-sizing: border-box; overflow-y: auto; visibility: hidden; transition: opacity .16s ease, transform .16s ease, visibility .16s; }
+/* Keep the closed popup outside layout so it cannot expand the mobile viewport. */
+#bb-eg-popup:not(.show) { display: none !important; }
 #bb-eg-popup.show { visibility: visible; }
 #bb-eg-popup .bb-eg-vibe-btn { white-space: nowrap; }
 #bb-eg-popup :focus-visible { outline: 2px solid #d4af37; outline-offset: -2px; }
