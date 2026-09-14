@@ -4,6 +4,15 @@
 
 ## Русский
 
+### 1.5.0 — 14 сентября 2026
+
+- Добавлены свои кнопки обработки черновика: название, иконка и текстовая инструкция. До 20 кнопок в меню E; доступны изменение, отключение и удаление.
+- Инструкции Enhance и Improve можно редактировать в настройках и возвращать к стандартным. Полный шаблон промпта редактировать не нужно; контекст добавляется автоматически.
+- Свои кнопки используют общее подключение, лимит ответа Enhance / Improve, потоковый вывод, отмену, повтор и возврат оригинала. Результат остаётся в поле ввода и не отправляется автоматически.
+- Повтор сохраняет исходные черновик и инструкцию; ручные правки и смена чата защищены от поздних ответов. Язык, лицо повествования и сохранение реплик из настроек имеют приоритет; множитель длины действует только для Enhance.
+- Иконки принимают цифры, символы и эмодзи без букв, пробелов и переносов строк. Добавлены интерфейс и справка на русском и английском.
+- Сохранён мобильный CSS-фикс версии 1.4.9.
+
 ### 1.4.9 — 14 сентября 2026
 
 - Исправлено смещение и масштабирование интерфейса с появлением пустых чёрных областей в некоторых мобильных браузерах. Закрытое подменю Director больше не расширяет границы страницы.
@@ -53,6 +62,15 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### 1.5.0 — September 14, 2026
+
+- Added custom draft-processing buttons with a name, icon and plain-text instruction. Up to 20 buttons appear in the E menu and can be edited, disabled or deleted.
+- Enhance and Improve instructions can be edited in settings and restored to their defaults. No full prompt template is required; context is added automatically.
+- Custom buttons use the shared connection, Enhance / Improve response limit, streaming, Cancel, Retry and Restore original. Results stay in the chat input and are not sent automatically.
+- Retry retains the original draft and instruction; manual edits and chat changes are protected against late responses. Language, narrative person and dialogue-preservation settings take priority; the length multiplier applies only to Enhance.
+- Icons accept numbers, symbols and emoji without letters, spaces or line breaks. Added Russian and English controls and help text.
+- Includes the mobile CSS fix from 1.4.9.
 
 ### 1.4.9 — September 14, 2026
 
