@@ -6,7 +6,7 @@ import { createD20 } from './d20.js';
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.4.8';
+    const VERSION = '1.4.9';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 

@@ -4,7 +4,7 @@
 
 A **SillyTavern** panel for writing your character’s turns, editing drafts, directing events, rolling a d20 and moving between scenes. Open it with **E** next to the chat input.
 
-**Version 1.4.8**
+**Version 1.4.9**
 
 ## ✨ Features
 
