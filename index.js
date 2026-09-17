@@ -1169,9 +1169,17 @@ import { renderWritingSettings } from './writing-ui.js';
         else { const sendForm = document.getElementById('send_form'); if (sendForm && sendForm.parentNode) sendForm.parentNode.insertBefore(wrapper, sendForm); }
 
         let isMenuOpen = false; 
+        // The menu opens upwards from the [E] button: cap its height to the space between the button and the top bar.
+        const fitToolbar = () => {
+            const topBar = document.getElementById('top-settings-holder') || document.getElementById('top-bar');
+            const top = Math.max(0, topBar?.getBoundingClientRect().bottom || 0);
+            toolbar.style.maxHeight = `${Math.max(120, wrapper.getBoundingClientRect().top - 10 - top - 8)}px`;
+        };
+        window.addEventListener('resize', () => { if (isMenuOpen) fitToolbar(); }, { signal: toolbarEvents.signal });
+        window.visualViewport?.addEventListener('resize', () => { if (isMenuOpen) fitToolbar(); }, { signal: toolbarEvents.signal });
         toggleBtn.addEventListener('click', (e) => {
             e.preventDefault(); e.stopPropagation(); isMenuOpen = !isMenuOpen; toggleBtn.setAttribute('aria-expanded', String(isMenuOpen));
-            if (isMenuOpen) { toolbar.classList.add('expanded'); toggleBtn.classList.add('active'); } 
+            if (isMenuOpen) { fitToolbar(); toolbar.classList.add('expanded'); toggleBtn.classList.add('active'); } 
             else {
                 toolbar.classList.remove('expanded'); toggleBtn.classList.remove('active'); isPopupOpen = false;
                 document.getElementById('bb-eg-popup')?.classList.remove('show');
