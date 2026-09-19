@@ -1224,7 +1224,7 @@ import { renderWritingSettings } from './writing-ui.js';
         const description = document.createElement('p'); description.textContent = tr('Выбери модель и настрой инструменты под свой отыгрыш.', 'Choose a model and tune the tools to your roleplay.');
         intro.append(title, version, description); body.append(intro);
         function group(label, icon, key) {
-            const section = document.createElement('details'); section.className = 'bb-eg-settings-section'; section.dataset.section = key; section.open = existing ? openGroups.has(key) : key === 'connection';
+            const section = document.createElement('details'); section.className = 'bb-eg-settings-section'; section.dataset.section = key; section.open = openGroups.has(key);
             const summary = document.createElement('summary');
             const glyph = document.createElement('span'); glyph.className = 'bb-eg-section-icon'; glyph.textContent = icon;
             const name = document.createElement('span'); name.textContent = label; summary.append(glyph, name);
