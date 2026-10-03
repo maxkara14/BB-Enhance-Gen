@@ -4,6 +4,11 @@
 
 ## Русский
 
+### Интеграция карты — 3 октября 2026 (без изменения версии)
+
+- Добавлен необязательный API подготовки действий игрока для BB Interactive Map. Переходы используют подключение, персону, стиль и лимит Director «Мне» из Enhance.
+- Готовый текст добавляется к черновику; поддерживаются отмена, возврат оригинала и защита при смене карты, режима, чата или ручных правках. Обрыв и частичный ответ не применяются. Карта и сообщения чата не записываются.
+
 ### Микрообновление — 19 сентября 2026 (без изменения версии)
 
 - Блок «Модель для генерации» теперь свёрнут по умолчанию, как и остальные блоки настроек.
@@ -66,6 +71,11 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Map integration — 3 October 2026 (no version change)
+
+- Added an optional player action API for BB Interactive Map. Travel uses Enhance's connection, persona, style settings and Director “Me” token limit.
+- Completed prose is appended to the draft, with cancellation, restore-original and guards against changed maps, modes, chats and manual edits. Interrupted/partial output is not applied. No map or chat messages are written.
 
 ### Minor update — September 19, 2026 (no version change)
 

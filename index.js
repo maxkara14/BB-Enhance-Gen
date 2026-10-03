@@ -4,6 +4,7 @@ import { narrativeContext, validateNarrative } from './narrative.js';
 import { createD20 } from './d20.js';
 import { customButtons, writingInstruction } from './writing.js';
 import { renderWritingSettings } from './writing-ui.js';
+import { PLAYER_ACTION_API_VERSION, mapTravelDirection } from './player-action.js';
 
 (function () {
     'use strict';
@@ -27,6 +28,7 @@ import { renderWritingSettings } from './writing-ui.js';
     const PLAYER_IDENTITY_RULE = `CANONICAL PLAYER IDENTITY: {{user}} is the player/protagonist described in the Player persona description. Never change {{user}}'s race, age, role, appearance, equipment, backstory, or personality. If the narrative direction mentions {{user}} by name, it refers to this same player character, not a new NPC.`;
 
     const TEMPLATES = {
+        map_travel: `<context>__BB_CONTEXT__</context>\n<task>Write a short literary action from the player character's perspective: attempt to move from the source zone to the destination in the reference data below. Follow the optional player intention. Describe the action itself, starting at the current scene.\n{{customDirection}}\n</task>\n<rules>\n${PLAYER_IDENTITY_RULE}\nUse established surroundings and objects. Do not invent successful arrival, automatic damage, rolls, obstacles, or another character's actions or reactions. Stop before the next character's turn. Output only the new action prose, without zone labels, routes, technical markers, or commentary. Do not repeat or rewrite the existing draft; it will be preserved and your action appended.\n</rules>\n<existing_draft>{{input}}</existing_draft>`,
         dir_disaster: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create a sharp conflict, physical danger, bad news, or painful memory.\n4. Use the current location and objects explicitly.\n5. STRICT IN-CHARACTER RULE: The event must be logically grounded in the setting. Other characters must react STRICTLY according to their established personalities. DO NOT break character logic.\n6. Keep it highly tense. DO NOT resolve the situation yet.\n7. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
         dir_blessing: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a BLESSING or GOOD EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create an unexpected stroke of luck, deep comfort, or pleasant discovery.\n4. Use the current location and objects explicitly.\n5. STRICT IN-CHARACTER RULE: The blessing must be logical for the setting. Help from another character MUST perfectly match their established personality.\n6. Output ONLY the pure story text without meta-commentary.\n</rules>`,
@@ -235,6 +237,7 @@ import { renderWritingSettings } from './writing-ui.js';
         op.controller.signal.throwIfAborted();
         if (!op.key || op.key !== chatKey() || op.epoch !== chatEpoch || op.chat !== SillyTavern.getContext().chat) throw new GenerationError('stale_chat');
         if (checkDraft && (document.getElementById('send_textarea')?.value || '') !== (op.renderedInput ?? op.input)) throw new GenerationError('draft_changed');
+        if (op.isExternalCurrent && op.isExternalCurrent() !== true) throw new GenerationError('stale_action');
     }
 
     function cancelOperation() {
@@ -246,6 +249,8 @@ import { renderWritingSettings } from './writing-ui.js';
 
     function errorText(error) {
         const messages = {
+            invalid_action: ['Некорректные данные действия.', 'Invalid action data.'],
+            stale_action: ['Карта или режим изменились. Подготовьте действие заново.', 'The map or mode changed. Prepare the action again.'],
             stale_chat: ['Чат изменился. Запустите действие заново.', 'Chat changed. Start the action again.'],
             draft_changed: ['Черновик изменился. Скопируйте нужный результат или начните заново.', 'Draft changed. Copy the result you need or start again.'],
             invalid_json: ['Модель вернула неверный формат вариантов. Повторите запрос.', 'The model returned invalid options. Retry the request.'],
@@ -489,15 +494,20 @@ import { renderWritingSettings } from './writing-ui.js';
     function clearCustomDirectorDraft(type) {
         if (type === 'dir_custom') customDirectorText = '';
     }
-    async function withBusyLock(fn) {
+    async function withBusyLock(fn, { propagateErrors = false } = {}) {
         if (isBusy || mainGenerating || (SillyTavern.getContext().streamingProcessor && !SillyTavern.getContext().streamingProcessor.isFinished && !SillyTavern.getContext().streamingProcessor.isStopped)) {
+            if (propagateErrors) throw new GenerationError('busy');
             toastr.info(t('toast_busy'), 'BB Enhance'); return;
         }
         const op = captureOperation();
-        if (!op.key) { toastr.info(errorText(new GenerationError('no_action')), 'BB Enhance'); return; }
+        if (!op.key) {
+            if (propagateErrors) throw new GenerationError('no_action');
+            toastr.info(errorText(new GenerationError('no_action')), 'BB Enhance'); return;
+        }
         activeOperation = op; isBusy = true; updateBusyBadge();
         try { return await fn(op); }
         catch (error) {
+            if (propagateErrors) throw error;
             if (error?.name !== 'AbortError') toastr.error(errorText(error), 'BB Enhance');
         } finally {
             op.controller.abort(new DOMException('Finished', 'AbortError'));
@@ -821,9 +831,45 @@ import { renderWritingSettings } from './writing-ui.js';
             ...failure.responseSummary,
         }));
         // Never silently replace a partial/filtered response with a second model's answer.
-        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'prompt_blocked', 'draft_changed', 'stale_chat', 'non_narrative'].includes(failure?.code)) throw failure;
+        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'prompt_blocked', 'draft_changed', 'stale_chat', 'stale_action', 'non_narrative'].includes(failure?.code)) throw failure;
         if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }
         return runMainGen(promptText, purpose, op);
+    }
+
+    async function generatePlayerAction(request) {
+        const direction = mapTravelDirection(request);
+        const signal = request.signal;
+        return withBusyLock(async op => {
+            op.isExternalCurrent = request.isCurrent;
+            op.buttonId = 'bb-eg-btn-director';
+            const composer = document.getElementById('send_textarea');
+            const check = () => {
+                assertCurrent(op, true);
+                if (!composer || composer !== document.getElementById('send_textarea') || composer.disabled || composer.readOnly) throw new GenerationError('draft_changed');
+            };
+            const abort = () => op.controller.abort(new DOMException('Cancelled', 'AbortError'));
+            if (signal?.aborted) abort();
+            signal?.addEventListener('abort', abort, { once: true });
+            try {
+                check(); updateBusyBadge();
+                const prompt = await makePrompt('map_travel', op.input, direction);
+                check();
+                // Buffer even streaming providers: failed/stale actions never alter the draft.
+                const result = await generateEnhanceFast(prompt, undefined, 'director', op);
+                check();
+                const text = stripLeadingUserName(validateNarrative(result));
+                if (!text.trim()) throw new GenerationError('empty_response');
+                const draft = op.input ? `${op.input}\n\n${text}` : text;
+                if (composer.maxLength >= 0 && draft.length > composer.maxLength) throw new GenerationError('draft_changed');
+                undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: draft };
+                textAction = null;
+                composer.value = draft;
+                composer.dispatchEvent(new Event('input', { bubbles: true }));
+                composer.focus({ preventScroll: true });
+                composer.setSelectionRange(draft.length, draft.length);
+                return { status: 'applied' };
+            } finally { signal?.removeEventListener('abort', abort); }
+        }, { propagateErrors: true });
     }
 
     // === ГЕНЕРАЦИЯ ENHANCE И IMPROVE ===
@@ -1397,6 +1443,8 @@ import { renderWritingSettings } from './writing-ui.js';
             if (activeOperation?.mainRequest && !activeOperation.controller.signal.aborted) activeOperation.controller.abort(new DOMException('Stopped', 'AbortError'));
             updateBusyBadge();
         });
+        globalThis.BBEnhanceGen = Object.freeze({ apiVersion: PLAYER_ACTION_API_VERSION, generatePlayerAction });
+        window.dispatchEvent(new CustomEvent('bb-enhance-gen:ready'));
         injectToolbar(); injectSettingsPanel();
     });
 })();
