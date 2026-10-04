@@ -14,7 +14,9 @@ Version **1.5.0** adds custom draft-processing buttons and editable Enhance / Im
 
 In BB Interactive Map, select Game mode and **Travel writing → Through Enhance Gen**. The map supplies source/destination zones, conditions and an optional intention; Enhance uses its generation source, player persona, output language, narrative person and Director “Me” token limit. The new action is appended to your existing draft without sending it. **Restore original** returns the draft before the action was added.
 
-Preparing travel changes neither the map nor chat messages. Responses are applied only when complete; cancellation, interrupted output, chat/map changes and manual draft edits prevent stale results from being applied. Update both extensions to use the integration. Developer contract: [Player action API](docs/player-action-api.md).
+Preparing travel changes neither the map nor chat messages. Responses are applied only when complete; cancellation, interrupted output, chat/map changes and manual draft edits prevent stale results from being applied. Update both extensions to use the integration.
+
+Enable **Use map context** in settings to include the current chat’s saved map in Enhance, Improve, custom writing buttons and Director **To me**. It is off by default; without a map, generation works normally. Travel initiated from the map supplies context automatically. Requires [BB Interactive Map 2.0](https://github.com/maxkara14/BB-Interactive-Map).
 
 ### Tools
 

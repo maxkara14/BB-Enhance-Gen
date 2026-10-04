@@ -4,8 +4,9 @@
 
 ## Русский
 
-### Интеграция карты — 3 октября 2026 (без изменения версии)
+### Интеграция Interactive Map 2.0 — 4 октября 2026 (без изменения версии)
 
+- Добавлен переключатель «Использовать контекст карты» для Enhance, Improve, своих кнопок и Director «Мне». По умолчанию выключен; используется сохранённая карта текущего чата, без неё генерация продолжается как обычно.
 - Добавлен необязательный API подготовки действий игрока для BB Interactive Map. Переходы используют подключение, персону, стиль и лимит Director «Мне» из Enhance.
 - Готовый текст добавляется к черновику; поддерживаются отмена, возврат оригинала и защита при смене карты, режима, чата или ручных правках. Обрыв и частичный ответ не применяются. Карта и сообщения чата не записываются.
 
@@ -72,8 +73,9 @@
 
 ## English
 
-### Map integration — 3 October 2026 (no version change)
+### Interactive Map 2.0 integration — October 4, 2026 (no version change)
 
+- Added an optional “Use map context” switch for Enhance, Improve, custom buttons and Director “To me”. It is off by default and uses the active chat’s saved map; generation continues normally without one.
 - Added an optional player action API for BB Interactive Map. Travel uses Enhance's connection, persona, style settings and Director “Me” token limit.
 - Completed prose is appended to the draft, with cancellation, restore-original and guards against changed maps, modes, chats and manual edits. Interrupted/partial output is not applied. No map or chat messages are written.
 
