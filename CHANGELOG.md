@@ -4,6 +4,14 @@
 
 ## Русский
 
+### Лорбуки и переходы сцен — 10 октября 2026 (без изменения версии)
+
+- Добавлены активные лорбуки для служебных запросов: переключатель по умолчанию выключен, дополнительный бюджет — 2000 токенов.
+- Fast Travel / Time Skip предлагают «Мне», «Боту — продолжить» и явное переписывание последнего ответа. Продолжение сохраняет историю; переписывание исключает заменяемый ответ из анализа и сохраняет старый свайп.
+- Описания переходов содержат время и направление; новые подсказки не удаляют предыдущие описания. Отмена, ошибки, правки черновика и изменения сцены защищены.
+- Director восстанавливает блокировку по состоянию SillyTavern и возвращает удалённое всплывающее меню. Custom API использует обычный список моделей с сохранением ручного ввода.
+- Добавлены локальные регрессионные тесты и изолированный браузерный стенд без обращений к внешнему API.
+
 ### Интеграция Interactive Map 2.0 — 4 октября 2026 (без изменения версии)
 
 - Добавлен переключатель «Использовать контекст карты» для Enhance, Improve, своих кнопок и Director «Мне». По умолчанию выключен; используется сохранённая карта текущего чата, без неё генерация продолжается как обычно.
@@ -72,6 +80,14 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Lorebooks and scene transitions — October 10, 2026 (no version change)
+
+- Added optional active lorebooks to utility requests, disabled by default, with a 2000-token additional budget.
+- Fast Travel / Time Skip offer player drafts, new-turn continuation and explicit final-reply rewriting. Rewriting excludes the replaced reply from analysis and preserves its old swipe.
+- Transition descriptions retain time and direction; later cues preserve earlier descriptions. Cancellation, errors, draft edits and scene changes are protected.
+- Director reconciles its lock with native generation state and restores detached popups. Custom API offers a regular model selector alongside manual entry.
+- Added local regression tests and an isolated browser fixture without external API requests.
 
 ### Interactive Map 2.0 integration — October 4, 2026 (no version change)
 

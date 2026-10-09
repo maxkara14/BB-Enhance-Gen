@@ -71,7 +71,13 @@ Open **Event Director → Custom**, describe the actions you want, then choose *
 
 ### Move to another scene
 
-Press **Fast Travel** or **Time Skip**. If a transition is appropriate, the model suggests three cards. Select one, optionally expand **Edit or write your own**, then apply it.
+Press **Fast Travel** or **Time Skip**, then choose an action:
+
+- **Me — draft** uses the complete current scene and appends the player’s transition to the draft. Nothing is sent automatically; Restore original is available.
+- **Bot — continue** sends a new player message containing the draft and transition description, then generates the next reply. Previous messages remain intact.
+- **Rewrite final reply** excludes the replaced character reply from analysis and creates a new swipe, preserving the previous variant. The draft is treated as author intention and stays in the input.
+
+If a transition is appropriate, the model suggests three cards. Select one, optionally expand **Edit or write your own**, then apply it. Changed messages or drafts invalidate prepared transitions. Destination/chapter, elapsed time and direction remain visible; later cues preserve earlier descriptions. Rewriting requires a final character reply and an earlier player message.
 
 If the model recommends staying in the scene:
 
@@ -124,7 +130,11 @@ Profiles and Custom API need not produce identical results: request assembly and
 
 The shared builder includes the player persona, character description, scenario, available Author’s Note and Summary, recent non-system messages and your draft as an intention. Defaults: 8 messages and 16000 characters; settings allow 1–40 messages and 4000–60000 characters. Descriptions can use up to half the budget; the draft and task instructions are counted separately.
 
-Fast Travel and Time Skip use the same context builder with different instructions. These utility requests do not invoke full regular chat assembly with World Info. Profiles additionally use their preset and instruct settings.
+Fast Travel and Time Skip use the same context builder with different instructions. Profiles additionally use their preset and instruct settings.
+
+Enable **Use lorebooks** under **Context and direction** to include active World Info in utility requests. Disabled by default. Native activation uses history, the draft and character data, including constant entries and recursion. The additional limit defaults to **2000 tokens** (0–32000); **0** retains only SillyTavern’s own budget. Entries are included whole in priority order; oversized entries are skipped. Counting uses the current SillyTavern tokenizer, which can differ from a separate API’s tokenizer.
+
+This applies to Enhance, Improve, custom actions, “Me”, transition analysis and dice questions. Regular “Bot” replies use SillyTavern’s World Info settings. Disabling the option does not remove lore already present in chat, Summary or Author’s Note. The native scanner can also consume one-shot forced World Info activations; avoid setting those before a utility request with lorebooks enabled.
 
 Technical blocks are removed from context; obvious technical output is rejected as narrative. Universal cleanup of every third-party format is not guaranteed.
 
