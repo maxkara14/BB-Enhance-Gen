@@ -69,6 +69,8 @@ Open **Event Director → Custom**, describe the actions you want, then choose *
 
 **To bot** passes your direction to the main model and starts its reply instead of writing a player draft. Event intensity is configurable. Tension type — romantic, conflict or anxious — applies only to **Tension**. Your explicit direction takes priority in Custom.
 
+Custom direction text is kept in memory until the page reloads: closing the menu, going back, generating To me, cancellation and errors preserve it. A successful To bot action, selecting another Director event or switching chats clears it. Reloading or closing the page does not restore the text.
+
 ### Move to another scene
 
 Press **Fast Travel** or **Time Skip**, then choose an action:
@@ -112,6 +114,7 @@ Profiles and Custom API need not produce identical results: request assembly and
 - **Output language:** separately configured to match the draft/chat, Russian or English. Switching the interface does not translate existing chats, your directions or profile names.
 - **Streaming:** profiles and Custom API stream Enhance, Improve and Director “To me” into the chat input. The main connection returns completed text. FT/TS through Custom API always receive complete JSON without streaming.
 - **Cancellation:** Cancel stops the operation. Failure or cancellation restores the text from before the request while preserving manual edits made during generation. Switching chats cancels the operation.
+- **Draft spacing:** Hangul filler separators (`ㅤ`, U+3164 / U+FFA0) from chat formatting become ordinary spaces in context and new composer text, including streaming. Unicode prose, emoji and paragraphs are preserved. Saved messages and original drafts used for undo remain unchanged.
 - **Bot cue preview:** optionally inspect the direction before sending it.
 - **Visibility:** each of the six main tools can be hidden in settings.
 

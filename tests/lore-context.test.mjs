@@ -36,6 +36,26 @@ test('token cap includes the complete reference block, skips oversized entries a
     assert.match(await collectLoreContext(args), /xxx/);
 });
 
+test('same-name library cards never enter the active card lore scan', async () => {
+    const args = fixture();
+    args.ctx.characterId = 1;
+    args.ctx.characters = [{ name: 'Keeper', description: 'UNRELATED_AU_DOCTOR' }, { name: 'Keeper', description: 'CURRENT_STORY_KEEPER' }];
+    let reads = 0;
+    args.ctx.getCharacterCardFields = (...parameters) => {
+        assert.equal(parameters.length, 0, 'let Tavern resolve the active card and group context');
+        reads++;
+        return { description: args.ctx.characters[args.ctx.characterId].description };
+    };
+    args.scan = async (_chat, _max, _dry, fields) => {
+        assert.equal(fields.characterDescription, 'CURRENT_STORY_KEEPER');
+        return { allActivatedEntries: new Set([{ content: fields.characterDescription }]) };
+    };
+    const text = await collectLoreContext(args);
+    assert.equal(reads, 1);
+    assert.match(text, /CURRENT_STORY_KEEPER/);
+    assert.doesNotMatch(text, /UNRELATED_AU_DOCTOR/);
+});
+
 test('dry scan restores author note and timed effects on success and errors', async () => {
     for (const fail of [false, true]) {
         const args = fixture(); const original = structuredClone(args.ctx.chatMetadata);
