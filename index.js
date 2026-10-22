@@ -263,7 +263,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             stale_chat: ['Чат изменился. Запустите действие заново.', 'Chat changed. Start the action again.'],
             draft_changed: ['Черновик изменился. Скопируйте нужный результат или начните заново.', 'Draft changed. Copy the result you need or start again.'],
             invalid_json: ['Модель вернула неверный формат вариантов. Повторите запрос.', 'The model returned invalid options. Retry the request.'],
-            stream_error: ['Ответ оборвался. Неполный текст не применён.', 'The response was interrupted. Partial text was not applied.'],
+            stream_error: ['Ответ оборвался.', 'The response was interrupted.'],
             truncated: ['Достигнут лимит ответа. Увеличьте лимит и повторите.', 'Response limit reached. Increase the limit and retry.'],
             empty_response: ['Модель не вернула текст.', 'The model returned no text.'],
             reasoning_only: ['Модель вернула только рассуждения, без итогового ответа. Проверьте лимит токенов для этой операции и настройки рассуждений используемого подключения.', 'The model returned reasoning only, without a final answer. Check the token limit for this operation and the connection reasoning settings.'],
@@ -372,10 +372,8 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         pendingBotResponse = true; op.mainRequest = true; updateBusyBadge();
         const abort = () => ctx.stopGeneration();
         op.controller.signal.addEventListener('abort', abort, { once: true });
-        const timeout = setTimeout(() => op.controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(getSettings().requestTimeout) || 120)) * 1000);
         const ta = document.getElementById('send_textarea');
         const previous = target?.mes;
-        const replySnapshot = reply ? structuredClone(reply) : null;
         let updatedInput = '';
         try {
             if (mode === 'continue' || (!rewrite && op.input.trim())) {
@@ -400,21 +398,14 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             if (rewrite && (reply.swipe_id >= reply.swipes.length || !reply.mes?.trim())) throw new GenerationError('empty_response');
             return true;
         } catch (error) {
-            if (op.key === chatKey() && op.epoch === chatEpoch) {
-                if (updatedInput && ta.value === updatedInput) { ta.value = op.input; ta.dispatchEvent(new Event('input', { bubbles: true })); }
-                if (!updatedInput && target && target.mes === appendTransition(previous, cue.trim())) {
-                    target.mes = previous; ctx.updateMessageBlock?.(op.chat.indexOf(target), target);
-                    if (replySnapshot && op.chat.at(-1) === reply) {
-                        for (const key of Object.keys(reply)) delete reply[key];
-                        Object.assign(reply, replySnapshot);
-                        ctx.updateMessageBlock?.(op.chat.length - 1, reply);
-                    }
-                    await ctx.saveChat();
-                }
+            // Main generation owns its lifetime and swipe state. Keep the cue and
+            // any streamed text on failure so the user can recover or continue it.
+            if (op.key === chatKey() && op.epoch === chatEpoch && op.chat === SillyTavern.getContext().chat) {
+                try { await ctx.saveChat(); }
+                catch { toastr.warning(tr('Не удалось сохранить чат после ошибки генерации.', 'Could not save the chat after a generation error.'), 'BB Enhance'); }
             }
             throw op.controller.signal.aborted ? op.controller.signal.reason : error;
         } finally {
-            clearTimeout(timeout);
             op.controller.signal.removeEventListener('abort', abort); op.mainRequest = false; pendingBotResponse = false; mainGenerating = false; updateBusyBadge();
         }
     }
@@ -963,15 +954,6 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             const action = { key: op.key, epoch: op.epoch, original: source, expected: op.input, type, direction, instruction };
             textAction = action;
             updateBusyBadge();
-            const restore = () => {
-                const ta = document.getElementById('send_textarea');
-                if (op.renderedInput !== undefined && op.key === chatKey() && op.epoch === chatEpoch
-                    && op.chat === SillyTavern.getContext().chat && ta?.value === op.renderedInput) {
-                    ta.value = op.input; op.renderedInput = undefined;
-                    ta.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            };
-            op.controller.signal.addEventListener('abort', restore, { once: true });
             try {
                 const prompt = await makePrompt(type, source.trim(), direction, instruction);
                 const result = await generateEnhanceFast(prompt, (_delta, total) => {
@@ -979,6 +961,9 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
                     const text = stripLeadingUserName(validateNarrative(total));
                     if (!text) return;
                     const ta = document.getElementById('send_textarea');
+                    // Preserve the original from the first chunk, including on retry.
+                    undoDraft = { key: op.key, epoch: op.epoch, original: source, applied: text };
+                    action.expected = text;
                     op.renderedInput = text; ta.value = text;
                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                 }, type.startsWith('dir_') ? 'director' : 'enhance', op);
@@ -990,8 +975,15 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
                 action.expected = text;
                 ta.value = text; ta.dispatchEvent(new Event('input', { bubbles: true }));
                 ta.focus({ preventScroll: true });
-            } catch (error) { restore(); throw error; }
-            finally { op.controller.signal.removeEventListener('abort', restore); }
+            } catch (error) {
+                if (op.renderedInput !== undefined && op.key === chatKey() && op.epoch === chatEpoch
+                    && op.chat === SillyTavern.getContext().chat
+                    && document.getElementById('send_textarea')?.value === op.renderedInput) {
+                    toastr.warning(tr('Генерация прервана. Полученный текст оставлен в поле, но может быть незавершён. Исходный черновик доступен по кнопке «Вернуть оригинал».',
+                        'Generation interrupted. Received text remains in the draft but may be incomplete. Use “Restore original” to recover your original draft.'), 'BB Enhance');
+                }
+                throw error;
+            }
         });
     }
     // === КУБИК (DICE) ===

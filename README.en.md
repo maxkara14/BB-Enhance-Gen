@@ -47,7 +47,7 @@ If the old interface remains after updating, hard-refresh the page — **Ctrl+F5
 
 Write in the chat input and press **Enhance** or **Improve**. The result appears directly in that field, without a separate window or Apply step. It is not automatically sent.
 
-Use **Cancel** during generation. Afterwards, **Retry** and **Restore original** appear in the E panel. Retry generates another version from the original draft; cancelling a retry restores the previous version. Restore original brings back the text before processing. Manual edits are protected: retry and restore report a changed draft rather than overwrite it. Press Enhance or Improve again to process your edited text.
+Use **Cancel** during generation. On failure or cancellation of Enhance / Improve, custom buttons or Director “To me”, received text remains in the draft with a warning that it may be incomplete. If no text has arrived, the original draft remains unchanged. **Retry** generates another version from the original draft. **Restore original** brings back the text before processing after success or a partial response. Manual edits are protected: retry and restore report a changed draft rather than overwrite it. Press Enhance or Improve again to process your edited text.
 
 Settings control dialogue preservation, narrative person, expansion and output language. These are model instructions, not guarantees of exact length or verbatim preservation.
 
@@ -113,7 +113,7 @@ Profiles and Custom API need not produce identical results: request assembly and
 - **Interface language:** browser language, Russian or English. Automatic mode selects Russian for a Russian browser locale, English otherwise.
 - **Output language:** separately configured to match the draft/chat, Russian or English. Switching the interface does not translate existing chats, your directions or profile names.
 - **Streaming:** profiles and Custom API stream Enhance, Improve and Director “To me” into the chat input. The main connection returns completed text. FT/TS through Custom API always receive complete JSON without streaming.
-- **Cancellation:** Cancel stops the operation. Failure or cancellation restores the text from before the request while preserving manual edits made during generation. Switching chats cancels the operation.
+- **Cancellation:** Cancel stops the operation. Received text from streaming draft processing is retained; use Restore original to recover the original manually. “To me” transitions and map action preparation apply only complete results. Bot generation retains its cue and received text on failure; SillyTavern controls the main generation lifetime. Manual edits are protected. Switching chats cancels the operation.
 - **Draft spacing:** Hangul filler separators (`ㅤ`, U+3164 / U+FFA0) from chat formatting become ordinary spaces in context and new composer text, including streaming. Unicode prose, emoji and paragraphs are preserved. Saved messages and original drafts used for undo remain unchanged.
 - **Bot cue preview:** optionally inspect the direction before sending it.
 - **Visibility:** each of the six main tools can be hidden in settings.

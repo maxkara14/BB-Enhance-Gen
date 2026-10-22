@@ -4,6 +4,14 @@
 
 ## Русский
 
+### Сохранение текста при сбоях генерации — 23 октября 2026 (без изменения версии)
+
+- Генерация ответа бота через Director, Fast Travel / Time Skip и бросок больше не прерывается тайм-аутом расширения: длительностью основной генерации управляет SillyTavern.
+- При ошибке или отмене ответа бота расширение сохраняет OOC и полученный текст вместо отката к старому снимку сообщения.
+- Director «Мне», Enhance / Improve и свои кнопки оставляют полученный потоковый текст при ошибке или отмене и предупреждают, что он может быть незавершён. Если текст ещё не поступил, исходный черновик остаётся без изменений.
+- «Вернуть оригинал» доступен и после частичного ответа; повтор использует исходный черновик. Ручные правки и смена чата защищены от поздних результатов.
+- Добавлены регрессионные проверки обрыва, отмены, пустого ответа, возврата оригинала, повтора и защиты ручных правок.
+
 ### Лорбуки и переходы сцен — 10 октября 2026 (без изменения версии)
 
 - Символы-заполнители Hangul (U+3164 / U+FFA0), скопированные из оформления чата, заменяются обычными пробелами в контексте и генерируемом тексте для поля ввода, включая потоковый вывод. Кириллица, эмодзи и абзацы сохраняются; исходные сообщения и черновик для отмены не изменяются.
@@ -81,6 +89,14 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Preserve text on generation failures — October 23, 2026 (no version change)
+
+- Bot replies triggered by Director, Fast Travel / Time Skip and rolls no longer use the extension timeout: SillyTavern controls the main generation lifetime.
+- On bot reply failure or cancellation, the extension retains the OOC cue and received text instead of restoring an older message snapshot.
+- Director “To me”, Enhance / Improve and custom buttons retain streamed text on failure or cancellation and warn that it may be incomplete. If no text has arrived, the original draft stays unchanged.
+- “Restore original” is available after partial responses; retry uses the original draft. Manual edits and chat changes remain protected against late results.
+- Added regression checks for interrupted streams, cancellation, empty replies, restoring originals, retry and manual edit protection.
 
 ### Draft word separators — October 10, 2026 (no version change)
 
