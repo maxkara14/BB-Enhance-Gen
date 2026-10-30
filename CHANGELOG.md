@@ -4,6 +4,12 @@
 
 ## Русский
 
+### Тайм-аут потоковой генерации — 30 октября 2026 (без изменения версии)
+
+- Потоковые запросы Custom API и профилей подключения прерываются по отсутствию новых данных, а не по общей длительности ответа. Рассуждения тоже продлевают ожидание; Custom API учитывает и служебные пакеты потока.
+- Тайм-аут сохраняет частичный текст в ошибке. После начала текстового ответа Custom API не запускает запасную основную модель, которая могла заменить полученный текст.
+- Для запросов без потока и основной модели общий лимит времени сохранён. Добавлены проверки активного и зависшего потока, рассуждений, отмены, очистки таймера и запасного подключения.
+
 ### Сохранение текста при сбоях генерации — 23 октября 2026 (без изменения версии)
 
 - Генерация ответа бота через Director, Fast Travel / Time Skip и бросок больше не прерывается тайм-аутом расширения: длительностью основной генерации управляет SillyTavern.
@@ -89,6 +95,12 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Streaming generation timeout — October 30, 2026 (no version change)
+
+- Streaming Custom API and connection profile requests time out when no new data arrives rather than when the total response duration exceeds the limit. Reasoning renews the deadline; Custom API also counts stream keepalives.
+- Timeout errors retain partial text. Custom API no longer starts a fallback main-model request after text has arrived, preventing replacement of the received text.
+- Non-streaming requests and the main model retain the total time limit. Added checks for active and stalled streams, reasoning, cancellation, timer cleanup and fallback behavior.
 
 ### Preserve text on generation failures — October 23, 2026 (no version change)
 

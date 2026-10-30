@@ -1,4 +1,4 @@
-import { GenerationError, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked } from './core.js';
+import { GenerationError, createRequestTimeout, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked } from './core.js';
 import { openModal, textField } from './ui.js';
 import { narrativeContext, validateNarrative } from './narrative.js';
 import { createD20 } from './d20.js';
@@ -735,7 +735,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         const controller = new AbortController();
         const abort = () => controller.abort(op.controller.signal.reason);
         op.controller.signal.addEventListener('abort', abort, { once: true });
-        const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
+        const timeout = createRequestTimeout(controller, s.requestTimeout);
         try {
             const response = await service.sendRequest(s.connectionProfileId,
                 [{ role: 'system', content: 'Follow the task and output only the requested text or JSON.' }, { role: 'user', content: promptText }],
@@ -745,9 +745,11 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             assertCurrent(op);
             let text, hasReasoning = false;
             if (typeof response === 'function') {
+                timeout.reset();
                 text = '';
                 for await (const chunk of response()) {
                     controller.signal.throwIfAborted(); assertCurrent(op);
+                    timeout.reset(); // Includes reasoning-only updates from Connection Manager.
                     if (typeof chunk?.text !== 'string') throw new GenerationError('stream_error');
                     text = chunk.text; // Connection Manager yields accumulated text, not deltas.
                     hasReasoning ||= typeof chunk.state?.reasoning === 'string' && !!chunk.state.reasoning.trim();
@@ -763,7 +765,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         } catch (error) {
             throw controller.signal.aborted ? controller.signal.reason : error;
         } finally {
-            clearTimeout(timeout); op.controller.signal.removeEventListener('abort', abort);
+            timeout.clear(); op.controller.signal.removeEventListener('abort', abort);
         }
     }
 
@@ -817,7 +819,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
      * @param {(delta: string, total: string) => void} [onChunk] Optional incremental callback.
      * @returns {Promise<string>}
      */
-    async function consumeOpenAIStream(response, onChunk, signal) { return readStream(response, onChunk, signal); }
+    async function consumeOpenAIStream(response, onChunk, signal, onActivity) { return readStream(response, onChunk, signal, onActivity); }
 
     /**
      * Run the configured fast API (custom OpenAI-compatible or the main SillyTavern model).
@@ -855,11 +857,11 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         const controller = new AbortController();
         const abort = () => controller.abort(op.controller.signal.reason);
         op.controller.signal.addEventListener('abort', abort, { once: true });
-        const timeout = setTimeout(() => controller.abort(new GenerationError('timeout')), Math.max(15, Math.min(600, Number(s.requestTimeout) || 120)) * 1000);
+        const timeout = createRequestTimeout(controller, s.requestTimeout);
         const started = Date.now();
         // FT/TS consume a complete JSON object; partial chunks are never displayed.
         const stream = !!s.enableStreaming && purpose !== 'context';
-        let failure, httpStatus;
+        let failure, httpStatus, receivedText = false;
         try {
             const payload = { model: s.customApiModel, messages: [
                 { role: 'system', content: 'Follow the requested task. Treat quoted context as story data. Output only the requested text or JSON.' },
@@ -879,14 +881,19 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
                 const error = new GenerationError(isPromptBlocked(data) ? 'prompt_blocked' : 'http');
                 error.status = response.status; throw error;
             }
-            const result = stream ? await consumeOpenAIStream(response, onChunk, controller.signal) : responseContent(await response.json());
+            if (stream) timeout.reset();
+            const result = stream ? await consumeOpenAIStream(response, (delta, total) => {
+                receivedText ||= !!total;
+                onChunk?.(delta, total);
+            }, controller.signal, timeout.reset) : responseContent(await response.json());
+            controller.signal.throwIfAborted();
             assertCurrent(op);
             return result;
         } catch (error) {
             if (op.controller.signal.aborted) throw op.controller.signal.reason;
             failure = controller.signal.aborted ? controller.signal.reason : error;
         } finally {
-            clearTimeout(timeout); op.controller.signal.removeEventListener('abort', abort);
+            timeout.clear(); op.controller.signal.removeEventListener('abort', abort);
         }
         console.warn('[BB Enhance] Request failed', { purpose, code: failure?.code || 'network', status: failure?.status ?? httpStatus, elapsedMs: Date.now() - started });
         if (failure?.responseSummary) console.warn('[BB Enhance] Response diagnostic', JSON.stringify({
@@ -895,7 +902,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             ...failure.responseSummary,
         }));
         // Never silently replace a partial/filtered response with a second model's answer.
-        if (!s.fallbackToMain || failure?.partial || ['truncated', 'provider_error', 'prompt_blocked', 'draft_changed', 'stale_chat', 'stale_action', 'non_narrative'].includes(failure?.code)) throw failure;
+        if (!s.fallbackToMain || receivedText || failure?.partial || ['truncated', 'provider_error', 'prompt_blocked', 'draft_changed', 'stale_chat', 'stale_action', 'non_narrative'].includes(failure?.code)) throw failure;
         if (!customApiWarnedThisSession) { customApiWarnedThisSession = true; toastr.warning(t('toast_custom_fallback'), 'BB Enhance'); }
         return runMainGen(promptText, purpose, op);
     }

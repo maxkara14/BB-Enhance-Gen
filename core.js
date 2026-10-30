@@ -8,6 +8,18 @@ export class GenerationError extends Error {
     }
 }
 
+// Streaming requests use this deadline as an idle timeout, renewed by incoming data.
+export function createRequestTimeout(controller, seconds) {
+    const delay = Math.max(15, Math.min(600, Number(seconds) || 120)) * 1000;
+    let timer;
+    function reset() {
+        clearTimeout(timer);
+        if (!controller.signal.aborted) timer = setTimeout(() => controller.abort(new GenerationError('timeout')), delay);
+    }
+    reset();
+    return { reset, clear: () => clearTimeout(timer) };
+}
+
 export function isPromptBlocked(data) {
     return data?.error?.code === 'prompt_blocked' || data?.error?.type === 'prompt_blocked';
 }
@@ -108,7 +120,7 @@ export function responseContent(data) {
     return text;
 }
 
-export async function readStream(response, onChunk, signal) {
+export async function readStream(response, onChunk, signal, onActivity) {
     if (!response.body?.getReader) throw new GenerationError('stream_error');
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -141,6 +153,7 @@ export async function readStream(response, onChunk, signal) {
         while (true) {
             const { value, done } = await reader.read();
             signal?.throwIfAborted();
+            if (value?.byteLength) onActivity?.();
             buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
@@ -152,7 +165,11 @@ export async function readStream(response, onChunk, signal) {
         if (!result.trim()) throw new GenerationError(reasoning ? 'reasoning_only' : 'empty_response');
         return result;
     } catch (error) {
-        if (signal?.aborted) throw signal.reason;
+        if (signal?.aborted) {
+            const reason = signal.reason;
+            if (reason instanceof GenerationError) reason.partial = result;
+            throw reason;
+        }
         if (error instanceof GenerationError) {
             error.responseSummary = { ...lastSummary, events, extractedChars: result.length, reasoningPresent: reasoning, completed };
             throw error;

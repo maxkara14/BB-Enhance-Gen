@@ -127,7 +127,7 @@ Profiles and Custom API need not produce identical results: request assembly and
 | Fast Travel / Time Skip | 2000 |
 | Action Roll question | 500 |
 
-`0` omits the limit; provider limits still apply. Positive values are clamped to 64–8000. Timeout: 15–600 seconds, default 120.
+`0` omits the limit; provider limits still apply. Positive values are clamped to 64–8000. Timeout: 15–600 seconds, default 120. For streaming Custom API and profile requests, this measures the wait for new data rather than the total response duration; incoming data, including reasoning, renews the deadline. Non-streaming requests and the main model retain a total time limit. Once text has arrived, Custom API will not automatically fall back to the main model; text already displayed remains in the composer if the response is interrupted.
 
 ### Context
 
