@@ -1,4 +1,4 @@
-import { GenerationError, createRequestTimeout, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked } from './core.js';
+import { GenerationError, createRequestTimeout, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked, sliceUnicode, wellFormedText } from './core.js';
 import { openModal, textField } from './ui.js';
 import { narrativeContext, validateNarrative } from './narrative.js';
 import { createD20 } from './d20.js';
@@ -323,11 +323,11 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         const native = await substitutePromptMacros('Player: {{user}}\nPersona: {{persona}}\nCharacter: {{char}}\nCharacter description: {{charDescription}}\nScenario: {{scenario}}');
         const canonical = native + '\nAuthor note: ' + String(extras['2_floating_prompt']?.value || '') + '\nSummary: ' + String(extras['1_memory']?.value || '');
         const budget = Math.max(4000, Math.min(60000, Number(s.contextBudget) || 16000));
-        const header = narrativeContext(canonical).slice(0, Math.floor(budget / 2));
+        const header = sliceUnicode(narrativeContext(canonical), 0, Math.floor(budget / 2));
         const sourceChat = contextChat || ctx.chat || [];
         const storyChat = sourceChat.filter(m => !m.is_system).slice(-Math.max(1, Math.min(40, Number(s.contextDepth) || 8)))
             .map(m => ({ ...m, mes: narrativeContext(m.mes) }));
-        const recent = recentContext(storyChat, s.contextDepth, budget - header.length - 40).slice(-(budget - header.length - 40));
+        const recent = sliceUnicode(recentContext(storyChat, s.contextDepth, budget - header.length - 40), -(budget - header.length - 40));
         const mapContext = (writing || type.startsWith('dir_')) ? getOptionalMapContext(s.useMapContext) : '';
         const promptOperation = activeOperation;
         const lore = await collectLoreContext({ enabled: s.useLorebooks, limit: s.lorebookTokenLimit,
@@ -850,6 +850,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
 
     async function generateEnhanceFast(promptText, onChunk, purpose = 'micro', op = activeOperation) {
         assertCurrent(op);
+        promptText = wellFormedText(promptText);
         const s = getSettings();
         if (s.generationSource === 'profile') return runProfileGen(promptText, purpose, op, onChunk);
         if (s.generationSource !== 'custom') return runMainGen(promptText, purpose, op);

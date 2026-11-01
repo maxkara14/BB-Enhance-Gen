@@ -59,6 +59,16 @@ export function parseTransition(text, kind) {
     return { allowed: true, reason: '', options };
 }
 
+// Keep the UTF-16 character budget without splitting a surrogate pair at either edge.
+export function sliceUnicode(text, start, end) {
+    return text.slice(start, end).replace(/^[\uDC00-\uDFFF]|[\uD800-\uDBFF]$/g, '');
+}
+
+// Repair only the outgoing copy, including malformed text supplied by other sources.
+export function wellFormedText(text) {
+    return Array.from(text, char => char.length === 1 && /[\uD800-\uDFFF]/.test(char) ? '\uFFFD' : char).join('');
+}
+
 export function recentContext(chat, depth, budget) {
     const count = Math.max(1, Math.min(40, Math.floor(Number(depth) || 8)));
     const limit = Math.max(2000, Math.min(60000, Math.floor(Number(budget) || 16000)));
@@ -66,7 +76,7 @@ export function recentContext(chat, depth, budget) {
         .map(m => `${m.name || (m.is_user ? 'User' : 'Character')}: ${stripCues(m.mes)}`);
     // Keep the most recent context if a message exceeds the character budget.
     const text = messages.join('\n\n');
-    return text.length > limit ? '[…]\n' + text.slice(-(limit - 5)) : text;
+    return text.length > limit ? '[…]\n' + sliceUnicode(text, -(limit - 5)) : text;
 }
 
 export function fillTemplate(template, values) {

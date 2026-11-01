@@ -4,6 +4,12 @@
 
 ## Русский
 
+### Корректный Unicode в запросах — 1 ноября 2026 (без изменения версии)
+
+- Обрезка описаний и истории больше не разрывает суррогатные пары эмодзи на границе бюджета контекста. Это устраняет источник ошибки API `lone leading surrogate in hex escape`.
+- Перед отправкой через основную модель, профиль или Custom API одиночные суррогаты в тексте запроса заменяются символом замены Unicode. Корректные эмодзи сохраняются; исходные сообщения, карточки и черновики не изменяются.
+- Добавлены проверки границ обрезки, сборки промпта и всех трёх маршрутов запроса.
+
 ### Тайм-аут потоковой генерации — 30 октября 2026 (без изменения версии)
 
 - Потоковые запросы Custom API и профилей подключения прерываются по отсутствию новых данных, а не по общей длительности ответа. Рассуждения тоже продлевают ожидание; Custom API учитывает и служебные пакеты потока.
@@ -95,6 +101,12 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Valid Unicode in requests — November 1, 2026 (no version change)
+
+- Description and history truncation no longer splits emoji surrogate pairs at the context budget boundary, eliminating a source of API errors reporting `lone leading surrogate in hex escape`.
+- Before routing to the main model, a connection profile or Custom API, lone surrogates in the outgoing prompt are replaced with the Unicode replacement character. Valid emoji and original messages, cards and drafts are preserved.
+- Added checks for truncation boundaries, prompt assembly and all three request routes.
 
 ### Streaming generation timeout — October 30, 2026 (no version change)
 

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { GenerationError, readStream, responseContent, isPromptBlocked } from '../core.js';
+import { GenerationError, readStream, responseContent, isPromptBlocked, wellFormedText } from '../core.js';
 import { validateNarrative } from '../narrative.js';
 
 const source = await readFile(new URL('../index.js', import.meta.url), 'utf8');
@@ -19,13 +19,13 @@ function harness(settings = {}) {
     const config = { generationSource: 'custom', customApiUrl: 'https://example.invalid', customApiModel: 'test',
         connectionProfileId: 'profile', requestTimeout: 15, enableStreaming: true, fallbackToMain: true, ...settings };
     const sandbox = {
-        GenerationError, readStream, responseContent, isPromptBlocked,
+        GenerationError, readStream, responseContent, isPromptBlocked, wellFormedText,
         setTimeout(fn, delay) { const id = ++nextId; timers.set(id, { fn, at: now + delay }); return id; },
         clearTimeout(id) { timers.delete(id); },
         AbortController, getSettings: () => config, assertCurrent: op => op.controller.signal.throwIfAborted(),
         resolveMaxTokens: () => 1500, fetch: (...args) => state.fetch(...args),
         profileService: async () => ({ getSupportedProfiles: () => [{ id: 'profile' }], sendRequest: (...args) => state.sendRequest(...args) }),
-        runMainGen: async () => { state.fallbacks++; return 'Fallback reply'; },
+        runMainGen: async prompt => { state.fallbacks++; state.mainPrompt = prompt; return 'Fallback reply'; },
         customApiWarnedThisSession: false, console: { warn() {} },
         toastr: { warning: (...args) => state.warnings.push(args) }, t: key => key,
         document: { getElementById: () => textarea }, SillyTavern: { getContext: () => ctx }, Event,
@@ -47,7 +47,7 @@ function harness(settings = {}) {
         now += ms;
         for (const [id, timer] of [...timers]) if (timer.at <= now && timers.delete(id)) timer.fn();
     };
-    state.run = () => api.generateEnhanceFast('prompt', (_delta, text) => state.chunks.push(text), 'enhance', state.op);
+    state.run = (prompt = 'prompt') => api.generateEnhanceFast(prompt, (_delta, text) => state.chunks.push(text), 'enhance', state.op);
     state.runDraft = () => api.handleGeneration('enhance');
     state.restore = () => api.restoreDraft();
     state.textarea = textarea;
@@ -69,6 +69,24 @@ function harness(settings = {}) {
 }
 
 const event = content => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+
+test('every request route receives well-formed Unicode, preserving normal emoji', async () => {
+    const broken = 'Story 😀 \ud83d end \udc00';
+    const expected = 'Story 😀 \ufffd end \ufffd';
+    for (const generationSource of ['custom', 'profile', 'main']) {
+        const state = harness({ generationSource, enableStreaming: false });
+        let sent;
+        state.fetch = async (_url, options) => {
+            sent = JSON.parse(options.body).messages[1].content;
+            return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'Reply 😀' } }] }) };
+        };
+        state.sendRequest = async (_id, messages) => { sent = messages[1].content; return 'Reply 😀'; };
+        const reply = await state.run(broken);
+        assert.equal(generationSource === 'main' ? state.mainPrompt : sent, expected);
+        assert.equal(reply, generationSource === 'main' ? 'Fallback reply' : 'Reply 😀');
+        assert.equal(state.textarea.value, 'Original draft');
+    }
+});
 
 test('active custom stream outlives the total timeout and cleans up its timer', async () => {
     const state = harness();
