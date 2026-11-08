@@ -4,6 +4,12 @@
 
 ## Русский
 
+### Специальные пробелы в черновиках — 9 ноября 2026 (без изменения версии)
+
+- Очистка заполнителей расширена: помимо U+3164 / U+FFA0, обычными пробелами заменяются U+2800, пробел нулевой ширины, неразрывные, тонкие и другие поддерживаемые специальные пробелы.
+- Замена применяется к черновику в запросе, контексту и генерируемому тексту, включая потоковый вывод. При добавлении перехода или действия карты очищается и сохранённая часть черновика.
+- Эмодзи, соединители букв и переносы строк сохраняются. «Вернуть оригинал» восстанавливает исходный черновик с его первоначальными символами.
+
 ### Корректный Unicode в запросах — 1 ноября 2026 (без изменения версии)
 
 - Обрезка описаний и истории больше не разрывает суррогатные пары эмодзи на границе бюджета контекста. Это устраняет источник ошибки API `lone leading surrogate in hex escape`.
@@ -101,6 +107,12 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### Special spaces in drafts — November 9, 2026 (no version change)
+
+- Expanded filler cleanup: in addition to U+3164 / U+FFA0, ordinary spaces now replace U+2800, zero-width spaces, non-breaking, thin and other supported special spaces.
+- Cleanup applies to the draft in the prompt, context and generated text, including streaming output. Appending a transition or map action also cleans the retained draft prefix.
+- Emoji, writing-system joiners and line breaks are preserved. “Restore original” restores the source draft with its original characters.
 
 ### Valid Unicode in requests — November 1, 2026 (no version change)
 

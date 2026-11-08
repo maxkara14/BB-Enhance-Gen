@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { sliceUnicode, wellFormedText, recentContext, fillTemplate } from '../core.js';
+import { normalizeNarrativeSpaces } from '../narrative.js';
 
 test('prefix and suffix budgets never split an emoji pair', () => {
     const text = 'Кира 😀 👩‍⚕️ 日本語';
@@ -53,9 +54,10 @@ test('actual prompt assembly keeps Unicode valid at header and history budget bo
             substitutePromptMacros: async text => text.startsWith('Player:') ? header : text,
             SillyTavern: { getContext: () => ctx }, getSettings: () => ({ contextBudget: 16000 }),
             narrativeContext: text => text, getOptionalMapContext: () => '', activeOperation: null,
+            normalizeNarrativeSpaces,
             collectLoreContext: async () => '', checkWorldInfo() {}, writingRules: () => '',
         });
-        const result = await makePrompt('enhance', 'Draft 👩‍⚕️', '', 'Keep emoji 😀');
+        const result = await makePrompt('enhance', 'Draft\u2800👩‍⚕️', '', 'Keep emoji 😀');
         assert.equal(result.isWellFormed(), true);
         assert.ok(result.includes('Draft 👩‍⚕️'));
         assert.ok(result.includes('Keep emoji 😀'));

@@ -131,11 +131,38 @@ for (const kind of ['ft', 'ts']) {
         assert(document.querySelector('#send_textarea').value === 'Author intention', 'Author draft lost');
     });
 }
-await test('rewrite failure restores the original reply, user message and draft', async () => {
-    reset('Keep draft'); const original = JSON.stringify(ctx.chat); state.fail = true;
+await test('rewrite failure before text preserves the cue, original reply variant and draft', async () => {
+    reset('Keep draft'); const userText = ctx.chat[0].mes, reply = ctx.chat[1], replyText = reply.mes; state.fail = true;
     await prepare('ts', 'rewrite'); await apply();
-    assert(JSON.stringify(ctx.chat) === original, 'Failed rewrite modified history');
+    // Since Oct 23, failures retain recovery material instead of rolling back the chat.
+    assert(ctx.chat.length === 2 && ctx.chat[1] === reply, 'Failed rewrite replaced history');
+    assert(ctx.chat[0].mes.startsWith(userText) && ctx.chat[0].mes.includes('<system_note>'), 'Original user text or recovery cue lost');
+    assert(reply.mes === replyText && reply.swipes[0] === replyText, 'Original reply variant lost');
     assert(document.querySelector('#send_textarea').value === 'Keep draft', 'Failed rewrite modified draft');
+    assert(state.errors.length === 1, 'Generation failure was not reported');
+});
+await test('streaming rewrite failure saves partial text while retaining the old swipe and draft', async () => {
+    reset('Keep draft'); const oldReply = ctx.chat[1].mes;
+    const generate = ctx.generate, saveChat = ctx.saveChat, saves = [];
+    ctx.saveChat = async () => saves.push(structuredClone(ctx.chat));
+    ctx.generate = async type => {
+        assert(type === 'swipe', 'Unexpected generation mode');
+        setGenerating(true); emit(events.GENERATION_STARTED, type, {}, false);
+        try {
+            const reply = ctx.chat[1]; reply.mes = 'Partial new reply'; reply.swipes[reply.swipe_id] = reply.mes;
+            throw Error('Fixture stream disconnected');
+        } finally { setGenerating(false); emit(events.GENERATION_ENDED); }
+    };
+    try {
+        await prepare('ts', 'rewrite'); await apply();
+        assert(ctx.chat.length === 2, 'Interrupted rewrite replaced history');
+        assert(ctx.chat[1].mes === 'Partial new reply', 'Received text was rolled back');
+        assert(ctx.chat[1].swipes[0] === oldReply && ctx.chat[1].swipes[1] === 'Partial new reply', 'A reply variant was lost');
+        assert(ctx.chat[0].mes.includes('<system_note>'), 'Recovery cue was removed');
+        assert(saves.at(-1)[1].mes === 'Partial new reply', 'Partial reply was not saved after the failure');
+        assert(document.querySelector('#send_textarea').value === 'Keep draft', 'Interrupted rewrite changed draft');
+        assert(state.errors.length === 1, 'Interrupted generation failure was not reported');
+    } finally { ctx.generate = generate; ctx.saveChat = saveChat; }
 });
 await test('changed draft while choosing a transition remains intact', async () => {
     reset(); await prepare('ts', 'continue'); document.querySelector('#send_textarea').value = 'Manual edit'; await apply();
@@ -148,6 +175,23 @@ await test('changed scene invalidates prepared transition', async () => {
 await test('technical model output does not overwrite player draft', async () => {
     reset('Keep draft'); await prepare('ts', 'me'); state.output = '<script>alert(1)</script>'; await apply();
     assert(document.querySelector('#send_textarea').value === 'Keep draft' && ctx.chat.length === 2, 'Technical output applied');
+});
+await test('Enhance cleans braille draft input and generated text, preserving the original for undo', async () => {
+    const original = 'Я\u2800вошла\u3164в комнату. 👩‍⚕️';
+    reset(original); state.output = 'Я\u2800осторожно\u200Bвошла.\n\n👩‍⚕️';
+    document.querySelector('#bb-eg-btn-enhance').click();
+    await until(() => state.prompts.length && document.querySelector('#bb-eg-stop').hidden);
+    assert(state.prompts[0].includes('Я вошла в комнату. 👩‍⚕️'), 'Draft separators reached the prompt');
+    assert(document.querySelector('#send_textarea').value === 'Я осторожно вошла.\n\n👩‍⚕️', 'Generated separators reached the draft');
+    document.querySelector('#bb-eg-undo').click(); await until(() => document.querySelector('#bb-eg-stop').hidden);
+    assert(document.querySelector('#send_textarea').value === original, 'Undo did not restore the exact original');
+});
+await test('player transition cleans the existing draft prefix and restores it exactly on undo', async () => {
+    const original = 'Мой\u2800черновик. 👩‍⚕️';
+    reset(original); await prepare('ts', 'me'); state.output = 'Я\u2800подождала.'; await apply();
+    assert(document.querySelector('#send_textarea').value === 'Мой черновик. 👩‍⚕️\n\nЯ подождала.', 'Appended draft prefix was not normalized');
+    document.querySelector('#bb-eg-undo').click(); await until(() => document.querySelector('#bb-eg-stop').hidden);
+    assert(document.querySelector('#send_textarea').value === original, 'Transition undo changed original separators');
 });
 await test('cancelled API request preserves draft and unlocks controls', async () => {
     reset('Keep draft'); state.pending = true; document.querySelector('#bb-eg-btn-ts').click(); await clickText('Me — draft');

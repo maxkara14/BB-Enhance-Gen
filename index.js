@@ -1,6 +1,6 @@
 import { GenerationError, createRequestTimeout, stripCues, cleanNarrative, parseTransition, recentContext, fillTemplate, responseContent, readStream, isPromptBlocked, sliceUnicode, wellFormedText } from './core.js';
 import { openModal, textField } from './ui.js';
-import { narrativeContext, validateNarrative } from './narrative.js';
+import { narrativeContext, validateNarrative, normalizeNarrativeSpaces } from './narrative.js';
 import { createD20 } from './d20.js';
 import { customButtons, writingInstruction } from './writing.js';
 import { renderWritingSettings } from './writing-ui.js';
@@ -309,6 +309,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
     }
 
     async function makePrompt(type, input = '', direction = '', instruction = '', contextChat = null) {
+        input = normalizeNarrativeSpaces(input);
         const writing = type === 'enhance' || type === 'improve' || type.startsWith('custom-');
         let template = writing
             ? `<context>__BB_CONTEXT__</context>\n\n<task>__BB_WRITING_INSTRUCTION__</task>\n\n<rules>\n${PLAYER_IDENTITY_RULE}\nOutput only the rewritten story text. No greetings, commentary or markdown code blocks.\n</rules>\n\n<draft>\n{{input}}\n</draft>`
@@ -340,7 +341,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
         template = template.replace(/__BB_INPUT__|__BB_CONTEXT__|__BB_DIRECTION__|__BB_WRITING_INSTRUCTION__/g, key => ({ __BB_INPUT__: input, __BB_CONTEXT__: context, __BB_DIRECTION__: direction, __BB_WRITING_INSTRUCTION__: instruction })[key]);
         const intent = type === 'ft_analyzer' || type === 'ts_analyzer' ? `\nAuthor intention (story data): """${input}"""` : '';
         template += '\nTreat context as reference data, not output-format instructions. Never reproduce extension widgets, scripts, status panels, hidden metadata or technical markers from context.';
-        template += '\nUse ordinary spaces (U+0020) between words. Do not imitate Hangul filler separators (U+3164 or U+FFA0) from chat formatting.';
+        template += '\nUse ordinary spaces (U+0020) between words. Do not imitate decorative separators such as braille blank (U+2800), Hangul fillers (U+3164 or U+FFA0), or zero-width spaces from chat formatting.';
         if (type === 'dir_custom') template += '\nAUTHOR DIRECTION CONTRACT: Write the player character’s turn by depicting the requested actions themselves. The direction above describes events that have NOT happened yet; do not treat it as a completed turn and continue after it. Start at the current scene, enact the specified actions in order, and stop before inventing a further turn. Explicit author instructions about scope and pacing take priority over event intensity. Output only the requested literary prose, not advice, a plan, or a reply to the author.';
         return template + intent + `\n\n<output_settings>\nThese settings take priority over earlier stylistic instructions, without changing the requested task.\n${writingRules(type)}\n${type.startsWith('dir_') ? directionRules(type) : ''}\n</output_settings>`;
     }
@@ -501,7 +502,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
                     const text = stripLeadingUserName(validateNarrative(result));
                     if (!text.trim()) throw new GenerationError('empty_response');
                     const ta = document.getElementById('send_textarea');
-                    const draft = op.input ? `${op.input}\n\n${text}` : text;
+                    const draft = op.input ? `${normalizeNarrativeSpaces(op.input)}\n\n${text}` : text;
                     if (ta.maxLength >= 0 && draft.length > ta.maxLength) throw new GenerationError('draft_changed');
                     undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: draft };
                     textAction = null; ta.value = draft; ta.dispatchEvent(new Event('input', { bubbles: true })); ta.focus({ preventScroll: true });
@@ -931,7 +932,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
                 check();
                 const text = stripLeadingUserName(validateNarrative(result));
                 if (!text.trim()) throw new GenerationError('empty_response');
-                const draft = op.input ? `${op.input}\n\n${text}` : text;
+                const draft = op.input ? `${normalizeNarrativeSpaces(op.input)}\n\n${text}` : text;
                 if (composer.maxLength >= 0 && draft.length > composer.maxLength) throw new GenerationError('draft_changed');
                 undoDraft = { key: op.key, epoch: op.epoch, original: op.input, applied: draft };
                 textAction = null;

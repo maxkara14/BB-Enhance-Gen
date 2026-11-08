@@ -1,9 +1,13 @@
 import { cleanNarrative, GenerationError, stripCues } from './core.js';
 
+export function normalizeNarrativeSpaces(text) {
+    // Replace decorative separators only; preserve line breaks, emoji joiners,
+    // actual letters and the untouched source draft used by Undo.
+    return String(text ?? '').replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u2800\u3000\uFEFF\u115F\u1160\u3164\uFFA0]/g, ' ');
+}
+
 function cleanText(text) {
-    // Some chat styles use Hangul fillers as word separators. Do not copy them
-    // into player drafts; preserve actual Unicode letters, emoji and formatting.
-    return cleanNarrative(String(text || '').replace(/[\u3164\uffa0]/g, ' '));
+    return cleanNarrative(normalizeNarrativeSpaces(text));
 }
 
 // Parse only a detached template: context markup is never attached or executed.
