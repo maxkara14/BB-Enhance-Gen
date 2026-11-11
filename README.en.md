@@ -4,11 +4,15 @@
 
 A **SillyTavern** panel for writing your character’s turns, editing drafts, directing events, rolling a d20 and moving between scenes. Open it with **E** next to the chat input.
 
-**Version 1.5.0**
+**Version 1.6.0**
 
-Version **1.5.0** adds custom draft-processing buttons and editable Enhance / Improve instructions.
+Version **1.6.0** adds RPG ability turns. Custom draft-processing buttons and editable Enhance / Improve instructions remain available.
 
 ## ✨ Features
+
+### Fantasy RPG integration
+
+With BB Fantasy RPG 0.21.0+, first choose **Through Enhance** as the action-writing method in RPG settings. RPG defaults to plain text and works without Enhance. Select an active ability or item power, describe your intention and choose **Prepare turn**. RPG supplies accepted mechanics and current effects; Enhance uses its own connection, persona, language, narrative person and Director token limit. **Agree** on an offered quest also prepares an in-character response using its existing terms, without inventing completion or payment. The new action is appended to the draft without sending or spending RPG resources. Cancellation, draft edits and changed context prevent stale insertion. Cancel from the **E** panel; **Restore original** returns the previous draft. Update both extensions; Fantasy RPG remains optional.
 
 ### Interactive Map integration
 

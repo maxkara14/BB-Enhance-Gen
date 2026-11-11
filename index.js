@@ -5,7 +5,7 @@ import { createD20 } from './d20.js';
 import { customButtons, writingInstruction } from './writing.js';
 import { renderWritingSettings } from './writing-ui.js';
 import { getOptionalMapContext } from './map-context.js';
-import { PLAYER_ACTION_API_VERSION, mapTravelDirection } from './player-action.js';
+import { PLAYER_ACTION_API_VERSION, PLAYER_ACTION_KINDS, playerActionDirection } from './player-action.js';
 import { isGenerating, ensureSwipes, syncMesToSwipe } from '../../../../script.js';
 import { checkWorldInfo } from '../../../world-info.js';
 import { getRegexedString, regex_placement } from '../../regex/engine.js';
@@ -15,7 +15,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
 (function () {
     'use strict';
     const MODULE_NAME = "BB-Enhance-Gen";
-    const VERSION = '1.5.0';
+    const VERSION = '1.6.0';
     const HISTORY_KEY = 'bb-enhance-gen.rollHistory';
     const HISTORY_MAX = 10;
 
@@ -34,6 +34,8 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
     const PLAYER_IDENTITY_RULE = `CANONICAL PLAYER IDENTITY: {{user}} is the player/protagonist described in the Player persona description. Never change {{user}}'s race, age, role, appearance, equipment, backstory, or personality. If the narrative direction mentions {{user}} by name, it refers to this same player character, not a new NPC.`;
 
     const TEMPLATES = {
+        rpg_quest: `<context>__BB_CONTEXT__</context>\n<task>Write a brief in-character response by the player consenting to the offered quest below. Start at the current conversation and express agreement in the player's voice.\n{{customDirection}}\n</task>\n<rules>\n${PLAYER_IDENTITY_RULE}\nAccept only the established terms. Do not invent new promises, successful travel, quest progress or completion, reward receipt, resource changes or another character's reply. Stop after the player's agreement. Preserve the existing draft and append only the new response. Output literary prose or dialogue only, without panels, technical markers or commentary.\n</rules>\n<existing_draft>{{input}}</existing_draft>`,
+        rpg_ability: `<context>__BB_CONTEXT__</context>\n<task>Write a short literary turn for the player character attempting to use the selected RPG ability according to the player's intention. Start at the current scene.\n{{customDirection}}\n</task>\n<rules>\n${PLAYER_IDENTITY_RULE}\nRespect the accepted ability, equipment ownership, costs, limits and current effects. Describe only the player's attempted action. Do not invent successful hits, victory, damage results, new powers, resource changes, or another character's actions or reactions. The narrator establishes the outcome. Stop before the next character's turn. Do not repeat or rewrite the existing draft; it is preserved and the new action appended. Output only literary prose, without stat panels, technical markers or commentary.\n</rules>\n<existing_draft>{{input}}</existing_draft>`,
         map_travel: `<context>__BB_CONTEXT__</context>\n<task>Write a short literary action from the player character's perspective: attempt to move from the source zone to the destination in the reference data below. Follow the optional player intention. Describe the action itself, starting at the current scene.\n{{customDirection}}\n</task>\n<rules>\n${PLAYER_IDENTITY_RULE}\nUse established surroundings and objects. Do not invent successful arrival, automatic damage, rolls, obstacles, or another character's actions or reactions. Stop before the next character's turn. Output only the new action prose, without zone labels, routes, technical markers, or commentary. Do not repeat or rewrite the existing draft; it will be preserved and your action appended.\n</rules>\n<existing_draft>{{input}}</existing_draft>`,
         dir_disaster: `<context>\n${PLAYER_CONTEXT}\nCurrent chat character: {{char}}\nScene: {{authorsNote}}\nStory Summary: {{summary}}\nPrevious Context: """{{lastMessage}}"""\n</context>\n\n<task>\nWrite the next segment of this story from the perspective of {{user}}. Introduce a DRAMATIC DISRUPTION, DANGER, or BAD EVENT.\n</task>\n\n<rules>\n1. ${PLAYER_IDENTITY_RULE}\n2. Do not introduce {{user}} as a stranger, new candidate, or different species if the context already contains them.\n3. Create a sharp conflict, physical danger, bad news, or painful memory.\n4. Use the current location and objects explicitly.\n5. STRICT IN-CHARACTER RULE: The event must be logically grounded in the setting. Other characters must react STRICTLY according to their established personalities. DO NOT break character logic.\n6. Keep it highly tense. DO NOT resolve the situation yet.\n7. Output ONLY the pure story text without meta-commentary.\n</rules>`,
         
@@ -910,7 +912,8 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
     }
 
     async function generatePlayerAction(request) {
-        const direction = mapTravelDirection(request);
+        const kind = request?.kind;
+        const direction = playerActionDirection(request);
         const signal = request.signal;
         return withBusyLock(async op => {
             op.isExternalCurrent = request.isCurrent;
@@ -925,7 +928,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             signal?.addEventListener('abort', abort, { once: true });
             try {
                 check(); updateBusyBadge();
-                const prompt = await makePrompt('map_travel', op.input, direction);
+                const prompt = await makePrompt(kind, op.input, direction);
                 check();
                 // Buffer even streaming providers: failed/stale actions never alter the draft.
                 const result = await generateEnhanceFast(prompt, undefined, 'director', op);
@@ -1543,7 +1546,7 @@ import { transitionChat, transitionText, appendTransition, captureTransitionChat
             if (activeOperation?.mainRequest && !activeOperation.controller.signal.aborted) activeOperation.controller.abort(new DOMException('Stopped', 'AbortError'));
             updateBusyBadge();
         });
-        globalThis.BBEnhanceGen = Object.freeze({ apiVersion: PLAYER_ACTION_API_VERSION, generatePlayerAction });
+        globalThis.BBEnhanceGen = Object.freeze({ apiVersion: PLAYER_ACTION_API_VERSION, actionKinds: PLAYER_ACTION_KINDS, generatePlayerAction });
         window.dispatchEvent(new CustomEvent('bb-enhance-gen:ready'));
         injectToolbar(); injectSettingsPanel();
     });

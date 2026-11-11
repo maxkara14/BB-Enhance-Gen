@@ -4,6 +4,13 @@
 
 ## Русский
 
+### RPG-умения — 1.6.0 · 11 ноября 2026
+
+- Необязательное API действий поддерживает `rpg_ability`: принятое умение, его механики, состояние героя и намерение игрока.
+- `rpg_quest` готовит согласие на предложенное задание по существующим условиям, без автоматического принятия, выполнения или оплаты.
+- Подготовка использует прежние подключение, блокировку генерации, отмену, защиту черновика и возврат оригинала. Модель описывает попытку, а не результат боя; сообщения и ресурсы RPG не меняются.
+- API v1 и `map_travel` совместимы; новые клиенты проверяют объявленные `actionKinds`.
+
 ### Специальные пробелы в черновиках — 9 ноября 2026 (без изменения версии)
 
 - Очистка заполнителей расширена: помимо U+3164 / U+FFA0, обычными пробелами заменяются U+2800, пробел нулевой ширины, неразрывные, тонкие и другие поддерживаемые специальные пробелы.
@@ -107,6 +114,13 @@
 - Блокировка запроса провайдером не снимается расширением. При явном `prompt_blocked` показывается причина без автоматического перехода на другую модель.
 
 ## English
+
+### RPG ability turns — 1.6.0 · November 11, 2026
+
+- Optional player action API adds `rpg_ability` for accepted mechanics, current state and player intention.
+- `rpg_quest` prepares player consent to offered quest terms without changing quest state, completion or rewards.
+- Uses the existing connection, generation lock, cancellation, draft protection and restore-original flow. Only an attempted turn is written; RPG state and messages are untouched.
+- API v1 and `map_travel` remain compatible; new callers check advertised `actionKinds`.
 
 ### Special spaces in drafts — November 9, 2026 (no version change)
 
